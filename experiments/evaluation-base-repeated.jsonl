@@ -1,0 +1,35 @@
+{"name":"2026 total","pass":true,"first_ms":43.96,"warm_ms":[0.51,0.29,0.27,0.24,0.23],"bytes":17562,"ids":["04ea9506e9f6283a0f89:p1"]}
+{"name":"2026 youth rental","pass":true,"first_ms":218.64,"warm_ms":[43.66,28.66,22.97,23.13,23.14],"bytes":33091,"ids":["32c9f094ec3f79fa18d0:p345","6e730799a151af5944c2:p371"]}
+{"name":"2026 performance intent","pass":true,"first_ms":121.99,"warm_ms":[0.44,0.22,0.16,0.15,0.14],"bytes":18804,"ids":["69db4859ea4e4c122505:p636"]}
+{"name":"2026 research center","pass":true,"first_ms":136.4,"warm_ms":[0.44,0.31,0.29,0.24,0.24],"bytes":23526,"ids":["ecf3620a37b739b371c6:p21"]}
+{"name":"2007 spreadsheet","pass":true,"first_ms":80.29,"warm_ms":[0.31,0.17,0.15,0.14,0.17],"bytes":19609,"ids":["b6b50280e845dfee8282:p775"]}
+{"name":"no results","pass":true,"first_ms":26.53,"warm_ms":[0.28,0.1,0.08,0.09,0.08],"bytes":9476,"ids":[]}
+{"name":"year comparison","pass":true,"first_ms":188.21,"warm_ms":[20.18,26.32,19.66,27.25,18.35],"bytes":130636,"ids":["b7ec9860cde5eb1d050f:p1200","b7ec9860cde5eb1d050f:p1291","32c9f094ec3f79fa18d0:p111","43d7bd93c3bbe86560a1:p557"]}
+{"name":"2026 total","pass":true,"first_ms":49.01,"warm_ms":[0.64,0.39,0.3,0.25,0.34],"bytes":17562,"ids":["04ea9506e9f6283a0f89:p1"]}
+{"name":"2026 youth rental","pass":true,"first_ms":217.77,"warm_ms":[23.76,23.71,21.43,21.62,21.68],"bytes":33091,"ids":["32c9f094ec3f79fa18d0:p345","6e730799a151af5944c2:p371"]}
+{"name":"2026 performance intent","pass":true,"first_ms":109.58,"warm_ms":[0.33,0.2,0.14,0.13,0.13],"bytes":18802,"ids":["69db4859ea4e4c122505:p636"]}
+{"name":"2026 research center","pass":true,"first_ms":133.85,"warm_ms":[0.59,0.31,0.24,0.27,0.3],"bytes":23526,"ids":["ecf3620a37b739b371c6:p21"]}
+{"name":"2007 spreadsheet","pass":true,"first_ms":80.35,"warm_ms":[0.46,0.2,0.27,0.22,0.2],"bytes":19611,"ids":["b6b50280e845dfee8282:p775"]}
+{"name":"no results","pass":true,"first_ms":23.09,"warm_ms":[0.28,0.12,0.09,0.09,0.16],"bytes":9476,"ids":[]}
+{"name":"year comparison","pass":true,"first_ms":185.92,"warm_ms":[20.42,26.55,21.48,34.85,27.53],"bytes":130636,"ids":["b7ec9860cde5eb1d050f:p1200","b7ec9860cde5eb1d050f:p1291","32c9f094ec3f79fa18d0:p111","43d7bd93c3bbe86560a1:p557"]}
+{"name":"2026 total","pass":true,"first_ms":73.14,"warm_ms":[0.8,0.53,0.5,0.3,0.31],"bytes":17562,"ids":["04ea9506e9f6283a0f89:p1"]}
+{"name":"2026 youth rental","pass":true,"first_ms":242.61,"warm_ms":[22.65,21.76,19.95,21.02,21.85],"bytes":33091,"ids":["32c9f094ec3f79fa18d0:p345","6e730799a151af5944c2:p371"]}
+{"name":"2026 performance intent","pass":true,"first_ms":111.21,"warm_ms":[0.39,0.26,0.16,0.13,0.13],"bytes":18804,"ids":["69db4859ea4e4c122505:p636"]}
+{"name":"2026 research center","pass":true,"first_ms":125.96,"warm_ms":[0.43,0.27,0.23,0.21,0.27],"bytes":23526,"ids":["ecf3620a37b739b371c6:p21"]}
+{"name":"2007 spreadsheet","pass":true,"first_ms":72.05,"warm_ms":[0.31,0.17,0.15,0.15,0.17],"bytes":19609,"ids":["b6b50280e845dfee8282:p775"]}
+{"name":"no results","pass":true,"first_ms":24.29,"warm_ms":[0.23,0.09,0.12,0.14,0.1],"bytes":9476,"ids":[]}
+{"name":"year comparison","pass":true,"first_ms":201.14,"warm_ms":[21.77,25.49,18.42,26.79,17.59],"bytes":130636,"ids":["b7ec9860cde5eb1d050f:p1200","b7ec9860cde5eb1d050f:p1291","32c9f094ec3f79fa18d0:p111","43d7bd93c3bbe86560a1:p557"]}
+{"name":"2026 total","pass":true,"first_ms":43.78,"warm_ms":[0.52,0.3,0.28,0.26,0.21],"bytes":17562,"ids":["04ea9506e9f6283a0f89:p1"]}
+{"name":"2026 youth rental","pass":true,"first_ms":201.38,"warm_ms":[19.07,21.31,21.28,19.24,20.69],"bytes":33091,"ids":["32c9f094ec3f79fa18d0:p345","6e730799a151af5944c2:p371"]}
+{"name":"2026 performance intent","pass":true,"first_ms":105.08,"warm_ms":[0.33,0.2,0.14,0.14,0.13],"bytes":18802,"ids":["69db4859ea4e4c122505:p636"]}
+{"name":"2026 research center","pass":true,"first_ms":128.41,"warm_ms":[0.46,0.26,0.22,0.21,0.2],"bytes":23526,"ids":["ecf3620a37b739b371c6:p21"]}
+{"name":"2007 spreadsheet","pass":true,"first_ms":69.79,"warm_ms":[0.34,0.17,0.15,0.15,0.18],"bytes":19611,"ids":["b6b50280e845dfee8282:p775"]}
+{"name":"no results","pass":true,"first_ms":20.83,"warm_ms":[0.18,0.09,0.08,0.07,0.08],"bytes":9476,"ids":[]}
+{"name":"year comparison","pass":true,"first_ms":182.86,"warm_ms":[19.65,27.68,17.29,30.65,19.07],"bytes":130636,"ids":["b7ec9860cde5eb1d050f:p1200","b7ec9860cde5eb1d050f:p1291","32c9f094ec3f79fa18d0:p111","43d7bd93c3bbe86560a1:p557"]}
+{"name":"2026 total","pass":true,"first_ms":43.49,"warm_ms":[0.54,0.3,0.3,0.24,0.22],"bytes":17562,"ids":["04ea9506e9f6283a0f89:p1"]}
+{"name":"2026 youth rental","pass":true,"first_ms":199.22,"warm_ms":[19.83,21.29,20.75,19.35,20.9],"bytes":33091,"ids":["32c9f094ec3f79fa18d0:p345","6e730799a151af5944c2:p371"]}
+{"name":"2026 performance intent","pass":true,"first_ms":111.23,"warm_ms":[0.33,0.2,0.14,0.13,0.17],"bytes":18804,"ids":["69db4859ea4e4c122505:p636"]}
+{"name":"2026 research center","pass":true,"first_ms":126.48,"warm_ms":[0.44,0.25,0.22,0.2,0.2],"bytes":23526,"ids":["ecf3620a37b739b371c6:p21"]}
+{"name":"2007 spreadsheet","pass":true,"first_ms":70.49,"warm_ms":[0.3,0.17,0.15,0.15,0.17],"bytes":19611,"ids":["b6b50280e845dfee8282:p775"]}
+{"name":"no results","pass":true,"first_ms":21.16,"warm_ms":[0.26,0.1,0.09,0.07,0.06],"bytes":9476,"ids":[]}
+{"name":"year comparison","pass":true,"first_ms":177.73,"warm_ms":[18.44,26.12,16.87,26.48,17.1],"bytes":130636,"ids":["b7ec9860cde5eb1d050f:p1200","b7ec9860cde5eb1d050f:p1291","32c9f094ec3f79fa18d0:p111","43d7bd93c3bbe86560a1:p557"]}

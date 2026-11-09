@@ -127,3 +127,85 @@ test('cache avoids asset reads and isolates filters; no external generation key 
  const {data:openapi}=await get('/openapi.json');assert.deepEqual(openapi.security,[]);assert(openapi.paths['/api/research'].get.operationId);assert(!Object.values(openapi.paths).some(v=>v.post));
  const source=await readFile('worker/server.js','utf8');assert(!source.includes('api.openai.com'));assert(!source.includes('OPENAI_API_KEY'));assert(!source.includes('answer_budget'));
 });
+
+test('comparison reports unverified evidence, respects limit and keeps source provenance',async()=>{
+ const {result:r}=await rpc('tools/call',{name:'budget_research',arguments:{query:'2025년과 2026년 반도체 인력양성 예산 비교',limit:1}});
+ assert.equal(r.isError,false);const d=r.structuredContent;
+ assert.equal(d.comparison.status,'unverified');assert.equal(d.per_year.length,2);
+ assert(d.per_year.every(y=>y.evidence.length<=1));
+ assert.deepEqual(d.comparison.missing_years,d.comparison.years.filter(y=>!y.evidence_count).map(y=>y.year));
+ for(const e of d.evidence){const {data:p,status}=await get('/api/page?'+new URLSearchParams({document_id:e.document_id,page:e.page}));assert.equal(status,200);assert.equal(e.text,Array.from(p.text).slice(e.context.start,e.context.end).join(''));assert.equal(e.unit,p.unit);assert.equal(e.source_url,p.source_url);assert.equal(e.year,p.year);}
+});
+
+test('compact comparison preserves complete evidence through explicit references',async()=>{
+ const args={query:'2025년과 2026년 반도체 인력양성 예산 비교',limit:2};
+ const full=(await rpc('tools/call',{name:'budget_research',arguments:args})).result.structuredContent;
+ const compact=(await rpc('tools/call',{name:'budget_research',arguments:{...args,response_format:'compact'}})).result.structuredContent;
+ assert.deepEqual(compact.evidence,full.evidence);assert.deepEqual(compact.comparison,full.comparison);
+ for(let i=0;i<full.per_year.length;i++){
+  const index=new Map(compact.evidence.map(e=>[e.id,e]));
+  assert.deepEqual(compact.per_year[i].evidence_ids.map(id=>index.get(id)),full.per_year[i].evidence);
+ }
+ assert(Buffer.byteLength(JSON.stringify(compact))<Buffer.byteLength(JSON.stringify(full)));
+});
+
+test('verified Excel context is scoped to matching source block',async()=>{
+ const q='2007년 본예산 중앙도서관 로비 조명보수공사 예산';
+ const {data:r,status}=await get('/api/research?'+new URLSearchParams({query:q,limit:1}));assert.equal(status,200);
+ const e=r.evidence[0];assert.equal(e.id,'b6b50280e845dfee8282:p775');assert.equal(e.unit,'원문 확인');assert.equal(e.pdf_page,null);
+ assert.equal(e.table_context.amount_cell,'J5125');assert.equal(e.table_context.unit_header.cell,'I2');assert.equal(e.table_context.amount,4000);
+ const {data:p}=await get('/api/page?'+new URLSearchParams({document_id:e.document_id,page:e.page}));assert.deepEqual(p.table_context,e.table_context);
+ const {data:other}=await get('/api/page?'+new URLSearchParams({document_id:e.document_id,page:774}));assert.equal(other.table_context,undefined);
+});
+
+test('repeat research reuses bounded evidence without asset reads or changing sources',async()=>{
+ const query='2026년 본예산 청년월세 지원사업';const url='/api/research?'+new URLSearchParams({query,limit:4});
+ const first=await get(url);assert.equal(first.status,200);assert(first.data.evidence.length>1);
+ const strict={ASSETS:{fetch(){throw Error('unexpected asset read')}}};
+ const res=await worker.fetch(new Request('https://test.local'+url),strict);assert.equal(res.status,200);const second=await res.json();
+ assert.deepEqual(second.evidence,first.data.evidence);assert.equal(second.retrieval.cache_hit,true);
+ const different=await get('/api/research?'+new URLSearchParams({query:'2025년 본예산 청년월세 지원사업',limit:4}));
+ assert(different.data.evidence.every(e=>e.year===2025));
+});
+
+test('simultaneous repeated and mixed-year questions retain matching evidence',async()=>{
+ const query='2026년 본예산 청년월세 지원사업';const url='/api/research?'+new URLSearchParams({query,limit:2});
+ const responses=await Promise.all(Array.from({length:8},()=>get(url)));assert(responses.every(x=>x.status===200));
+ for(const r of responses)assert.deepEqual(r.data.evidence,responses[0].data.evidence);
+ const mixed=await Promise.all([2025,2026].map(year=>get('/api/research?'+new URLSearchParams({query:'청년월세',year,budget_type:'본예산',limit:2}))));
+ assert(mixed.every((r,i)=>r.status===200&&r.data.evidence.every(e=>e.year===[2025,2026][i]&&e.budget_type==='본예산')));
+});
+
+test('contradictory year controls return an explicit error and normal request still works',async()=>{
+ for(const args of [{query:'2025년 청년월세',year:2026},{query:'2025년 도서관 예산',year_scope:'all'}]){
+  const {result:r}=await rpc('tools/call',{name:'budget_research',arguments:args});assert.equal(r.isError,true);assert.match(r.content[0].text,/충돌|다릅니다/);
+ }
+ const {result:ok}=await rpc('tools/call',{name:'budget_research',arguments:{query:'2025년 본예산 청년월세',limit:1}});assert.equal(ok.isError,false);assert(ok.structuredContent.evidence.every(e=>e.year===2025&&e.budget_type==='본예산'));
+});
+
+test('same-year budget and settlement comparison searches both explicit types independently',async()=>{
+ const {result:r}=await rpc('tools/call',{name:'budget_research',arguments:{query:'2025년 본예산과 결산 청년월세 비교',limit:2}});
+ assert.equal(r.isError,false);const d=r.structuredContent;assert.equal(d.type_comparison.status,'unverified');assert.deepEqual(d.type_comparison.requested_types,['본예산','결산']);
+ assert.deepEqual(d.per_type.map(p=>p.filters.budget_type),['본예산','결산']);assert(d.per_type.every(p=>p.evidence.every(e=>e.year===2025&&e.budget_type===p.filters.budget_type)));
+ assert.deepEqual(d.type_comparison.missing_types,d.per_type.filter(p=>!p.evidence.length).map(p=>p.filters.budget_type));
+ assert(!d.evidence.some(e=>e.budget_type==='추경'));
+});
+
+test('type comparison compact form retains references and mixed performance intent',async()=>{
+ const args={query:'2025년 본예산과 결산 청년월세 비교',limit:1};
+ const full=(await rpc('tools/call',{name:'budget_research',arguments:args})).result.structuredContent;
+ const compact=(await rpc('tools/call',{name:'budget_research',arguments:{...args,response_format:'compact'}})).result.structuredContent;
+ const byId=new Map(compact.evidence.map(e=>[e.id,e]));assert.deepEqual(compact.per_type.map(p=>p.evidence_ids.map(id=>byId.get(id))),full.per_type.map(p=>p.evidence));
+});
+
+test('explicit multi-year comparison does not silently narrow to year parameter',async()=>{
+ const {result:r}=await rpc('tools/call',{name:'budget_research',arguments:{query:'2025년과 2026년 청년월세 비교',year:2025}});
+ assert.equal(r.isError,true);assert.match(r.content[0].text,/year 인자를 빼고/);
+ const {result:ok}=await rpc('tools/call',{name:'budget_research',arguments:{query:'2025년과 2026년 청년월세 비교',limit:1}});
+ assert.equal(ok.isError,false);assert.deepEqual(ok.structuredContent.per_year.map(p=>p.filters.year),[2025,2026]);
+});
+
+test('page unit does not claim to apply to every amount in mixed-unit text',async()=>{
+ const {data:p,status}=await get('/api/page?document_id=fe0548f98abd4cb6599b&page=417');assert.equal(status,200);
+ assert.equal(p.unit,'원');assert.match(p.unit_scope,/직접 붙은 단위/);assert.match(p.text,/2,735백만원/);assert.match(p.text,/단위\s*:\s*원/);
+});

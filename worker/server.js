@@ -1,4 +1,8 @@
 import {budgetClassification} from './classification.js';
+import {comparisonStatus} from './comparison.js';
+import {EvidenceCache} from './evidence-cache.js';
+import {Inflight} from './inflight.js';
+import {verifiedTableContext} from './verified-table-context.js';
 import {POLICY,SERVER_RULES,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePriority} from './policy.js';
 import {vectorSearch,rerank} from './semantic.js';
 import {openapi} from './openapi.js';
@@ -27,7 +31,8 @@ function groups(q){return retrievalWords(q).filter(w=>!['대한','관한'].inclu
 function cite(d,p){let isBlock=d.locator_kind==='text_block',isArchive=d.filename.toLowerCase().endsWith('.zip'),member=p[6];
  let kind=isBlock?'text_block':isArchive?'archive_pdf_page':'pdf_page',pdfPage=isBlock?null:isArchive?(member?.page??null):p[1];
  let label=isBlock?'본문 블록 '+p[1]+' (쪽수 아님)':isArchive?(member?'ZIP '+member.member+' · PDF '+member.page+'쪽':'ZIP 내부 위치 '+p[1]+' (통합 쪽수 아님)'):'PDF '+p[1]+'쪽';
- return{document_id:d.id,title:d.title,year:d.year,budget_type:d.budget_type,revision:d.revision,account:d.account,category:d.category,source_family:sourceFamily(d),page:p[1],pdf_page:pdfPage,locator_kind:kind,locator_label:label,archive_member:member?.member??null,printed_page:p[3],unit:p[2]||'원문 확인',source_url:d.url,page_url:isBlock||isArchive?d.url:d.url+'#page='+p[1],source_page:d.source_page,sha256:d.sha256};}
+ const tableContext=verifiedTableContext(d,p[1],p[4]);
+ return{document_id:d.id,title:d.title,year:d.year,...(tableContext?{table_context:tableContext}:{}),budget_type:d.budget_type,revision:d.revision,account:d.account,category:d.category,source_family:sourceFamily(d),page:p[1],pdf_page:pdfPage,locator_kind:kind,locator_label:label,archive_member:member?.member??null,printed_page:p[3],unit:p[2]||'원문 확인',unit_scope:p[2]?'원문 일부의 단위 표기입니다. 숫자에 직접 붙은 단위와 표제의 적용 범위를 확인하세요.':'단위 표기를 확인하지 못했습니다. 원문을 확인하세요.',source_url:d.url,page_url:isBlock||isArchive?d.url:d.url+'#page='+p[1],source_page:d.source_page,sha256:d.sha256};}
 function termBucket(word){let h=2166136261;for(let b of new TextEncoder().encode(word))h=Math.imul(h^b,16777619)>>>0;return(h&255).toString(16).padStart(2,'0');}
 function shardFor(globalPage){let lo=0,hi=CATALOG.shards.length-1;while(lo<=hi){let mid=(lo+hi)>>1,s=CATALOG.shards[mid];if(globalPage<s.offset)hi=mid-1;else if(globalPage>=s.offset+s.pages)lo=mid+1;else return s;}return null;}
 const rank=(a,b)=>b.score-a.score||((DOCS.get(b.p[0]).year||0)-(DOCS.get(a.p[0]).year||0));
@@ -77,37 +82,60 @@ async function uncachedSearch(env,input){
 
  const hydrated=Date.now();await rerank(vec,candidates);if(a.mode!=='vector')candidates.sort((x,y)=>Number(!!y.exact_match)-Number(!!x.exact_match)||Number(!!y.business_match)-Number(!!x.business_match)||Number(!!y.classification.matched_paths.length)-Number(!!x.classification.matched_paths.length)||y.source_priority-x.source_priority||y.score-x.score);const rerankedAt=Date.now();let seen=new Set(),results=[];
  const verifiedOnly=a.mode!=='vector'&&candidates.some(c=>c.exact_match||c.business_match);
- for(let c of candidates){if(seen.has(c.p[4])||(verifiedOnly&&!c.exact_match&&!c.business_match))continue;if(!c.lexical_rank&&!c.exact_match&&!c.business_match&&c.cosine<0.2)continue;seen.add(c.p[4]);results.push({id:c.d.id+':p'+c.p[1],...cite(c.d,c.p),source_family:c.classification.status==='layout_extracted'?'expenditure':sourceFamily(c.d),gid:c.gid,score:+c.score.toFixed(6),excerpt:c.text,classification:c.classification,excerpt_is_partial:c.text.length<c.full_length,chunk:{start:c.start,end:c.end,offset_unit:'Unicode code points'},retrieval_scores:{cosine:+c.cosine.toFixed(6),token_maxsim:+c.maxsim.toFixed(6),rrf:+c.rrf.toFixed(6),vector_rank:c.vector_rank,lexical_rank:c.lexical_rank,exact_phrase:c.exact_match?.phrase??null,business_terms:c.business_match?.words??null}});if(results.length>=a.limit)break;}
+ for(let c of candidates){if(seen.has(c.p[4])||(verifiedOnly&&!c.exact_match&&!c.business_match))continue;if(!c.lexical_rank&&!c.exact_match&&!c.business_match&&c.cosine<0.2)continue;seen.add(c.p[4]);results.push({id:c.d.id+':p'+c.p[1],...cite(c.d,c.p),source_family:c.classification.status==='layout_extracted'?'expenditure':sourceFamily(c.d),gid:c.gid,score:+c.score.toFixed(6),excerpt:c.text,classification:c.classification,excerpt_is_partial:c.start>0||c.end<c.full_length,chunk:{start:c.start,end:c.end,offset_unit:'Unicode code points'},retrieval_scores:{cosine:+c.cosine.toFixed(6),token_maxsim:+c.maxsim.toFixed(6),rrf:+c.rrf.toFixed(6),vector_rank:c.vector_rank,lexical_rank:c.lexical_rank,exact_phrase:c.exact_match?.phrase??null,business_terms:c.business_match?.words??null}});if(results.length>=a.limit)break;}
  return {query:q,filters:{year:a.year??null,budget_type:a.budget_type??null,category:a.category??null},results,scanned_pages:lex.scanned_pages,matched_pages_before_dedup:lex.matched_pages_before_dedup,retrieval:{mode:a.mode||'hybrid',embedding_model:SEMANTIC.model,dimensions:SEMANTIC.dimensions,index:SEMANTIC.index_type,nprobe:SEMANTIC.nprobe,vector_chunks_scanned:vec.scanned,vector_candidates:vec.hits.length,lexical_candidates:lex.results.length,reranker:SEMANTIC.reranker,reranker_type:SEMANTIC.reranker_type,reranked:true,reranked_candidates:candidates.length,exact_phrase_candidates:candidates.filter(c=>c.exact_match).length,business_term_candidates:candidates.filter(c=>c.business_match).length,timings_ms:{vector:vectorDone-started,lexical:lexicalDone-vectorDone,hydrate:hydrated-lexicalDone,rerank:rerankedAt-hydrated},elapsed_ms:Date.now()-started},coverage:CATALOG.summary,instructions:RULES};
 }
 
 // Public corpus results only. No persistent question logs or external model API.
 const searchCache=new Map();let cacheBytes=0;
+const inflight=new Inflight();
+function coalesce(env,kind,key,load){return inflight.run(env.ASSETS,kind,key,load);}
 async function search(env,input){
  const a=resolveQuery(args(input));if(a.policy.years.length>1)fail('여러 연도 비교는 budget_research를 사용하거나 각 연도로 조회하세요.');
  const key=JSON.stringify([a.query,a.year,a.year_scope,a.budget_type,a.revision,a.category,a.document_id,a.mode||'hybrid',a.limit,a.policy]);
  const cached=searchCache.get(key),now=Date.now();
  if(cached&&cached.expires>now){const r=JSON.parse(cached.json);r.retrieval={...r.retrieval,cache_hit:true,original_elapsed_ms:r.retrieval?.elapsed_ms??null,elapsed_ms:0};return r;}
- const r=await uncachedSearch(env,a);r.query_interpretation=a.policy;r.retrieval={...r.retrieval,cache_hit:false};const body=JSON.stringify(r),bytes=body.length*2;
- if(searchCache.has(key)){cacheBytes-=searchCache.get(key).bytes;searchCache.delete(key);}
- if(bytes<500000){while(searchCache.size>=12||cacheBytes+bytes>2000000){const k=searchCache.keys().next().value;cacheBytes-=searchCache.get(k).bytes;searchCache.delete(k);}searchCache.set(key,{json:body,bytes,expires:now+300000});cacheBytes+=bytes;}
- return r;
+ return coalesce(env,'search',key,async()=>{const r=await uncachedSearch(env,a);r.query_interpretation=a.policy;r.retrieval={...r.retrieval,cache_hit:false};const body=JSON.stringify(r),bytes=body.length*2;
+  if(searchCache.has(key)){cacheBytes-=searchCache.get(key).bytes;searchCache.delete(key);}
+  if(bytes<500000){while(searchCache.size>=12||cacheBytes+bytes>2000000){const k=searchCache.keys().next().value;cacheBytes-=searchCache.get(k).bytes;searchCache.delete(k);}searchCache.set(key,{json:body,bytes,expires:Date.now()+300000});cacheBytes+=bytes;}
+  return r;});
 }
+// Bounded, transient cache of already-produced evidence. Keys include every
+// input used for text boundaries, query-specific classification and scores.
+const evidenceCache=new EvidenceCache();
+function evidenceKey(h,full,query){return JSON.stringify([SEMANTIC.corpus_catalog_sha256,h.id,h.gid,h.chunk??null,h.retrieval_scores??null,full,query]);}
 async function evidenceFor(env,hits,full=false,query=''){
- const grouped=new Map(),out=new Map();for(const h of hits){const sh=shardFor(h.gid);if(!sh)continue;if(!grouped.has(sh.id))grouped.set(sh.id,{sh,items:[]});grouped.get(sh.id).items.push(h);}
+ const key=JSON.stringify(hits.map(h=>evidenceKey(h,full,query)));
+ return coalesce(env,'evidence',key,()=>loadEvidence(env,hits,full,query));
+}
+async function loadEvidence(env,hits,full=false,query=''){
+ const grouped=new Map(),out=new Map();for(const h of hits){const key=evidenceKey(h,full,query),entry=evidenceCache.get(key);
+  if(entry){out.set(h.id,entry);continue;}
+  const sh=shardFor(h.gid);if(!sh)continue;if(!grouped.has(sh.id))grouped.set(sh.id,{sh,items:[]});grouped.get(sh.id).items.push(h);}
  for(const {sh,items} of grouped.values()){
   const [index,texts]=await Promise.all([asset(env,'pages-'+sh.id),asset(env,'text-'+sh.id)]);
   for(const h of items){const i=h.gid-sh.offset,p=index.pages[i],text=texts[i],chars=Array.from(text),start=full?0:Math.max(0,(h.chunk?.start??0)-900),end=full?chars.length:Math.min(chars.length,Math.max(start+6000,h.chunk?.end??0));
-   out.set(h.id,{id:h.id,...cite(DOCS.get(p[0]),p),source_family:sourceFamily(DOCS.get(p[0]),text),text:chars.slice(start,end).join(''),text_is_complete:start===0&&end===chars.length,classification:budgetClassification(text,DOCS.get(p[0]),query),context:{start,end,total_characters:chars.length,offset_unit:'Unicode code points'},matched_chunk:h.chunk??null,retrieval_scores:h.retrieval_scores??null});
+   const value={id:h.id,...cite(DOCS.get(p[0]),p),source_family:sourceFamily(DOCS.get(p[0]),text),text:chars.slice(start,end).join(''),text_is_complete:start===0&&end===chars.length,classification:budgetClassification(text,DOCS.get(p[0]),query),context:{start,end,total_characters:chars.length,offset_unit:'Unicode code points'},matched_chunk:h.chunk??null,retrieval_scores:h.retrieval_scores??null};out.set(h.id,value);evidenceCache.set(evidenceKey(h,full,query),value);
   }
  }
  return hits.map(h=>out.get(h.id)).filter(Boolean);
 }
-async function research(env,input){
+async function research(env,input,internal=false){
  const started=Date.now(),a=resolveQuery(args(input));
+ const explicitYears=[...new Set([...a.query.matchAll(/(?<![0-9A-Za-z])((?:19|20)\d{2})(?![0-9A-Za-z])/g)].map(m=>Number(m[1])))];
+ if(!internal&&input.year!==undefined&&explicitYears.length>1&&/비교/.test(a.query))fail('여러 연도 비교에서 year 하나를 지정하면 비교 범위가 줄어듭니다. year 인자를 빼고 다시 조회하세요.');
  if(a.policy.years.length>1){
-  const per_year=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,limit:2})));
-  return{question:a.query,query_interpretation:a.policy,per_year,evidence:per_year.flatMap(r=>r.evidence),generation_performed:false,answer_policy:RULES,next_action:'연도별 동일 사업·동일 문서 종류·동일 회계 범위만 비교하세요. 누락된 연도는 확인 불가이며 0원이 아닙니다.',elapsed_ms:Date.now()-started};
+  const per_year=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,limit:Math.min(a.limit,2)},true)));
+  const evidence=per_year.flatMap(r=>r.evidence);
+  const yearsOutput=input.response_format==='compact'?per_year.map(({evidence,...rest})=>({...rest,evidence_ids:evidence.map(e=>e.id)})):per_year;
+  return{question:a.query,query_interpretation:a.policy,comparison:comparisonStatus(a.policy.years,per_year),per_year:yearsOutput,evidence,generation_performed:false,answer_policy:RULES,next_action:'연도별 동일 사업·동일 문서 종류·동일 회계 범위만 비교하세요. 누락된 연도는 확인 불가이며 0원이 아닙니다.',elapsed_ms:Date.now()-started};
+ }
+ if(a.policy.comparison_budget_types.length>1&&!input.budget_type&&a.policy.source_preference!=='mixed'){
+  const types=a.policy.comparison_budget_types;
+  const per_type=[];for(const budget_type of types)per_type.push(await research(env,{...input,budget_type,limit:Math.min(a.limit,2)},true));
+  const evidence=per_type.flatMap(r=>r.evidence),missing_types=types.filter((_,i)=>!per_type[i].evidence.length);
+  const typesOutput=input.response_format==='compact'?per_type.map(({evidence,...rest})=>({...rest,evidence_ids:evidence.map(e=>e.id)})):per_type;
+  return{question:a.query,query_interpretation:a.policy,type_comparison:{status:'unverified',requested_types:types,missing_types,reason:'문서 종류별 검색 후보입니다. 동일 사업·회계·금액 열과 단위를 원문에서 확인하기 전에는 직접 비교하지 마세요.'},per_type:typesOutput,evidence,generation_performed:false,answer_policy:RULES,next_action:'요청한 문서 종류별 근거를 구분하고, 누락된 종류는 확인 불가로 표시하세요. 동일 사업·회계·단위와 금액 열을 확인하기 전에는 비교 수치를 확정하지 마세요.',elapsed_ms:Date.now()-started};
  }
  if(a.budget_type==='추경'&&!a.revision&&/최신|마지막|최종/.test(a.query)){
   const revisions=CATALOG.documents.filter(d=>match(d,a)&&d.revision).map(d=>d.revision);
@@ -135,7 +163,7 @@ const TOOLS=[{name:'search_budget',description:'상세 검색용: 성남시 예�
  {name:'list_budget_documents',description:'문서와 실패·미처리 상태를 연도·예산종류별로 확인할 때 사용.',inputSchema:schema({...properties,offset:{type:'integer',minimum:0}}),annotations},
  {name:'get_collection_status',description:'검색 가능 범위, 수집 누락, OCR 필요, 마지막 스냅샷 시각을 확인. 전체 수집 완료라고 추정하지 말 것.',inputSchema:schema({}),annotations},
  {name:'build_rag_context',description:'기존 연동 호환용: 상위 4개 원문 페이지/본문 블록 전문과 인용 규칙을 반환. 일반 예산 질문은 budget_research를 우선 사용. 생성 모델을 호출하지 않음.',inputSchema:schema(properties,['query']),annotations}];
-TOOLS.unshift({name:'budget_research',description:'성남시 본예산·추경·결산·사업비·부서별 예산·연도별 비교 질문에 먼저 사용. 법령 해석이나 다른 지자체 예산 조회에는 사용하지 않음. 사업비는 세출예산사업명세서를 우선하며 성과계획·지표 질문은 계획서를 조회. 원문 근거·단위·인용 URL과 부서·세부사업·편성목·통계목 및 해당 행을 한 번에 반환. 미지정 연도는 2026년, 비교는 최대 3개 연도. 근거가 충분하면 바로 답변. 생성 모델 없음.',inputSchema:schema(properties,['query']),annotations},
+TOOLS.unshift({name:'budget_research',description:'성남시 본예산·추경·결산·사업비·부서별 예산·연도별 비교 질문에 먼저 사용. 법령 해석이나 다른 지자체 예산 조회에는 사용하지 않음. 사업비는 세출예산사업명세서를 우선하며 성과계획·지표 질문은 계획서를 조회. 원문 근거·단위·인용 URL과 부서·세부사업·편성목·통계목 및 해당 행을 한 번에 반환. 미지정 연도는 2026년, 비교는 최대 3개 연도. 근거가 충분하면 바로 답변. 생성 모델 없음.',inputSchema:schema({...properties,response_format:{type:'string',enum:['full','compact'],description:'기본 full. compact는 비교 결과 per_year의 evidence 대신 최상위 evidence를 참조하는 evidence_ids를 반환합니다.'}},['query']),annotations},
  {name:'search',description:'ChatGPT 호환 검색. 인용 가능한 id/title/url 반환. 질문에 연도가 없으면 2026년, 전체 연도는 질문에 명시.',inputSchema:schema({query:properties.query},['query']),annotations},
  {name:'fetch',description:'search 결과 id로 원문 페이지/본문 블록 전문과 인용 URL 조회. id는 search 결과 값을 그대로 사용.',inputSchema:schema({id:{type:'string',maxLength:100}},['id']),annotations});
 const TITLES={budget_research:'성남 예산 근거 조회',search:'성남 예산 검색',fetch:'예산 원문 읽기',search_budget:'예산 상세 검색',get_budget_page:'원문 페이지 조회',list_budget_documents:'예산 문서 목록',get_collection_status:'수집 범위 확인',build_rag_context:'예산 근거 묶음'};for(const t of TOOLS){t.title=TITLES[t.name];t.annotations={...t.annotations,title:t.title};}

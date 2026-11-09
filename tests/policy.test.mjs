@@ -52,3 +52,33 @@ test('answer card requires source unit and a reconciled total',()=>{
  assert.equal(totalAnswerCard({...e,unit:'백만원'}),null);
  assert.equal(totalAnswerCard({...e,text:e.text.replace('100','99')}),null);
 });
+
+test('total card handles single digits and rejects unsafe won conversions',()=>{
+ const e={text:'합계 100\n일반회계 99\n특별회계 1',unit:'천원',year:2026,id:'test',page_url:'https://example.org/'};
+ assert.equal(totalAnswerCard(e).rows[2].amount_krw,1000);
+ assert.equal(totalAnswerCard({...e,text:'합계 9,007,199,254,741\n일반회계 9,007,199,254,731\n특별회계 10'}),null);
+});
+
+test('conflicting explicit query and parameter years fail instead of silently broadening',()=>{
+ assert.throws(()=>resolveQuery({query:'2025년 도서관 예산',year_scope:'all'}),/충돌/);
+ assert.throws(()=>resolveQuery({query:'2025년 청년월세',year:2026}),/다릅니다/);
+ assert.equal(resolveQuery({query:'2025년과 2026년 비교',year:2025}).year,2025);
+ assert.equal(resolveQuery({query:'전체 연도 도서관 예산',year_scope:'all'}).policy.all_years,true);
+});
+
+test('embedded identifiers are not treated as years; Korean year ranges still work',()=>{
+ assert.equal(resolveQuery({query:'AI2025X 연구센터 예산'}).year,2026);
+ assert.equal(resolveQuery({query:'AI2025X 연구센터 예산',year_scope:'all'}).policy.all_years,true);
+ assert.deepEqual(resolveQuery({query:'2024년부터 2026년 도서관 예산'}).policy.years,[2024,2025,2026]);
+});
+
+test('a request comparing two budget types retains both explicit types',()=>{
+ const a=resolveQuery({query:'2025년 본예산과 결산 청년월세 비교'});
+ assert.deepEqual(a.policy.comparison_budget_types,['본예산','결산']);assert.equal(a.budget_type,undefined);
+ assert.deepEqual(resolveQuery({query:'2025년 본예산과 결산 청년월세 비교',budget_type:'결산'}).policy.comparison_budget_types,[]);
+});
+
+test('document-kind comparisons bound work and preserve performance comparisons',()=>{
+ assert.throws(()=>resolveQuery({query:'2025년 본예산 추경 결산 비교'}),/두 종류/);
+ const a=resolveQuery({query:'본예산과 성과계획서 비교 청년월세지원사업'});assert.equal(a.policy.source_preference,'mixed');
+});

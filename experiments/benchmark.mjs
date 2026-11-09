@@ -1,0 +1,7 @@
+import worker from '../dist/server/index.js';
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
+const root=path.resolve('dist/client');
+const env={ASSETS:{async fetch(req){const p=path.resolve(root,'.'+new URL(req.url).pathname);try{return new Response(await readFile(p));}catch{return new Response('',{status:404});}}}};
+const queries=[{query:'성남시 예산 얼마야?'},{query:'2026년 청년월세 지원 예산',limit:2},{query:'2025년과 2026년 반도체 인력양성 예산 비교',limit:2},{query:'zzzzzzzzzzzz',year:2026,limit:2}];
+for(const args of queries){for(let run=0;run<2;run++){const start=performance.now();const response=await worker.fetch(new Request('https://test.local/public-mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'budget_research',arguments:args}})}),env);const raw=await response.text(),body=JSON.parse(raw),data=body.result.structuredContent;console.log(JSON.stringify({query:args.query,run:run?'warm':'first',ms:Math.round(performance.now()-start),bytes:Buffer.byteLength(raw),error:body.result.isError,server_ms:data?.elapsed_ms,comparison:data?.comparison,evidence:data?.evidence?.map(e=>({year:e.year,type:e.budget_type,family:e.source_family,page:e.page,unit:e.unit,source_url:e.source_url,id:e.id})),per_year:data?.per_year?.map(y=>({year:y.filters?.year,count:y.evidence?.length,types:y.source_selection?.returned_budget_types}))}));}}

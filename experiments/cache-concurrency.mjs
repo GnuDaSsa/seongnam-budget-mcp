@@ -1,0 +1,8 @@
+import {pathToFileURL} from 'node:url';import {readFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import path from 'node:path';
+const worker=(await import(pathToFileURL(process.env.BENCH_SERVER||path.resolve('dist/server/index.js')))).default,root=path.resolve('dist/client');let count=0;
+const env={ASSETS:{async fetch(req){count++;try{return new Response(await readFile(path.resolve(root,'.'+new URL(req.url).pathname)))}catch{return new Response('',{status:404})}}}};
+async function call(args){const r=await worker.fetch(new Request('https://test.local/public-mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'budget_research',arguments:args}})}),env);return (await r.json()).result;}
+const q={query:'2026년 본예산 청년월세 지원사업',limit:4};
+async function batch(label){count=0;const start=performance.now(),out=await Promise.all(Array.from({length:8},()=>call(q))),ms=performance.now()-start;const digests=out.map(r=>createHash('sha256').update(JSON.stringify(r.structuredContent?.evidence)).digest('hex'));console.log(JSON.stringify({label,ms:+ms.toFixed(2),reads:count,errors:out.filter(x=>x.isError).length,evidence_equal:new Set(digests).size===1,peak_rss_kib:process.resourceUsage().maxRSS,heap_used:process.memoryUsage().heapUsed}));}
+await batch('concurrent-first');await batch('concurrent-repeat');
+for(const args of [{query:'2025년 청년월세',year:2026},{query:'2025년 도서관 예산',year_scope:'all'}]){const r=await call(args);console.log(JSON.stringify({label:'conflicting-year',isError:r.isError,error:r.isError?r.content[0].text:null,years:r.structuredContent?.evidence?.map(e=>e.year)}));}

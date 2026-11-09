@@ -8,7 +8,8 @@ export function exactQueryPhrases(query){
  const core=withoutQueryYears(query),words=retrievalWords(query);
  if(/\d/.test(core))return{words,phrases:[]}; // Do not reinterpret account codes as independent amounts.
  const withoutDepartment=words.filter(w=>!(/^[가-힣]{3,}$/.test(w)&&/(?:과|국|팀|사업소|담당관)$/.test(w)));
- const phrases=[...new Set([words.join(''),withoutDepartment.join('')])].filter(w=>/^[가-힣]{4,}$/.test(w));
+ const withConnector=(withoutQueryYears(query).toLowerCase().match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[]).filter(w=>w==='및'||(w.length>=2&&!boilerplate.has(w))).join('');
+ const phrases=[...new Set([words.join(''),withoutDepartment.join(''),withConnector])].filter(w=>/^[가-힣]{4,}$/.test(w));
  return{words,phrases};
 }
 export function exactPhraseHit(query,text,title=''){

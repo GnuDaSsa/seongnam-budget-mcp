@@ -1,0 +1,16 @@
+[
+  {
+    "document_id":"b6b50280e845dfee8282",
+    "document_sha256":"f14bbe75a5bcbc6bb7907c3566186cb6e2712aaeb54caec12f1efe33547b48fb",
+    "page":775,
+    "text_sha256":"df116f7e6598f030d00d94e82e786d0f9c359209f8eb6de3008799e6c1326984",
+    "context":{
+      "sheet":"본청 및 사업소", "row":5125,
+      "calculation_cell":"I5125", "calculation":"4,000,000원 * 1식",
+      "amount_cell":"J5125", "amount":4000,
+      "column_header":{"cell":"J3","text":"예산액"},
+      "unit_header":{"cell":"I2","text":"(단위 : 천원)","unit":"천원"},
+      "note":"이 단위는 확인된 시트의 J5125 예산액에만 적용합니다. I5125 산출기초의 원 단위와 구별하세요. 블록 번호는 PDF 쪽수가 아닙니다."
+    }
+  }
+]

@@ -1,0 +1,12 @@
+{"label":"concurrent-first","ms":1108.53,"reads":373,"errors":0,"evidence_equal":true,"peak_rss_kib":569440,"heap_used":112544736}
+{"label":"concurrent-repeat","ms":1.77,"reads":0,"errors":0,"evidence_equal":true,"peak_rss_kib":569440,"heap_used":114884464}
+{"label":"conflicting-year","isError":false,"error":null,"years":[2026,2026,2026,2026]}
+{"label":"conflicting-year","isError":false,"error":null,"years":[2025,2022,2023,2020]}
+{"label":"concurrent-first","ms":1067.4,"reads":373,"errors":0,"evidence_equal":true,"peak_rss_kib":566512,"heap_used":91580288}
+{"label":"concurrent-repeat","ms":1.93,"reads":0,"errors":0,"evidence_equal":true,"peak_rss_kib":566512,"heap_used":93918976}
+{"label":"conflicting-year","isError":false,"error":null,"years":[2026,2026,2026,2026]}
+{"label":"conflicting-year","isError":false,"error":null,"years":[2025,2022,2023,2020]}
+{"label":"concurrent-first","ms":1114.85,"reads":373,"errors":0,"evidence_equal":true,"peak_rss_kib":553136,"heap_used":105344464}
+{"label":"concurrent-repeat","ms":2.8,"reads":0,"errors":0,"evidence_equal":true,"peak_rss_kib":553136,"heap_used":107683152}
+{"label":"conflicting-year","isError":false,"error":null,"years":[2026,2026,2026,2026]}
+{"label":"conflicting-year","isError":false,"error":null,"years":[2025,2022,2023,2020]}

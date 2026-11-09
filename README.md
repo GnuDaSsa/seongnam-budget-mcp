@@ -133,3 +133,8 @@ npm run dev
 스냅샷은 공개 배포 저장소에서 내려받으며 `snapshot/assets.json`에 고정한 SHA-256을 검증합니다. 자료 재수집으로 코퍼스가 바뀌면 임베딩과 ANN을 다시 생성하고 카탈로그 해시와 함께 갱신해야 합니다. 원본 수집부터 다시 만들 때는 위 수집 단계 이후 `pipeline/build_terms.py`, `pipeline/download_model.py`, `pipeline/build_vectors.py`, `pipeline/build_ann.py`의 실행 인자를 확인하세요.
 
 서버 운영 환경에는 OpenAI API 키가 필요하지 않습니다. `.env*`는 커밋 금지입니다. 신규 배포는 자신의 Site 프로젝트 ID와 호스팅 환경을 사용해야 합니다.
+
+
+### 비교 결과 크기 줄이기
+
+`budget_research`에 `response_format: "compact"`를 지정하면 여러 연도 또는 문서 종류 비교에서 `per_year[].evidence` 또는 `per_type[].evidence` 대신 `evidence_ids`가 반환됩니다. 각 ID는 최상위 `evidence`의 동일한 객체를 가리키므로 원문과 출처를 복원할 수 있습니다. 기본값 `full`은 기존 형식을 유지합니다. MCP의 텍스트 콘텐츠와 구조화 콘텐츠는 클라이언트 호환을 위해 모두 유지됩니다. 검색 후보는 금액이나 사업의 비교 가능성을 증명하지 않습니다.

@@ -28,3 +28,9 @@ test('exact phrase is contiguous after whitespace normalization, with original c
  const separated='자본적위탁사업비'+ '나'.repeat(1000)+'주택과 자본적위탁사업비';
  assert(exactPhraseHit('주택과 자본적위탁사업비',separated).start>1000);
 });
+
+test('explicit connective in source names stays in exact phrase without inventing it',()=>{
+ const q='2026년 본예산 재난 및 재해 예방';const hit=exactPhraseHit(q,'재난및재해예방 414,400');
+ assert.equal(hit?.phrase,'재난및재해예방');
+ assert.equal(exactPhraseHit(q,'재난대응과 재해복구를 위한 예방사업'),null);
+});
