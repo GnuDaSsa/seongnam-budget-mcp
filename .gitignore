@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+work/
+__pycache__/
+*.pyc
+.env*
+*.tar.gz
+snapshot/corpus/
+snapshot/semantic/*.gz
+snapshot/semantic/*.partial

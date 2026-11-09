@@ -1,0 +1,822 @@
+{
+  "base": "http://127.0.0.1:8765",
+  "checked_at": "2026-11-07T15:35:21.286Z",
+  "method": "Expected-term smoke check; not independently labelled relevance benchmark",
+  "rows": [
+    {
+      "query": "어르신이 일할 수 있도록 돕는 사업",
+      "year": 2026,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 5633,
+        "vector_candidates": 64,
+        "lexical_candidates": 0,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 637
+      },
+      "expected_terms": [
+        "노인",
+        "일자리"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 22,
+          "year": 2026,
+          "score": 0.675193,
+          "scores": {
+            "cosine": 0.602538,
+            "token_maxsim": 0.843955,
+            "rrf": 0.015873,
+            "vector_rank": 3,
+            "lexical_rank": null
+          },
+          "excerpt": "전략목표명                            예산액\n             정책사업목표명     성과지표명\n    (실국명)                                    (백만원)                비중(%)\n\n\n                      장애인일자리 참여율\n\n           장애인의 복지와 사회\n           활동 참여 증진을 통한\n           사회통합 도모\n                      장애인 연금 신규수급\n                    자 발굴실적\n\n\n\n\n                      노인복지시설 이용자\n                      만족도\n           노인복지 증진으로 어\n           르신이 행복한 성남 구\n          현\n                      노인돌봄서비스 사업추\n                    진 실적\n\n\n\n           노인복지시설 확충 및\n                      복지시설 점검률 및 조           관련업무 예산편성으로\n                     치율\n           노인복지 지원\n\n\n           어르신이 활기차고 건\n           강한 노후생활을 영위                      노인일자리 및 사회활\n          할 수 있도록\n                      동지원사업 사업량 달           다양한 일자리·사회활\n                    성\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 483,
+          "year": 2026,
+          "score": 0.644965,
+          "scores": {
+            "cosine": 0.629797,
+            "token_maxsim": 0.710218,
+            "rrf": 0.016393,
+            "vector_rank": 1,
+            "lexical_rank": null
+          },
+          "excerpt": "사업명     노인상담사업\n\n사업내용    노인생명돌보미운영, 전문상담원배치, 노인우울증치료등\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    민간보조\n\n         우울증, 노인자살등노인상담을필요로하는노인지원조건\n          보조재원(도비70%, 시비30%)\n\n시행주체    성남시(노인복지과)\n\n\n사업명     일시보호시설운영\n\n사업내용   일시보호시설운영\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    민간보조\n\n지원조건   배회하는치매노인등\n\n시행주체    성남시(노인복지과)\n\n\n사업명    노인복지관디지털프로그램지원\n\n        휴대용와이파이및태블릿PC, 스마트워치, 돌봄로봇등디지털기기대여지원을통한실시간맞사업내용\n       춤프로그램운영\n\n사업기간     2026년01월01일∼2026년12월31일\n\n지원형태    민간보조\n\n       60세이상저소득어르신\n지원조건    거동불편, 원거리거주어르신집단\n        차상위이하> 기초연금대상자순으로우선지원\n\n시행주체    성남시(노인복지과)\n\n\n사업명    어르신문화체육이음터사업\n\n        어르신들에게지정기간(시간)에시설의공간제공사업내용\n       어르신맞춤형문화 예술 체육활동지원(강습포함)\n\n사업기간     2026년01월01일∼2026년12월31일\n\n지원형태    민간보조\n\n지원조건    60세이상어르신\n\n시행주체    성남시(노인복지과)\n\n\n\n\n\n                                                      - 475 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 세입세출예산서 · 성인지 예산",
+          "page": 215,
+          "year": 2026,
+          "score": 0.622919,
+          "scores": {
+            "cosine": 0.596132,
+            "token_maxsim": 0.706829,
+            "rrf": 0.015625,
+            "vector_rank": 4,
+            "lexical_rank": null
+          },
+          "excerpt": "노인일자리및사회활동지원확대(일반회계)\n\n\n\n\n\n□사업개요\n\n  ○사업목적: 어르신의활기찬노후생활을위해다양한일자리및사회활동지원사업을지원하여노인들의일자\n\n        리창출\n\n  ○사업기간: 2026년01월01일~ 2030년12월31일\n\n  ○추진근거: 노인일자리및사회활동지원에관한법률\n\n ○예산액:  34,575백만원\n\n           국고보조금17,287백만원, 광역보조금2,593백만원, 자체재원14,694백만원\n\n\n  ○사업내용: ㅇ(노인공익활동사업) 노인이독거노인및취약노인가정을방문하여말벗, 안부확인등서비스를\n\n         제공하는노노케어와복지시설, 공공시설등지역내주거환경정비활동하는공공시설봉사등\n\n          ㅇ(노인역량활용사업) 노인들의숙련된기술, 전문성및경험등을활용하여지역사회에기여할\n\n        수있는사업으로교육시설학습보조, 공공행정업무지원, 안전관리지원등\n\n          ㅇ(공동체사업단) 노인에의한상품의생산·판매, 서비스의제공등을목적으로하며참여하는\n\n         노인이둘이상인사업단(식품·공산품제조및판매, 매장운영, 운송등)\n\n         ㅇ(취업지원) 수요처의요구에의해서일정교육을수료하거나관련된업무능력이있는자를해\n\n        당수요처로연계하여근무기간에대한일정임금을지급받을수있는일자리\n\n\n\n□성인지예산대상사업\n\n\n ○대상사업유형\n\n\n\n                                자치단체가별도로추진하는사업\n    양성평등정책추진사업     성별영향평가사업\n                                자치단체특화사업      기타사업\n\n",
+          "source_url": "https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2026/11608_9.pdf"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 473,
+          "year": 2026,
+          "score": 0.61803,
+          "scores": {
+            "cosine": 0.568119,
+            "token_maxsim": 0.746747,
+            "rrf": 0.014493,
+            "vector_rank": 9,
+            "lexical_rank": null
+          },
+          "excerpt": "전략목표  노인복지실현으로어르신이행복한성남시구현\n\n [소관부서] 노인복지과\n\n\n1. 기본방향\n\n\n□복지관및요양기관운영활성화를통한노인노후생활보장\n□대한노인회및경로당지원을통한노인사회참여확대\n□노인사회활동지원, 소일거리사업을통한노인소득보장\n□지역사회통합돌봄지원체계조성을통한돌봄안전망구축\n□기초연금지급결정을통한저소득노인복지증진\n□복지시설시설물유지관리및보수, 리모델링\n\n\n< 정책사업목표현황>\n\n                                                                     (단위:개, 백만원)\n\n        정책사업목표               성과   단위사업수      예산액\n                            지표수\n\n노인복지증진으로어르신이행복한성남구\n                                                   2                   5                          77,491\n현\n\n노인복지시설확충및관련업무예산편성으로\n                                                   1                   1                           1,071\n노인복지지원\n\n어르신이활기차고건강한노후생활을영위할\n수있도록\n                                                   1                   1                          48,078\n다양한일자리·사회활동을지원하여노인복\n지향상에기여\n\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 490,
+          "year": 2026,
+          "score": 0.611382,
+          "scores": {
+            "cosine": 0.568441,
+            "token_maxsim": 0.725389,
+            "rrf": 0.014706,
+            "vector_rank": 8,
+            "lexical_rank": null
+          },
+          "excerpt": "사업명    장기요양기관시설장및종사자직무교육\n\n       노인장기요양기관시설장및종사자직무교육, 제도안내, 표창을통한사기진작, 네트워크형성,사업내용\n       사례발표등\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n지원조건    노인복지시설(노인의료복지시설, 재가노인복지시설, 재가장기요양기관) 종사자\n\n시행주체    성남시(노인복지과)\n\n\n사업명     노인의료·재가복지시설인권보호\n\n       노인요양시설을대상으로정기적으로입소어르신들의인권보호및학대예방을위한모니터링활동사업내용\n       에대한활동지원금지급\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n       노인인권지킴이로노인요양시설을대상으로입소어르신들의인권보호및학대예방을위한모니터지원조건\n      링활동실시\n\n시행주체    성남시(노인복지과)\n\n\n사업명    노인요양시설및재가시설복리후생비\n\n사업내용   노인복지시설종사자처우개선비지원\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    민간보조\n\n지원조건   노인요양및재가시설종사자, 월120시간이상종사자(입, 퇴소시15일이상근무자), 시비100%\n\n시행주체    성남시(노인복지과)\n\n\n사업명    노인요양시설종사자특수근무수당지원\n\n사업내용    종사자특수근무수당지원(노인장기요양보험법시행('08.7.1.)이전기존지원법인시설4개소)\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n지원조건     보조재원(도비10%, 시비90%)\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        }
+      ]
+    },
+    {
+      "query": "아이를 맡기는 시설 지원",
+      "year": 2026,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 3981,
+        "vector_candidates": 64,
+        "lexical_candidates": 0,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 814
+      },
+      "expected_terms": [
+        "어린이집",
+        "보육"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2026년 성과계획서(2권 구청).pdf",
+          "page": 86,
+          "year": 2026,
+          "score": 0.519128,
+          "scores": {
+            "cosine": 0.41278,
+            "token_maxsim": 0.708274,
+            "rrf": 0.014493,
+            "vector_rank": 9,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업    영유아보육\n\n\n□목적및주요내용\n\n○목적\n\n   - 보육료지원으로부모들의경제적인부담경감\n   - 어린이집지도점검실시와보육교사들에게전문교육과정을운영하여믿고맡기는보육사업추진\n   - 어린이집보육교사처우개선및어린이집운영비등을지원하여아이키우기좋은보육환경조성\n\n○주요내용\n\n   - 영유아보육료, 어린이집운영비지원\n   - 어린이집보육교직원, 특수어린이집지정등지원\n   - 아동양육수당및출산장려금지원\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n영유아보육         일반회계              57,425            57,316            58,369             43\n\n  영유아보육료지원                              15,966            14,710            19,680\n\n  가정양육수당지원                                  786               942               740\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=1"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 23,
+          "year": 2026,
+          "score": 0.51096,
+          "scores": {
+            "cosine": 0.456258,
+            "token_maxsim": 0.600052,
+            "rrf": 0.016393,
+            "vector_rank": 1,
+            "lexical_rank": null
+          },
+          "excerpt": "                 463,645                 15.89\n희망복지도시 성남 구 원활한 추진 지원   여율\n현 (복지국)\n\n\n\n           아동복지사업 추진 및 팝업놀이터 이용자 만\n           아동친화도시 조성  족도\n\n\n\n\n                      아동복지시설 지원 개\n                     소수\n\n           아동권리보호를 통한\n           건전한 아동육성\n\n                      가정위탁아동 양육보조\n                    금 지원실적\n\n\n\n           안전하고 쾌적한 보육\n           환경 제공으로 공보육 어린이집 지원 개소수\n           기능 강화\n\n\n\n\n\n                      미래교육지원사업 만족\n                    도교육복지 및 평생학습\n도시 조성, 청년청소년\n복지 증진, 문화예술 교육지원을 통한 공교\n및 관광산업 기반 확대 육 활성화 및 창의적                                       307,456                 10.54\n, 생활체육 활성화 및 인재 양성\n체육시설 정비 (교육문\n화체육국)                      친환경 무상급식 추진\n                    율\n\n\n\n\n                                                       - 15 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 590,
+          "year": 2026,
+          "score": 0.508636,
+          "scores": {
+            "cosine": 0.438233,
+            "token_maxsim": 0.62404,
+            "rrf": 0.016129,
+            "vector_rank": 2,
+            "lexical_rank": null
+          },
+          "excerpt": "사업명     어린이집운영지원(도비)\n\n사업내용   어린이집재원중인아동에게급식비및어린이집운영비지원\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    자치단체보조\n\n지원조건     급식비월7,400원/인\n\n시행주체    성남시(아동보육과)\n\n\n사업명    선도교육청어린이집급식비지원\n\n사업내용   어린이집재원중인아동에게급식비추가지원\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    자치단체보조\n\n지원조건     도비100%\n\n시행주체    성남시(아동보육과)\n\n\n사업명    정부지원어린이집활성화지원\n\n               - 공공요금: 단독시설어린이집공공요금의80% 지원\n               - 소규모어린이집운영비: 현원50인이하인경우시설별월500천원지원\n               - 취사인력및사무보조: 정부지원어린이집취사인력, 사무원중1인인건비시설별월500천원사업내용\n        지원\n               - 취약보육운영비: 취약보육(야간연장, 장애아통합) 운영정부지원어린이집개소당월50천원지\n       원\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n               - 공공요금: 단독시설\n지원조건       - 소규모어린이집: 현원50인이하\n               - 취약보육운영비: 취약보육(야간연장, 장애아통합) 운영\n\n시행주체    성남시(아동보육과)\n\n\n사업명    어린이집공기청정기설치지원\n\n사업내용   보육실기준공기청정기1대당임차료월11천원지원\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(2권 구청).pdf",
+          "page": 274,
+          "year": 2026,
+          "score": 0.503468,
+          "scores": {
+            "cosine": 0.394481,
+            "token_maxsim": 0.708274,
+            "rrf": 0.012658,
+            "vector_rank": 19,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업    영유아보육\n\n\n□목적및주요내용\n\n○목적\n\n   - 보육료, 양육수당지원으로부모들의경제적인부담경감\n   - 어린이집지도점검실시와보육교사들에게전문교육과정을운영하여믿고맡기는보육사업추진\n   - 어린이집보육교사처우개선및어린이집운영비를지원하여아이키우기좋은보육환경조성\n\n○주요내용\n\n   - 출산및다자녀가정지원\n   - 영유아보육료, 양육수당, 어린이집운영비등지원\n   - 어린이집보육교직원, 특수어린이집등지원\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n영유아보육         일반회계              57,306            57,191            53,698             45\n\n  첫만남이용권                                    2,500             2,000             1,955\n\n  출산장려지원                                   1,009             1,454             1,154\n\n  취약계층아동어린이집\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=1"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 585,
+          "year": 2026,
+          "score": 0.499002,
+          "scores": {
+            "cosine": 0.402257,
+            "token_maxsim": 0.677412,
+            "rrf": 0.013333,
+            "vector_rank": 15,
+            "lexical_rank": null
+          },
+          "excerpt": "지지원법제32조에따라요건을갖추고, 상시12명이상의장애아를보육하는시설\n지원조건\n               - 장애아전문어린이집간호인력별도채용\n                * 임면보고, 건강진단서·성범죄경력조회등실시\n\n시행주체    성남시(아동보육과)\n\n\n사업명     장애아,영아반보육교직원특수근무수당\n\n사업내용    취약보육(장애아,영아,다문화) 활성화와교사의사기진작을위한수당지원\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    자치단체보조\n\n지원조건   전문교육이수자\n\n시행주체    성남시(아동보육과)\n\n\n\n\n\n                                                      - 577 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        }
+      ]
+    },
+    {
+      "query": "청년 주거비 지원",
+      "year": 2026,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 4812,
+        "vector_candidates": 64,
+        "lexical_candidates": 4,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 1017
+      },
+      "expected_terms": [
+        "청년",
+        "주거"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 636,
+          "year": 2026,
+          "score": 0.725949,
+          "scores": {
+            "cosine": 0.591722,
+            "token_maxsim": 0.858576,
+            "rrf": 0.032787,
+            "vector_rank": 1,
+            "lexical_rank": 1
+          },
+          "excerpt": "단위사업   청년생활안정지원\n\n\n□목적및주요내용\n\n○목적\n\n   - 목돈마련이어려운청년세대의소득대비높은주거비부담경감을통한주거환경안정에기여\n\n○주요내용\n\n   - 청년주택임차보증금이자지원\n   - 청년전세보증금반환보증보증료지원\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n청년생활안정지원     일반회계               2,744             2,649             6,447             3\n\n  청년주거복지지원                                893             1,173             2,405\n\n  청년월세지원사업                               1,838             1,440             4,021\n\n  성남시청년주거안심동\n                                                      13                36                21\n  행사업\n\n□관련예산사업개요\n\n 사업명    청년주거복지지원\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 세입세출예산서 · 일반회계 · 세출예산사업명세서 · 전체",
+          "page": 343,
+          "year": 2026,
+          "score": 0.605317,
+          "scores": {
+            "cosine": 0.55518,
+            "token_maxsim": 0.722986,
+            "rrf": 0.015385,
+            "vector_rank": 5,
+            "lexical_rank": null
+          },
+          "excerpt": "부서: 청년청소년과\n정책: 청년복지증진\n단위: 청년역량지원                                                        (단위:천원)\n\n                                      전년도\n   부서ㆍ정책ㆍ단위(회계)ㆍ세부사업ㆍ편성목       예산액               비교증감\n                                      예산액\n\n         201 일반운영비                                                      15,000               20,000          △5,000\n\n          03 행사운영비                                                      15,000               20,000          △5,000\n\n     ○성남청년거버넌스정책교육및워크숍\n                                            15,000,000원                 15,000\n\n   청년희망인턴사업                                                3,078,274            2,931,092            147,182\n\n",
+          "source_url": "https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2026/11608_3.pdf"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 24,
+          "year": 2026,
+          "score": 0.600824,
+          "scores": {
+            "cosine": 0.584848,
+            "token_maxsim": 0.657039,
+            "rrf": 0.016129,
+            "vector_rank": 2,
+            "lexical_rank": null
+          },
+          "excerpt": "             청년정책조정위원회 연\n                    간 회의 개최 횟수\n\n\n           청년의 삶의 질 향상을\n           위한 종합적인 정책 구\n          현\n\n\n                     청년 일자리 창출을 위\n                    한 일경험 사업 실적\n\n\n\n\n\n                       청소년통합지원체계(청\n                     소년 안전망)운영활성\n                    화 실적\n\n           청소년 보호 및 복지증\n          진 사업으로 창의적인\n           청소년 육성과\n           인성 발달을 도모\n\n                      청소년 유해환경 개선\n                     실적\n\n\n\n\n\n                                                       - 16 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 632,
+          "year": 2026,
+          "score": 0.593785,
+          "scores": {
+            "cosine": 0.558307,
+            "token_maxsim": 0.680868,
+            "rrf": 0.015873,
+            "vector_rank": 3,
+            "lexical_rank": null
+          },
+          "excerpt": "행주체    성남시(청년청소년과)\n\n\n사업명    청년희망인턴사업\n\n사업내용   청년일경험기회제공을위한공공및민간일자리창출지원사업\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n지원조건   성남시거주미취업청년들에게청년일경험기회제공\n\n시행주체    성남시(청년청소년과)\n\n\n\n\n\n                                                      - 624 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 283,
+          "year": 2026,
+          "score": 0.589309,
+          "scores": {
+            "cosine": 0.431245,
+            "token_maxsim": 0.902328,
+            "rrf": 0.011905,
+            "vector_rank": 24,
+            "lexical_rank": null
+          },
+          "excerpt": "설(공모사업등): 혁신지원센터, 청년주거 창업공간, 문화공간\n               - 활성화구역/민간분야: 복합건축물(산업+주거+편의시설등) 건립\n\n사업기간     2026년01월01일∼2027년12월31일\n\n지원형태    직접수행\n\n지원조건    해당없음\n\n시행주체    성남시(기업혁신과)\n\n\n\n\n\n                                                      - 275 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        }
+      ]
+    },
+    {
+      "query": "거동이 불편한 주민의 교통편",
+      "year": 2026,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 4332,
+        "vector_candidates": 64,
+        "lexical_candidates": 0,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 802
+      },
+      "expected_terms": [
+        "교통",
+        "장애"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 29,
+          "year": 2026,
+          "score": 0.534251,
+          "scores": {
+            "cosine": 0.446234,
+            "token_maxsim": 0.682349,
+            "rrf": 0.016393,
+            "vector_rank": 1,
+            "lexical_rank": null
+          },
+          "excerpt": "\n          업 추진 및 안전하고 예산집행의 내실화\n           쾌적한 도시환경 조성\n\n\n                      교통영향평가심의위원\n                    회 개최율\n\n\n\n           교통 편의시설 제공 및 교통안전 시설물 정비\n           교통안전 확보    추진율\n\n\n\n                            버스정보시스템(BIS)\n                     구축 실적\n\n\n\n           교통 및 건설분야 업무                      교통도로분야 시책추진\n           활성화\n교통인프라 확충 및 교\n통자원 관리 강화를 통\n                                                                               300,154                 10.29\n한 시민 편익 제고 (교\n통도로국)\n                      여객자동차 운수업체\n                      지원율\n\n\n           교통사업 지원으로 시\n           민이 만족하는 대중교 특별 교통수단 운영 지\n          통 이용 편익 및 활성 원율\n           화를 제고\n\n\n\n                      성남형 준공영제 추진\n                    율\n\n\n\n           효율적인 주차 인프라\n           구축 및 운영으로 주민 공유주차장 협약률\n           편의 증진\n\n\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 931,
+          "year": 2026,
+          "score": 0.49301,
+          "scores": {
+            "cosine": 0.32647,
+            "token_maxsim": 0.79541,
+            "rrf": 0.011494,
+            "vector_rank": 27,
+            "lexical_rank": null
+          },
+          "excerpt": "  신규개발지역등재정지\n                                                    0                0               536\n  원\n\n  마을버스운영평가및손\n                                                    2,892             3,417             3,645\n  실지원사업\n\n  대중교통자문위원회운영                           0                2                2\n\n□관련예산사업개요\n\n 사업명     교통소외지역등재정지원(도시형교통모델사업)\n\n          교통소외(불편)지역, 신규개발지역, 근로자집중지역등중심의저수요(적자노선) 및주민불편이\n 사업내용    심화되는\n       버스노선의서비스개선을위해특화노선발굴및선별적재정지원\n\n 사업기간     2026년01월01일∼2030년12월31일\n\n 지원형태    민간보조\n\n 지원조건   국토부도시형교통모델사업공모선정및수익성지수0.8이하노선\n\n 시행주체    성남시(대중교통과)\n\n\n\n\n\n                                                       - 923 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 30,
+          "year": 2026,
+          "score": 0.492164,
+          "scores": {
+            "cosine": 0.377803,
+            "token_maxsim": 0.680456,
+            "rrf": 0.015152,
+            "vector_rank": 6,
+            "lexical_rank": null
+          },
+          "excerpt": "전략목표명                            예산액\n             정책사업목표명     성과지표명\n    (실국명)                                    (백만원)                비중(%)\n\n           효율적인 주차 인프라                      태평동 구 현충탑 부지\n           구축 및 운영으로 주민\n                      공영주차장 조성           편의 증진\n\n\n\n                      도로개설사업 추진율\n\n\n\n           지역간 도로망 구축 및\n           체계적 관리로 안전하 도로 및 도로시설물 보\n          고 편리한 환경친화적 수 실적\n           도로개설 및 정비\n\n교통인프라 확충 및 교\n통자원 관리 강화를 통           자전거 도로 및 자전거\n                                                                               300,154                 10.29\n한 시민 편익 제고 (교           이용시설 정비 실적\n통도로국)\n\n\n           깨끗하고 아름다운 디                      도시미관 저해요소 계\n           자인도시 확립을 위한\n                      도정비 처리           도시미관 조성\n\n\n\n                      상세주소 부여실적\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 924,
+          "year": 2026,
+          "score": 0.480311,
+          "scores": {
+            "cosine": 0.345685,
+            "token_maxsim": 0.712907,
+            "rrf": 0.013333,
+            "vector_rank": 15,
+            "lexical_rank": null
+          },
+          "excerpt": "교통사업지원으로시민이만족하는대중교통이용편익및\n 정책사업목표\n        활성화를제고\n\n(1) 주요내용\n\n□대중교통체계구축및재정지원을통한운영개선으로빠르고편리한교통서비스제공\n ○버스및택시운수업체재정및손실금지원을통한경영난해소로대중교통안정적운행\n\n□특별교통수단운영지원을통한교통약자이동편의제공\n ○저상버스및장애인복지택시운영지원을통한교통약자이동불편해소\n\n□성남형버스준공영제추진\n ○적자및주민불편이심화되는지역의특화노선을발굴하여선별적재정지원을통해교통복지도시실현\n\n□버스공영차고지확충\n ○버스차고지부족을해소하기위해버스공영차고지조성및확장추진으로대중교통기반구축\n\n\n(2) 성과지표및목표치설정\n\n                                       < 성과지표별목표치설정>\n\n                     실적및목표치            지표 가중                        측정산식   자료수집\n   성과지표(단위)\n            유형 치                      또는측정방법  방법/출처                 구분    24     25     26     27     28\n\n                                               운수업체지\n                  목표   100     100     100     100     100                                          지원운수업체수/ 원보조금신\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 901,
+          "year": 2026,
+          "score": 0.473528,
+          "scores": {
+            "cosine": 0.354006,
+            "token_maxsim": 0.673905,
+            "rrf": 0.014085,
+            "vector_rank": 11,
+            "lexical_rank": null
+          },
+          "excerpt": "전략목표  교통인프라확충및교통자원관리강화를통한시민편익제고\n\n [소관실국] 교통도로국\n\n1. 기본방향\n\n\n□지속가능하고통합성을갖춘교통체계구축\n□대중교통활성화\n□주차인프라확충및관리체계고도화로편리하고공정한주차환경조성\n□안전하고효율적인도로인프라구축\n□공감하는토지정책, 신뢰받는공간정보\n\n\n< 정책사업목표현황>\n\n                                                                     (단위:개, 백만원)\n\n        정책사업목표                성과   단위사업수      예산액\n                            지표수\n\n교통편의시설제공및교통안전확보                 3                   6                          21,731\n\n교통및건설분야업무활성화                       1                   1                             21\n\n교통사업지원으로시민이만족하는대중교통                                                   3                   8                         215,425\n이용편익및활성화를제고\n\n효율적인주차인프라구축및운영으로주민                                                   2                   4                          41,264\n편의증진\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        }
+      ]
+    },
+    {
+      "query": "출산한 가정에 주는 지원금",
+      "year": 2026,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 4420,
+        "vector_candidates": 64,
+        "lexical_candidates": 0,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 728
+      },
+      "expected_terms": [
+        "출산",
+        "산후"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2026년 성과계획서(2권 구청).pdf",
+          "page": 106,
+          "year": 2026,
+          "score": 0.571442,
+          "scores": {
+            "cosine": 0.520378,
+            "token_maxsim": 0.672098,
+            "rrf": 0.016393,
+            "vector_rank": 1,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업   한부모가족지원\n\n\n□목적및주요내용\n\n○목적\n\n   - 저소득한부모가족자립지원을통한건강하고안정된생활지원\n\n\n○주요내용\n\n   - 저소득한부모가족아동양육비, 학용품비, 생활보조금지원\n   - 저소득한부모가족교육비(입학금및수업료) 지원\n   - 저소득한부모가족학습재료비, 신입생교복비, 생필품비지원\n   - 저소득한부모가족수학여행비, 졸업앨범비지원\n   - 청소년한부모가족자립지원\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n한부모가족지원      일반회계               2,853             2,509             3,222             7\n\n  저소득한부모가족지원                          2,576             2,130             2,857\n\n  한부모가족아동양육비\n                                                    0                12                12\n  지원(도비)\n\n  한부모가족지원(학습재\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=1"
+        },
+        {
+          "title": "2026년 성과계획서(2권 구청).pdf",
+          "page": 34,
+          "year": 2026,
+          "score": 0.565257,
+          "scores": {
+            "cosine": 0.448246,
+            "token_maxsim": 0.787897,
+            "rrf": 0.014085,
+            "vector_rank": 11,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업    가족관계등록사무운영\n\n\n□목적및주요내용\n\n○목적\n\n   - 구민의출생·혼인·사망등가족관계의발생및변동에관한등록사항을법에따라신속·정확하게처리\n\n\n○주요내용\n\n   - 가족관계등록민원의신속·정확한업무처리\n   - 혼인신고가정태극기증정, 출생축하용품제공등\n\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n가족관계등록사무운영   일반회계                 52                51                51             1\n\n  가족관계등록운영지원                             52                51                51\n\n□관련예산사업개요\n\n ○사업명:   가족관계등록운영지원\n\n ○사업내용:   가족관계등록사무운영지원을위한경상경비지원보조금\n\n ○사업기간:     2026년01월01일∼2030년12월31일\n\n ○지원형태:   직접수행\n\n ○지원조건:   가족관계등록사무추진경비\n\n ○시행주체:   성남시(수정구시민봉사과)\n\n\n\n\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=1"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 512,
+          "year": 2026,
+          "score": 0.559201,
+          "scores": {
+            "cosine": 0.479785,
+            "token_maxsim": 0.703218,
+            "rrf": 0.016129,
+            "vector_rank": 2,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업    건강한가정서비스질향상\n\n\n□목적및주요내용\n\n○목적\n\n   - 가족구성원을위한서비스제공및평등하고민주적인가족관계지향으로건강한가정에기여\n   - 맞벌이가정의양육돌봄지원으로일, 가정양립도모\n   - 가족친화사회문화조성\n\n○주요내용\n\n   - 가족문제예방과해결을위한가족돌봄, 생애주기별가족교육, 가족상담사업등건강가정지원사업추진\n   - 가정방문아이돌봄서비스를통해취업부모들의양육부담경감및일, 가정양립을위한워킹맘워킹대디\n  지원사업추진\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n건강한가정서비스질향상  일반회계               5,317             6,633             8,427             15\n\n  성남시가족센터활성화(\n                                                      585               596               692\n  보조)\n\n  성남시가족센터활성화                             0                0                30\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(2권 구청).pdf",
+          "page": 402,
+          "year": 2026,
+          "score": 0.545469,
+          "scores": {
+            "cosine": 0.434366,
+            "token_maxsim": 0.768323,
+            "rrf": 0.012346,
+            "vector_rank": 21,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업    가족관계등록사무운영\n\n\n□목적및주요내용\n\n○목적\n\n   - 출생·혼인·사망등가족관계의발생및변동사항에관한등록사항을법에따라신속· 정확하게처리\n   - 다양한민원서비스제공으로신뢰와감동을주는시민행복민원행정구현\n\n○주요내용\n\n   - 가족관계등록민원의신속·정확한업무처리\n   - 혼인신고가정태극기증정\n   - 혼인신고기념사진인화서비스등\n   - 출산장려를위한출산축하용품제공\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n가족관계등록사무운영    일반회계                 92                87                87             1\n\n  가족관계등록운영지원(\n                                                      92                87                87\n  국비)\n\n□관련예산사업개요\n\n ○사업명:   가족관계등록운영지원(국비)\n\n           각종가족관계등록민원소모품구입, 가족관계등록서고항온항습기유지관리\n ○사업내용:\n          가족관계등록민원담당공무원워크샵및간담회추진\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=1"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 1088,
+          "year": 2026,
+          "score": 0.543057,
+          "scores": {
+            "cosine": 0.440022,
+            "token_maxsim": 0.739095,
+            "rrf": 0.013889,
+            "vector_rank": 12,
+            "lexical_rank": null
+          },
+          "excerpt": "사업명     산모신생아건강관리지원사업(추가형)\n\n       ▪산모의산후건강관리및신생아관리를위한건강관리사지원\n        ㅇ산모신생아건강관리제공인력응모자격\n                   - 만18세이상으로‘산모신생아방문서비스제공인력교육과정’을 이수한자\n사업내용    ㅇ활동시간: 1일9시간(휴게시간1시간포함) 제공(1주5일)\n       ㅇ임  금: 기준서비스가격의75%이상\n        ㅇ활동내역: 산모, 신생아건강관리, 산모정보제공, 가사활동지원등\n\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n               ▪ 산모또는배우자가생계, 의료, 주거, 교육급여수급자또는차상위계층에해당하는출산가정\n               ▪ 산모및배우자등해당가구의건강보험료본인부담금합산액이기준중위소득150%초과금액에지원조건\n       해당하는성남시출산가정\n\n\n시행주체    성남시(중원구보건소)\n\n\n사업명    경기도산후조리비지원사업\n\n       소득수준에관계없이모든출산가정에출생아당50만원지역화폐제공(신생아출생일기준1년이사업내용\n       상경기도거주)\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n       1.영아의출생일기준으로1년전부터계속하여경기도에주민등록을두고,\n지원조건        2. 신청일에실제거주하고있으며,\n                3. 출생후12개월이지나지않은영아의부또는모\n\n시행주체    성남시(중원구보건소건강증진과)\n\n\n사업명    성남시산후조리비지원확대\n\n사업내용    산후조리원이용금액최대50만원지원\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        }
+      ]
+    },
+    {
+      "query": "주민이 책을 빌려 읽을 수 있는 곳",
+      "year": 2026,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 4793,
+        "vector_candidates": 64,
+        "lexical_candidates": 0,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 469
+      },
+      "expected_terms": [
+        "도서관",
+        "도서"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 34,
+          "year": 2026,
+          "score": 0.54414,
+          "scores": {
+            "cosine": 0.556085,
+            "token_maxsim": 0.537982,
+            "rrf": 0.016393,
+            "vector_rank": 1,
+            "lexical_rank": null
+          },
+          "excerpt": " 성화 지원\n\n\n                      공공도서관 조성\n\n\n\n           위탁도서관의 운영을\n                      위탁도서관 지원           위한 행정지원 구축\n\n\n\n                      중앙도서관 정보이용실\n                    적\n\n\n           장서 확충과 도서관 정\n           보화시스템 구축을 통\n                      독서문화 활성화 실적          한 독서 인프라 확충으책읽는 성남을 위한 독\n          로 독서문화 정착 도모서인프라 확충 (도서관                                                            30,973                  1.06\n사업소)\n\n                      장서확충\n\n\n\n                      분당도서관 정보이용\n                     실적\n\n\n                         연속간행물(과월호) 대\n                    출\n\n\n           독서인프라 확충과 평\n           생교육 프로그램 활성 그림책 콘서트 운영\n           화로 독서문화 정착\n\n\n                                           Happy Bookday, 수내도\n                     서관 만족도\n\n\n                      정보문화 프로그램 만\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 1319,
+          "year": 2026,
+          "score": 0.489398,
+          "scores": {
+            "cosine": 0.513027,
+            "token_maxsim": 0.451541,
+            "rrf": 0.016129,
+            "vector_rank": 2,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업    도서관지원\n\n\n□목적및주요내용\n\n○목적\n\n   - 공공도서관및작은도서관지원을통한도서관서비스개선에기여\n\n○주요내용\n\n   - 도서관운영위원회운영\n   - 작은도서관도서, 사업비지원및교육행사지원\n   - 공공도서관도서구입\n\n\n□관련예산사업내역\n\n                                                                     (단위:개, 백만원)\n\n                                               비고\n     사업명      회계구분     '24결산       '25예산       '26예산\n                                                       (세부사업수)\n\n도서관지원        일반회계                657               835               776             6\n\n  도서관지원                                       222               230               263\n\n  작은도서관지원                                   241               235               208\n\n  작은도서관지원[우수작\n                                                      132               138                93\n  은도서관육성(보조)]\n\n  작은도서관지원[독서환\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 35,
+          "year": 2026,
+          "score": 0.484846,
+          "scores": {
+            "cosine": 0.440803,
+            "token_maxsim": 0.560549,
+            "rrf": 0.015152,
+            "vector_rank": 6,
+            "lexical_rank": null
+          },
+          "excerpt": "전략목표명                            예산액\n             정책사업목표명     성과지표명\n    (실국명)                                    (백만원)                비중(%)\n\n           독서인프라 확충과 평 자원봉사자 문화행사\n           생교육 프로그램 활성 프로그램 이용자 참여\n           화로 독서문화 정착  실적(명)\n\n\n                      정보문화 프로그램 만\n                     족도\n           독서인프라 확충과 독\n           서문화 프로그램 활성\n책읽는 성남을 위한 독 화로 독서문화 정착\n                      책꾸러미 나눔서비스\n서인프라 확충 (도서관                                                            30,973                  1.06\n                     실적\n사업소)\n\n\n                      정보문화 프로그램 만\n                     족도\n           독서인프라 확충과 평\n           생교육 프로그램 활성\n           화로 독서문화 정착\n                      독서문화 활성화 운영\n                     실적\n\n\n\n                      성남박물관 유물 확보\n                     실적\n\n\n\n\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 1349,
+          "year": 2026,
+          "score": 0.468127,
+          "scores": {
+            "cosine": 0.438378,
+            "token_maxsim": 0.518561,
+            "rrf": 0.014925,
+            "vector_rank": 7,
+            "lexical_rank": null
+          },
+          "excerpt": "            6                6\n  서관)\n\n  열람실운영(분당도서관)                           154               157               167\n\n  열람실운영(서현도서관)                           129               125               142\n\n  열람실운영(책테마파크\n                                                      95               100               104\n  도서관)\n\n  열람실운영(수내도서관)                            0                0               133\n\n  공공도서관개관시간연\n                                                      312               255               263\n  장지원사업\n\n□관련예산사업개요\n\n 사업명     작은도서관운영(분당도서관)\n\n       시민들이쉽고편하게접근할수있는작은도서관조성 사업내용\n        (작은도서관운영용품및공공운영비등유지비용)\n\n 사업기간     2026년01월01일∼2030년12월31일\n\n 지원형태    직접수행\n\n 지원조건    해당없음\n\n 시행주체    성남시(분당도서관)\n\n\n\n\n\n                                                       - 1341 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        },
+        {
+          "title": "2026년 성과계획서(1권 본청 및 사업소).pdf",
+          "page": 1320,
+          "year": 2026,
+          "score": 0.463436,
+          "scores": {
+            "cosine": 0.465371,
+            "token_maxsim": 0.454484,
+            "rrf": 0.015873,
+            "vector_rank": 3,
+            "lexical_rank": null
+          },
+          "excerpt": "사업명    작은도서관지원\n\n               - 공립작은도서관1개소사서인건비보조(한솔작은도서관)\n               - 도서지원: 공립1개소\n사업내용              사립60개소(운영점검에따라지원개소변동)\n       -작은도서관특성화독서문화프로그램지원6개관\n       -작은도서관운영자교육및행사지원\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    직접수행\n\n               - 공립작은도서관인건비: 시주도로리모델링한복지관소속작은도서관1개소\n지원조건       - 도서지원: 공립- 복지관소속1개소, 사립- 등록후1년이상/ 1일4시간주5일이상개방운\n          영, 운영자배치\n\n시행주체    성남시(도서관지원과)\n\n\n사업명     작은도서관지원[우수작은도서관육성(보조)]\n\n       ㅇ우수작은도서관육성\n                 - 공립작은도서관: 총5,100,000원사업내용\n                 - 사립작은도서관: 경기도작은도서관평가결과에따라등급별차등지원(2,200,000원~\n               4,300,000원)\n\n사업기간     2026년01월01일∼2030년12월31일\n\n지원형태    자치단체보조\n\n        ㅇ등록후1년이상, 1일6시간(주5일)이상운영지원조건\n       ㅇ운영평가후차등지원\n\n시행주체    성남시(도서관지원과)\n\n\n사업명     작은도서관지원[독서환경조성(보조)]\n\n        ㅇ독서환경조성(자본)\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2"
+        }
+      ]
+    },
+    {
+      "query": "노인일자리",
+      "year": 2007,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 1022,
+        "vector_candidates": 64,
+        "lexical_candidates": 20,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 915
+      },
+      "expected_terms": [
+        "노인",
+        "일자리"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2007년 세입세출예산서 · 4차 추경예산성남시 고시 제2007-141호 · 원문 확인 · 세출예산사업명세서(일반회계) · 본청·사업소",
+          "page": 32,
+          "year": 2007,
+          "score": 0.678219,
+          "scores": {
+            "cosine": 0.425484,
+            "token_maxsim": 1,
+            "rrf": 0.030886,
+            "vector_rank": 1,
+            "lexical_rank": 9
+          },
+          "excerpt": "             | H346=기타보상금                     | I346= [국        45,000 도        22,500 시        22,500 분             0]\nA347=노인장애인과 | B347=사회개발비 | C347=사회보장비 | D347=가정복지 | E347=가정복지 | F347=보조사업 | G347=일반보상금                     | H347=기타보상금                     | I347=○ 노인일자리 창출 지원사업(급여)\nA348=노인장애인과 | B348=사회개발비 | C348=사회보장비 | D348=가정복지 | E348=가정복지 | F348=보조사업 | G348=일반보상금                     | H348=기타보상금                     | I348=    90,000,000원 = | J348=90000",
+          "source_url": "https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2007/10388_31.xls"
+        },
+        {
+          "title": "2007년 세입세출예산서 · 본예산 - 성남시 고시 제2006-129호 · 원문 확인 · 세출예산사업명세서(일반회계) · 본청·사업소",
+          "page": 280,
+          "year": 2007,
+          "score": 0.640251,
+          "scores": {
+            "cosine": 0.354391,
+            "token_maxsim": 1,
+            "rrf": 0.031258,
+            "vector_rank": 3,
+            "lexical_rank": 5
+          },
+          "excerpt": "                   | H1851=민간위탁금                     | I1851=○ 노인일자리교육형사업 추가(위탁)            33,000,000원 = | J1851=33000\nA1852=사회복지과                     | B1852=사회개발비                     | C1852=사회보장비                     | D1852=가정복지                       | E1852=가정복지                       | F1852=보조사업                       | G1852=민간이전                       | H1852=민간위탁금                     | I1852=[국           0 도      16,500 시      16,500 교         0 ]\nA1853=사회복지과                     | B1853=사회개발비                     | C1853=사회보장비                     | D1853=가정복지                       | E1853=가정복지                       | F1853=보조사업                       | G1853=민간이전                       | H1853=민간위탁금                     | I1853=○ 노인복지회관운영(수정노인복지회관)        700,000,000원 = | J1853=700000",
+          "source_url": "https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2007/10388_3.xls"
+        },
+        {
+          "title": "2007년 세입세출예산서 · 3차 추경예산성남시 고시 제2007-92호 · 원문 확인 · 세출예산사업명세서(일반회계) · 본청·사업소",
+          "page": 62,
+          "year": 2007,
+          "score": 0.605634,
+          "scores": {
+            "cosine": 0.304802,
+            "token_maxsim": 1,
+            "rrf": 0.02885,
+            "vector_rank": 13,
+            "lexical_rank": 6
+          },
+          "excerpt": "| F688=보조사업 | G688=민간이전                       | H688=민간경상보조                   | I688=    경정 42,600,000(42,600,000원) -  \nA689=사회복지과                     | B689=사회개발비 | C689=사회보장비 | D689=가정복지 | E689=가정복지 | F689=보조사업 | G689=민간이전                       | H689=민간경상보조                   | I689=    기정 30,000,000(30,000,000원) = | J689=12600\nA690=사회복지과                     | B690=사회개발비 | C690=사회보장비 | D690=가정복지 | E690=가정복지 | F690=보조사업 | G690=민간이전                       | H690=민간위탁금                     | I690= [국     2,188,639 도       786,137 시     1,277,357 분         5,380]\nA691=사회복지과                     | B691=사회개발비 | C691=사회보장비 | D691=가정복지 | E691=가정복지 | F691=보조사업 | G691=민간이전                       | H691=민간위탁금                     | I691=○ 노인일자리창출지원사업(위탁)\n",
+          "source_url": "https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2007/10388_24.xls"
+        },
+        {
+          "title": "2007년 세입세출예산서 · 4차 추경예산성남시 고시 제2007-141호 · 원문 확인 · 세출예산사업명세서(일반회계) · 본청·사업소",
+          "page": 28,
+          "year": 2007,
+          "score": 0.603282,
+          "scores": {
+            "cosine": 0.299523,
+            "token_maxsim": 1,
+            "rrf": 0.029031,
+            "vector_rank": 16,
+            "lexical_rank": 3
+          },
+          "excerpt": "[원문 위치: 시트 본청사업소; 행 295–304; 저장된 계산값; PDF 페이지 번호 아님]\nA295=사회복지과                     | B295=사회개발비 | C295=사회보장비 | D295=가정복지 | E295=가정복지 | F295=보조사업 | G295=민간이전                       | H295=민간위탁금                     | I295=○ 노인일자리 창출지원사업(위탁)\nA296=사회복지과                     | B296=사회개발비 | C296=사회보장비 | D296=가정복지 | E296=가정복지 | F296=보조사업 | G296=민간이전                       | H296=민간위탁금                     | I296=    경정 650,000,000(650,000,000원) -   \nA297=사회복지과                     | B297=사회개발비 | C297=사회보장비 | D297=가정복지 | E297=가정복지 | F297=보조사업 | G297=민간이전                       | H297=민간위탁금                     | I297=    기정 694,340,000(694,340,000원) = | J297=-44340\n",
+          "source_url": "https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2007/10388_31.xls"
+        },
+        {
+          "title": "2007년 세입세출예산서 · 1차 추경예산 - 성남시 고시 제2007-56호 · 원문 확인 · 세출예산사업명세서(일반회계) · 본청·사업소",
+          "page": 80,
+          "year": 2007,
+          "score": 0.592981,
+          "scores": {
+            "cosine": 0.286393,
+            "token_maxsim": 1,
+            "rrf": 0.028021,
+            "vector_rank": 26,
+            "lexical_rank": 1
+          },
+          "excerpt": " | D907=가정복지 | E907=가정복지 | F907=보조사업 | G907=민간이전                       | H907=민간경상보조                   | I907=○ 시니어클럽운영\nA908=사회복지과                     | B908=사회개발비 | C908=사회보장비 | D908=가정복지 | E908=가정복지 | F908=보조사업 | G908=민간이전                       | H908=민간경상보조                   | I908=    경정 150,000,000(150,000,000원) -  \nA909=사회복지과                     | B909=사회개발비 | C909=사회보장비 | D909=가정복지 | E909=가정복지 | F909=보조사업 | G909=민간이전                       | H909=민간경상보조                   | I909=    기정 100,000,000(100,000,000원) = | J909=50000\nA910=사회복지과                     | B910=사회개발비 | C910=사회보장비 | D910=가정복지 | E910=가정복지 | F910=보조사업 | G910=민간이전                       | H910=민간경상보조                   | I910=○ 노인일자리창출사업수행기관 전담인력 인건비\n",
+          "source_url": "https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2007/10388_10.xls"
+        }
+      ]
+    },
+    {
+      "query": "도서관",
+      "year": null,
+      "http": 200,
+      "retrieval": {
+        "mode": "hybrid",
+        "embedding_model": "minishlab/potion-multilingual-128M",
+        "dimensions": 256,
+        "index": "cosine IVF256",
+        "nprobe": 24,
+        "vector_chunks_scanned": 49618,
+        "vector_candidates": 64,
+        "lexical_candidates": 20,
+        "reranker": "potion-token-maxsim-v1",
+        "reranker_type": "static token late interaction, not a cross-encoder",
+        "reranked": true,
+        "reranked_candidates": 32,
+        "elapsed_ms": 1421
+      },
+      "expected_terms": [
+        "도서관"
+      ],
+      "expected_term_present": true,
+      "hits": [
+        {
+          "title": "2025년 성과계획서(본청 및 사업소).pdf",
+          "page": 30,
+          "year": 2025,
+          "score": 0.828185,
+          "scores": {
+            "cosine": 0.778518,
+            "token_maxsim": 1,
+            "rrf": 0.016393,
+            "vector_rank": 1,
+            "lexical_rank": null
+          },
+          "excerpt": "                 공공도서관 확충\n\n\n\n                      독서동아리 문화탐방\n\n책읽은 성남을 위한  공공도서관 확충 및\n                      성남시도서관 공동주관\n독서인프라 확충   특성화와 작은도서관                                        33,483                  1.21                     행사\n(도서관사업소)    활성화 지원\n\n\n                      작은도서관 지원\n\n\n\n                      공공도서관 조성\n\n\n\n                                                          - 22 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401203&fileNo=2"
+        },
+        {
+          "title": "결산서 첨부서류(최종)페이지.pdf",
+          "page": 1483,
+          "year": 2024,
+          "score": 0.823246,
+          "scores": {
+            "cosine": 0.771005,
+            "token_maxsim": 1,
+            "rrf": 0.016129,
+            "vector_rank": 2,
+            "lexical_rank": null
+          },
+          "excerpt": "                                                도서관지원과-문화및관광-문화예술                도서관지원                     작은도서관지원(우수작은도서관육 성)      도서관지원                     작은도서관지원(우수작은도서관육 성)                                             도서관지원과-문화및관광-문화예술                도서관지원                             작은도서관지원(냉·난방비지원)                                                      도서관지원과-문화및관광-문화예술",
+          "source_url": "https://www.seongnam.go.kr/bbs030503/getFile?bbsCrtSn=17012&pstSn=373153&fileNo=204636"
+        },
+        {
+          "title": "2024년 성과계획서(본청 및 사업소).pdf",
+          "page": 34,
+          "year": 2024,
+          "score": 0.809451,
+          "scores": {
+            "cosine": 0.747343,
+            "token_maxsim": 1,
+            "rrf": 0.015873,
+            "vector_rank": 3,
+            "lexical_rank": null
+          },
+          "excerpt": "공도서관 확충 및 특\n독서인프라 확충   성화와 작은도서관 활                                       28,273                  1.11\n(도서관사업소)    성화 지원\n                      성남시도서관 공동주관\n                     행사\n\n\n\n                      작은도서관 지원\n\n\n\n\n                                                            - 26 -",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401202&fileNo=2"
+        },
+        {
+          "title": "2024년 성과계획서(본청 및 사업소).pdf",
+          "page": 1278,
+          "year": 2024,
+          "score": 0.79598,
+          "scores": {
+            "cosine": 0.724224,
+            "token_maxsim": 1,
+            "rrf": 0.015625,
+            "vector_rank": 4,
+            "lexical_rank": null
+          },
+          "excerpt": "단위사업    도서관 지원\n\n\n□ 목적 및 주요내용\n\n○ 목적\n\n   - 공공도서관 및 작은도서관 지원을 통한 도서관서비스 개선에 기여\n\n○ 주요내용\n\n\n   - 도서관운영 위원회 운영\n   - 작은도서관 도서, 사업비 지원 및 교육 행사 지원\n   - 공공도서관 도서구입\n\n□ 관련 예산사업 내역\n\n                                                                      (단위:개, 백만원)\n\n                                                 비고\n     사업명      회계구분     '22결산        '23예산        '24예산\n                                                        (세부사업수)\n\n도서관 지원         일반회계                813               837               744             6\n\n  도서관 지원                                       162               229               234\n\n  작은도서관 지원                                   272               253               236\n\n  작은도서관 지원(우수 작\n                                                     379               355               171\n",
+          "source_url": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401202&fileNo=2"
+        },
+        {
+          "title": "결산서 첨부서류(최종)페이지.pdf",
+          "page": 262,
+          "year": 2024,
+          "score": 0.790595,
+          "scores": {
+            "cosine": 0.715768,
+            "token_maxsim": 1,
+            "rrf": 0.015385,
+            "vector_rank": 5,
+            "lexical_rank": null
+          },
+          "excerpt": "                                                                                                                                                                                                                 사회복지일반                                                                                                          재난방재ㆍ민방위                일반회계\n\n       직\n       조        생태하천과                                                                                                                                            도서관지원과              도서관지원과              도서관지원과              도서관지원과              도서관지원과              박물관사업소              박물관사업소                                                                                                                    도시개발행정과                 도시개발행정과      ",
+          "source_url": "https://www.seongnam.go.kr/bbs030503/getFile?bbsCrtSn=17012&pstSn=373153&fileNo=204636"
+        }
+      ]
+    }
+  ]
+}

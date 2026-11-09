@@ -1,0 +1,214 @@
+[
+  {
+    "query": {
+      "query": "청년 주거비 지원",
+      "year": 2026
+    },
+    "results": [
+      {
+        "id": "69db4859ea4e4c122505:p636",
+        "score": 0.725949,
+        "chunk": {
+          "start": 0,
+          "end": 786,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "32c9f094ec3f79fa18d0:p343",
+        "score": 0.605317,
+        "chunk": {
+          "start": 0,
+          "end": 683,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "69db4859ea4e4c122505:p24",
+        "score": 0.600824,
+        "chunk": {
+          "start": 674,
+          "end": 1170,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "69db4859ea4e4c122505:p632",
+        "score": 0.593785,
+        "chunk": {
+          "start": 680,
+          "end": 918,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "69db4859ea4e4c122505:p283",
+        "score": 0.589309,
+        "chunk": {
+          "start": 679,
+          "end": 912,
+          "offset_unit": "Unicode code points"
+        }
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "아이를 맡기는 시설 지원",
+      "year": 2026
+    },
+    "results": [
+      {
+        "id": "99a9af2d0c3300fbe364:p86",
+        "score": 0.519128,
+        "chunk": {
+          "start": 0,
+          "end": 748,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "69db4859ea4e4c122505:p23",
+        "score": 0.51096,
+        "chunk": {
+          "start": 663,
+          "end": 1413,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "69db4859ea4e4c122505:p590",
+        "score": 0.508636,
+        "chunk": {
+          "start": 0,
+          "end": 784,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "99a9af2d0c3300fbe364:p274",
+        "score": 0.503468,
+        "chunk": {
+          "start": 0,
+          "end": 771,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "69db4859ea4e4c122505:p585",
+        "score": 0.499002,
+        "chunk": {
+          "start": 672,
+          "end": 1037,
+          "offset_unit": "Unicode code points"
+        }
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "노인일자리",
+      "year_scope": "all"
+    },
+    "results": [
+      {
+        "id": "b43546e3f690a07ccac5:p1364",
+        "score": 0.873172,
+        "chunk": {
+          "start": 5646,
+          "end": 6125,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "b43546e3f690a07ccac5:p1367",
+        "score": 0.859931,
+        "chunk": {
+          "start": 5181,
+          "end": 5609,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "b43546e3f690a07ccac5:p1363",
+        "score": 0.857927,
+        "chunk": {
+          "start": 5465,
+          "end": 5937,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "b43546e3f690a07ccac5:p1632",
+        "score": 0.84282,
+        "chunk": {
+          "start": 8706,
+          "end": 9506,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "b43546e3f690a07ccac5:p1631",
+        "score": 0.832192,
+        "chunk": {
+          "start": 9724,
+          "end": 10267,
+          "offset_unit": "Unicode code points"
+        }
+      }
+    ]
+  },
+  {
+    "query": {
+      "query": "도서관",
+      "year": 2007
+    },
+    "results": [
+      {
+        "id": "9216c5992d2372eef533:p176",
+        "score": 0.583235,
+        "chunk": {
+          "start": 1802,
+          "end": 2107,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "e63b3a856832d5dcc4ad:p72",
+        "score": 0.560846,
+        "chunk": {
+          "start": 0,
+          "end": 600,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "9216c5992d2372eef533:p178",
+        "score": 0.559709,
+        "chunk": {
+          "start": 1101,
+          "end": 1776,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "b6b50280e845dfee8282:p783",
+        "score": 0.545115,
+        "chunk": {
+          "start": 0,
+          "end": 728,
+          "offset_unit": "Unicode code points"
+        }
+      },
+      {
+        "id": "886014bc0c65e8febeae:p154",
+        "score": 0.543693,
+        "chunk": {
+          "start": 1804,
+          "end": 2098,
+          "offset_unit": "Unicode code points"
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,81 @@
+{
+  "at": "2026-11-07T16:22:41.437Z",
+  "origin": "http://127.0.0.1:8765",
+  "sdk": "@modelcontextprotocol/sdk@1.32.2",
+  "authentication": "none",
+  "external_model_api": false,
+  "checks": [
+    {
+      "name": "SDK initialize",
+      "pass": true
+    },
+    {
+      "name": "8 read-only tools",
+      "pass": true
+    },
+    {
+      "name": "budget_research",
+      "query": {
+        "query": "청년 주거비 지원",
+        "year": 2026
+      },
+      "milliseconds": 928,
+      "server_ms": 919,
+      "timings_ms": {
+        "vector": 251,
+        "lexical": 209,
+        "hydrate": 249,
+        "rerank": 64
+      },
+      "cache_hit": false,
+      "first_source": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=2#page=636"
+    },
+    {
+      "name": "budget_research",
+      "query": {
+        "query": "아이를 맡기는 시설 지원",
+        "year": 2026
+      },
+      "milliseconds": 447,
+      "server_ms": 440,
+      "timings_ms": {
+        "vector": 88,
+        "lexical": 62,
+        "hydrate": 127,
+        "rerank": 83
+      },
+      "cache_hit": false,
+      "first_source": "https://www.seongnam.go.kr/bbs03050204/getFile?bbsCrtSn=17011&pstSn=401204&fileNo=1#page=86"
+    },
+    {
+      "name": "budget_research",
+      "query": {
+        "query": "노인일자리"
+      },
+      "milliseconds": 2143,
+      "server_ms": 2135,
+      "timings_ms": {
+        "vector": 137,
+        "lexical": 867,
+        "hydrate": 1038,
+        "rerank": 37
+      },
+      "cache_hit": false,
+      "first_source": "https://www.seongnam.go.kr/bbs030503/getFile?bbsCrtSn=17012&pstSn=373153&fileNo=204636#page=1364"
+    },
+    {
+      "name": "standard search",
+      "pass": true,
+      "milliseconds": 564
+    },
+    {
+      "name": "standard fetch",
+      "pass": true,
+      "milliseconds": 47
+    },
+    {
+      "name": "reject arbitrary URL",
+      "pass": true
+    }
+  ]
+}
