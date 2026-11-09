@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
 import worker from '../dist/server/index.js';
+import {exactPhraseHit} from '../worker/retrieval-phrases.js';
 const root=path.resolve('dist/client');
 const env={ASSETS:{async fetch(req){let p=path.resolve(root,'.'+new URL(req.url).pathname);if(!p.startsWith(root+path.sep))return new Response('',{status:403});try{return new Response(await readFile(p));}catch{return new Response('',{status:404});}}}};
 test('unqualified public queries are 2026 and total table bypasses vector work',async()=>{
@@ -11,6 +12,11 @@ test('unqualified public queries are 2026 and total table bypasses vector work',
  assert.equal(status,200);assert.equal(r.filters.year,2026);assert.equal(r.query_interpretation.year_basis,'default');
  assert.equal(r.answer_card.rows[0].amount,3940847350);assert.equal(r.answer_card.rows[0].amount_krw,3940847350000);
  assert.equal(r.retrieval.mode,'verified_total_table');assert.equal(r.evidence[0].page,1);
+ const e=r.evidence[0],{data:original}=await get('/api/page?'+new URLSearchParams({document_id:e.document_id,page:e.page}));
+ const {instructions,...sourceEvidence}=original;
+ assert(instructions);assert.equal(r.answer_policy,instructions);assert(!Object.hasOwn(e,'instructions'));
+ for(const [key,value] of Object.entries(sourceEvidence))assert.deepEqual(e[key],value,'total evidence preserves '+key);
+ assert.equal(e.source_url,'https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2026/11608_1.pdf');
  const {data:s}=await get('/api/search?query='+encodeURIComponent('도서관'));
  assert.equal(s.filters.year,2026);assert(s.results.every(h=>h.year===2026));
  const legacy=(await rpc('tools/call',{name:'search',arguments:{query:'노인일자리'}})).result;
@@ -20,10 +26,26 @@ test('unqualified public queries are 2026 and total table bypasses vector work',
 async function get(route){let r=await worker.fetch(new Request('https://test.local'+route),env);return{status:r.status,data:await r.json()};}
 async function rpc(method,params){let r=await worker.fetch(new Request('https://test.local/mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})}),env);return r.json();}
 test('collection totals expose incomplete coverage',async()=>{let {data:s}=await get('/api/status');assert.equal(s.whole_city_coverage_complete,false);assert.equal(s.documents,Object.values(s.status_counts).reduce((a,b)=>a+b,0));assert(s.snapshot_pages>0);});
+test('document inventory does not inherit the default expenditure search preference',async()=>{
+ const catalog=JSON.parse(await readFile('snapshot/catalog.json','utf8')),{data:r}=await get('/api/documents?year=2026&limit=20');
+ assert.equal(r.total,catalog.documents.filter(d=>d.year===2026).length);
+ const {data:p}=await get('/api/documents?'+new URLSearchParams({year:2026,category:'성과계획서'}));assert(p.total>0);assert(p.documents.every(d=>d.category==='성과계획서'));
+});
 test('Korean retrieval returns real 2026 evidence and exact page',async()=>{let start=performance.now();let {data:s,status}=await get('/api/search?query='+encodeURIComponent('노인일자리')+'&year=2026&budget_type='+encodeURIComponent('본예산')+'&limit=5');assert.equal(status,200);assert(s.results.length>0);for(let h of s.results){assert.equal(h.year,2026);assert.equal(h.budget_type,'본예산');assert(h.source_url.startsWith('https://www.seongnam.go.kr/'));let {data:p}=await get('/api/page?document_id='+h.document_id+'&page='+h.pdf_page);assert(p.text.includes('일자리'));assert.equal(p.pdf_page,h.pdf_page);}console.log('2026 search+pages milliseconds:',Math.round(performance.now()-start));});
 test('a verified budget total retains source units and numbers',async()=>{let {data:d}=await get('/api/documents?year=2026&limit=20');let doc=d.documents.find(x=>x.url.endsWith('/11608_1.pdf'));assert(doc);let {data:p}=await get('/api/page?document_id='+doc.id+'&page=1');assert(p.text.includes('3,940,847,350'));assert(p.text.includes('천원'));assert.equal(p.unit,'천원');});
 test('invalid input, unknown pages and absent evidence do not invent answers',async()=>{assert.equal((await get('/api/search?query=x')).status,400);assert.equal((await get('/api/search?query=valid&year=abc')).status,400);assert.equal((await get('/api/page?document_id=missing&page=1')).status,400);let {data:s}=await get('/api/search?year=2026&query=zzzzzzzzzzzz');assert.deepEqual(s.results,[]);});
 test('MCP modern and legacy discovery advertise read only tools',async()=>{assert.deepEqual((await rpc('server/discover')).result.supportedVersions,['2026-07-28']);assert.equal((await rpc('initialize',{protocolVersion:'2025-03-26'})).result.protocolVersion,'2025-03-26');let {result}=await rpc('tools/list');assert.equal(result.tools.length,8);assert(result.tools.every(t=>t.annotations.readOnlyHint));assert.equal((await rpc('tools/call',{name:'get_collection_status'})).result.isError,false);assert.equal((await rpc('tools/call',{name:'unknown'})).result.isError,true);assert.equal((await rpc('tools/call',{name:'get_collection_status',arguments:{url:'http://localhost'}})).result.isError,true);});
+test('tool guidance prefers one research call and reserves page reads for insufficient evidence',async()=>{
+ const list=(await rpc('tools/list')).result.tools,description=name=>list.find(t=>t.name===name).description;
+ assert.match(description('budget_research'),/성남시.*본예산.*추경.*결산.*사업비/);
+ assert.match(description('budget_research'),/법령 해석.*다른 지자체.*사용하지 않음/);
+ assert.match(description('get_budget_page'),/부족.*잘렸.*불명확/);
+ assert.match(description('get_budget_page'),/원문 전문을 요청/);
+ assert.match(description('get_budget_page'),/충분하면 추가 조회 없이 답변/);
+ assert.doesNotMatch(description('get_budget_page'),/금액을 답하기 전에 조회/);
+ assert.match(description('search_budget'),/budget_research를 우선 사용/);
+ assert.match(description('build_rag_context'),/기존 연동 호환용.*budget_research를 우선 사용/);
+});
 test('MCP rejects parse errors and cross-origin requests',async()=>{let r=await worker.fetch(new Request('https://test.local/mcp',{method:'POST',headers:{'content-type':'application/json'},body:'{'}),env);assert.equal(r.status,400);r=await worker.fetch(new Request('https://test.local/api/status',{headers:{origin:'https://evil.invalid'}}),env);assert.equal(r.status,403);});
 test('public MCP works without authentication headers',async()=>{let r=await worker.fetch(new Request('https://test.local/public-mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/list'})}),env);assert.equal(r.status,200);assert.equal((await r.json()).result.tools.length,8);});
 test('browser script compiles after locator and audience changes',async()=>{let html=await readFile('web/index.html','utf8');let scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,1);new vm.Script(scripts[0][1]);assert(html.includes('/public-mcp'));assert(!html.includes('사이트는 소유자 전용'));});
@@ -39,9 +61,51 @@ test('natural language retrieves and reranks vector evidence when lexical matchi
  let {data:v}=await get('/api/search?year=2026&budget_type='+encodeURIComponent('본예산')+'&mode=vector&query='+query);assert(v.results.length>0);assert(v.results.every(h=>h.year===2026&&h.budget_type==='본예산'));
 });
 
-test('optimization preserves result IDs, ranks, scores and chunk boundaries',async()=>{
+test('baseline questions retain traceable chunks under expenditure source policy',async()=>{
  const baseline=JSON.parse(await readFile('tests/retrieval-regression.json','utf8'));
- for(const b of baseline){const {data:r}=await get('/api/search?'+new URLSearchParams({...b.query,limit:5}));assert.deepEqual(r.results.map(({id,score,chunk})=>({id,score,chunk})),b.results);}
+ for(const b of baseline){const {data:r}=await get('/api/search?'+new URLSearchParams({...b.query,limit:5}));
+  // The old ranking included performance plans. Preserve traceability, not that order.
+  assert(r.results.length);assert(r.results.every(h=>h.source_family!=='performance'&&Number.isFinite(h.score)));
+  let fallback=false;for(const h of r.results){if(!h.retrieval_scores.exact_phrase)fallback=true;else{assert(!fallback);assert(h.excerpt.replace(/\s/g,'').includes(h.retrieval_scores.exact_phrase));}
+   const {data:p}=await get('/api/page?'+new URLSearchParams({document_id:h.document_id,page:h.page}));assert.equal(h.excerpt,Array.from(p.text).slice(h.chunk.start,h.chunk.end).join(''));
+   if(h.retrieval_scores.exact_phrase){const exact=exactPhraseHit(b.query.query,p.text,p.title),start=Math.max(0,exact.start-120),end=Math.min(Array.from(p.text).length,Math.max(start+800,exact.end));assert.deepEqual(h.chunk,{start,end,offset_unit:'Unicode code points'});}
+  }
+ }
+});
+test('business and accounting requests prefer statement rows, while performance remains explicit',async()=>{
+ for(const query of ['청년월세지원사업','청년월세지원사업 통계목 보여줘']){
+  const {data:r,status}=await get('/api/research?'+new URLSearchParams({query,limit:4}));assert.equal(status,200);
+  assert.equal(r.evidence[0].id,'32c9f094ec3f79fa18d0:p345');assert(r.evidence.every(e=>e.source_family!=='performance'));
+  const p=r.evidence[0].classification.matched_paths[0];assert.equal(p.combined_code,'301-01');assert.match(p.source_excerpt,/4,020,578/);
+ }
+ const {data:p}=await get('/api/research?'+new URLSearchParams({query:'청년월세지원사업 성과지표'}));
+ assert.equal(p.evidence[0].id,'69db4859ea4e4c122505:p636');assert(p.evidence.every(e=>e.source_family==='performance'));
+ const {data:mixed}=await get('/api/research?'+new URLSearchParams({query:'본예산과 성과계획서 비교 청년월세지원사업'}));
+ assert(mixed.evidence.some(e=>e.source_family==='performance'));assert(mixed.evidence.some(e=>e.source_family==='expenditure'));
+ assert(mixed.evidence.every(e=>e.source_family==='performance'||e.budget_type==='본예산'));
+});
+test('noncontiguous research-center name retains its supplementary statement and correct codes',async()=>{
+ for(const query of ['판교 연구센터 예산','판교 연구센터 통계목']){
+  const {data:r}=await get('/api/research?'+new URLSearchParams({query}));
+  assert.equal(r.evidence[0].id,'ecf3620a37b739b371c6:p21');assert.equal(r.evidence[0].budget_type,'추경');assert.equal(r.evidence[0].revision,1);
+  assert(r.evidence.every(e=>e.text.includes('연구센터')));assert.equal(r.evidence[0].classification.matched_paths[0].combined_code,'401-01');
+ }
+ const {data:base}=await get('/api/research?'+new URLSearchParams({query:'본예산 판교 연구센터 예산'}));assert(base.evidence.every(e=>e.budget_type==='본예산'));
+ const {data:revision}=await get('/api/research?'+new URLSearchParams({query:'판교 연구센터 예산',budget_type:'추경',revision:1}));assert(revision.evidence.every(e=>e.budget_type==='추경'&&e.revision===1));
+});
+test('capital consignment queries return exact 2025 source phrases before semantic alternatives',async()=>{
+ const inputs=[{query:'2025년도 자본적위탁사업비'},{query:'2025년 자본적위탁사업비'},{query:'자본적위탁사업비',year:2025},{query:'자본적 위탁사업비',year:2025},{query:'공기관 등에 대한 자본적 위탁사업비',year:2025},{query:'2025년 본예산 자본적위탁사업비'}];
+ for(const input of inputs){const {status,data:r}=await get('/api/search?'+new URLSearchParams({...input,limit:4}));assert.equal(status,200);assert.equal(r.results.length,4);
+  for(const h of r.results){assert.equal(h.year,2025);assert(h.excerpt.replace(/\s/g,'').includes('자본적위탁사업비'));assert(h.retrieval_scores.exact_phrase);if(input.query.includes('본예산'))assert.equal(h.budget_type,'본예산');}
+ }
+ const {data:dept}=await get('/api/search?'+new URLSearchParams({query:'주택과 자본적위탁사업비',year:2025,budget_type:'본예산',limit:1}));
+ assert.equal(dept.results[0].id,'0d36d672095ebcb1fede:p8');assert.equal(dept.results[0].budget_type,'본예산');assert(dept.results[0].excerpt.includes('220,000'));
+ const {data:lex}=await get('/api/search?'+new URLSearchParams({query:'2025년도 자본적위탁사업비',mode:'lexical',limit:4}));
+ assert(lex.results.every(h=>h.excerpt.replace(/\s/g,'').includes('자본적위탁사업비')));
+ const {data:vector}=await get('/api/search?'+new URLSearchParams({query:'2025년도 자본적위탁사업비',mode:'vector',limit:4}));
+ assert.equal(vector.retrieval.exact_phrase_candidates,0);assert(vector.results.every(h=>h.retrieval_scores.exact_phrase===null));
+ const r=(await rpc('tools/call',{name:'budget_research',arguments:{query:'2025년도 자본적위탁사업비',limit:4}})).result;
+ assert.equal(r.isError,false);assert.equal(r.structuredContent.evidence.length,4);assert(r.structuredContent.evidence.every(e=>e.text.replace(/\s/g,'').includes('자본적위탁사업비')&&e.year===2025));
 });
 test('research returns exact bounded evidence with coverage in one anonymous call',async()=>{
  const r=(await rpc('tools/call',{name:'budget_research',arguments:{query:'청년 주거비 지원',year:2026,limit:2}})).result;

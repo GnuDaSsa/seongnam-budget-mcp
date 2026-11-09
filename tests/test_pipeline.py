@@ -4,6 +4,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'pipeline'))
 from collect import upsert_metadata, _parse_pdf, extract_unit
 from parse_office import parse
+from defusedxml.common import DTDForbidden
 import fitz
 
 class PipelineTests(unittest.TestCase):
@@ -33,5 +34,20 @@ class PipelineTests(unittest.TestCase):
         d=fitz.open();d.new_page();p=d.new_page();p.insert_text((50,50),'Budget source amount 3,940,847,350 with sufficient text.')
         count,rows=_parse_pdf(d.tobytes(),'sample')
         self.assertEqual(count,2);self.assertEqual(rows[0][2],2);self.assertIn('3,940,847,350',rows[0][3])
+
+    def test_hwpx_rejects_dtd_and_entity_declarations(self):
+        payloads=[
+            '<!DOCTYPE s><s><p><t>text</t></p></s>',
+            '<!DOCTYPE s [<!ENTITY content "expanded">]><s><p><t>&content;</t></p></s>',
+            '<!DOCTYPE s SYSTEM "https://example.invalid/untrusted.dtd"><s><p><t>text</t></p></s>',
+        ]
+        base=Path(__file__).resolve().parents[1]/'work'/'qa';base.mkdir(parents=True,exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=base) as folder:
+            path=Path(folder)/'untrusted.hwpx'
+            for payload in payloads:
+                with self.subTest(payload=payload):
+                    with zipfile.ZipFile(path,'w') as z:
+                        z.writestr('Contents/section0.xml',payload)
+                    with self.assertRaises(DTDForbidden):parse(path,'hwpx')
 
 if __name__=='__main__':unittest.main()

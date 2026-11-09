@@ -1,7 +1,7 @@
 """Text blocks for non-PDF sources. Never invent PDF page numbers."""
 import argparse, io, json, re, sys, zipfile, tempfile
 from pathlib import Path
-from xml.etree import ElementTree as ET
+from defusedxml import ElementTree as ET
 from collect import DATA, ROOT, db, digest, now, extract_unit
 
 vendor=ROOT.parent/'python-libs'
@@ -55,7 +55,7 @@ def parse(path,ext):
             members=sorted(n for n in z.namelist() if re.fullmatch(r'Contents/section\d+\.xml',n))
             if sum(z.getinfo(n).file_size for n in members)>200_000_000:raise ValueError('HWPX expansion limit')
             for member in members:
-                root=ET.fromstring(z.read(member));paragraphs=[]
+                root=ET.fromstring(z.read(member),forbid_dtd=True,forbid_entities=True,forbid_external=True);paragraphs=[]
                 # A table cell can contain nested paragraphs. Flush each text node
                 # once in document order rather than counting parent and child twice.
                 buf=[]

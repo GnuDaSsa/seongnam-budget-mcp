@@ -1,12 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveQuery,isMunicipalTotal,totalAnswerCard} from '../worker/policy.js';
+import {resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed} from '../worker/policy.js';
 test('omitted year is fixed at 2026, explicit old and relative years survive',()=>{
  assert.equal(resolveQuery({query:'노인일자리 얼마야'}).year,2026);
  assert.equal(resolveQuery({query:'2007년 도서관'}).year,2007);
  assert.equal(resolveQuery({query:'도서관',year:2024}).year,2024);
  assert.equal(resolveQuery({query:'작년 도서관'}).year,2025);
  assert.equal(resolveQuery({query:'내년 예산'}).year,2027);
+});
+test('source family is independent of phase and explicit intents survive',()=>{
+ const plan={title:'2026 성과계획서',category:'성과계획서',budget_type:'본예산'};
+ assert.equal(sourceFamily(plan),'performance');
+ assert(!sourceAllowed(plan,resolveQuery({query:'청년월세지원사업 통계목'})));
+ assert(sourceAllowed(plan,resolveQuery({query:'청년월세지원사업 성과지표'})));
+ assert.equal(resolveQuery({query:'판교 연구센터 통계목'}).budget_type,undefined);
+ assert.equal(resolveQuery({query:'제1회 추경 연구센터 통계목'}).budget_type,'추경');
+ assert.equal(resolveQuery({query:'연구센터 결산'}).policy.source_preference,'explicit');
+ assert.equal(resolveQuery({query:'지방세 세입'}).policy.source_preference,'revenue');
+ assert.equal(resolveQuery({query:'본예산과 성과계획서 비교'}).policy.source_preference,'mixed');
+ const mixed=resolveQuery({query:'본예산과 성과계획서 비교'});
+ assert(sourceAllowed(plan,mixed));assert(sourceAllowed({budget_type:'본예산'},mixed));assert(!sourceAllowed({budget_type:'추경'},mixed));assert(!sourceAllowed({budget_type:'결산'},mixed));
+ const settled=resolveQuery({query:'결산과 성과계획서 비교'});assert(sourceAllowed(plan,settled));assert(sourceAllowed({budget_type:'결산'},settled));assert(!sourceAllowed({budget_type:'본예산'},settled));
+ assert(sourceAllowed(plan,resolveQuery({query:'청년월세지원사업',category:'성과계획서'})));
+ assert.equal(resolveQuery({query:'청년월세 성과계획서',budget_type:'추경'}).budget_type,'추경');
 });
 test('all years requires explicit intent and cannot silently override a year',()=>{
  assert.equal(resolveQuery({query:'모든 예산'}).year,2026);

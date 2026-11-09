@@ -23,9 +23,9 @@ def run():
         sizes.append(len(take))
     save('centroids.bin.gz',centers.tobytes())
     manifest={'model':MODEL,'model_revision':REV,'dimensions':DIM,'embedding_type':'BGE-M3-distilled static token embeddings; mean pooling + L2','quantization':'symmetric int8 per token and chunk; float32 scales','normalization':'Tokenizers.js 0.2.0 Precompiled-compatible NFKC; matched offline/online','tokenizer_unknown_score':-23.517933250454895,'chunk_characters':800,'chunk_overlap':120,'offset_unit':'Unicode code points','index_type':'cosine IVF256','nprobe':24,'clusters':sizes,'reranker':'potion-token-maxsim-v1','reranker_type':'static token late interaction, not a cross-encoder','rerank_candidates':32,'rrf_k':60,**report,'generated_at':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'model_url':'https://huggingface.co/'+MODEL,'license':'MIT'}
-    manifest['source_sha256']={name:hashlib.sha256((ROOT/'work/models/potion'/name).read_bytes()).hexdigest() for name in ['model.safetensors','tokenizer.json','config.json']}
+    manifest['source_files']=[{'file':name,'sha256':hashlib.sha256((ROOT/'work/models/potion'/name).read_bytes()).hexdigest()} for name in ['model.safetensors','tokenizer.json','config.json']]
     manifest['corpus_catalog_sha256']=hashlib.sha256((ROOT/'snapshot/catalog.json').read_bytes()).hexdigest()
     manifest['assets_bytes']=sum(p.stat().st_size for p in OUT.glob('*.gz'))
-    (OUT/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,separators=(',',':')),'utf-8')
+    (OUT/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n','utf-8')
     print(json.dumps({'index_complete':True,'chunks':len(v),'clusters':len(centers),'largest_cluster':max(sizes),'assets_bytes':manifest['assets_bytes'],'seconds':round(time.time()-begin)}),flush=True)
 if __name__=='__main__':run()
