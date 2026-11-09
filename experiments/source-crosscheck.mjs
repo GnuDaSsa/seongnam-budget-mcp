@@ -1,0 +1,8 @@
+import worker from '../dist/server/index.js';import {readFile} from 'node:fs/promises';import path from 'node:path';
+const root=path.resolve('dist/client'),env={ASSETS:{async fetch(req){try{return new Response(await readFile(path.resolve(root,'.'+new URL(req.url).pathname)))}catch{return new Response('',{status:404})}}}};
+const cases=[
+ {query:'2025년 본예산 주택과 자본적위탁사업비',document:'0d36d672095ebcb1fede',page:8,year:2025,type:'본예산',term:'220,000'},
+ {query:'2026년 1회 추경 판교 연구센터 예산',document:'ecf3620a37b739b371c6',page:21,year:2026,type:'추경',term:'26,299,000'}
+];
+async function rpc(name,args){const r=await worker.fetch(new Request('https://test.local/public-mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})}),env);return(await r.json()).result;}
+for(const c of cases){const result=await rpc('budget_research',{query:c.query,limit:4}),page=await rpc('get_budget_page',{document_id:c.document,page:c.page});const x=page.structuredContent,selected=result.structuredContent?.evidence||[];const hit=selected.find(e=>e.document_id===c.document&&e.page===c.page);console.log(JSON.stringify({query:c.query,research_error:result.isError,page_error:page.isError,expected_id:`${c.document}:p${c.page}`,found:!!hit,page_ok:!!x&&x.year===c.year&&x.budget_type===c.type&&x.unit==='천원'&&x.text.includes(c.term),result_metadata:hit&&{year:hit.year,budget_type:hit.budget_type,revision:hit.revision,unit:hit.unit,page:hit.page,pdf_page:hit.pdf_page,url:hit.source_url},page_url:x?.source_url,page_sha256:x?.sha256,returned_ids:selected.map(e=>e.id)}));}

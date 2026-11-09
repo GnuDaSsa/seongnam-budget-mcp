@@ -1,0 +1,8 @@
+import {createHash} from 'node:crypto';
+const base=process.env.WORKER_URL||'http://127.0.0.1:8787',sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function call(query,signal){const t=performance.now();try{const r=await fetch(base+'/public-mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'budget_research',arguments:{query,limit:2}}}),signal});const v=(await r.json()).result;return {client:'response',isError:v?.isError??true,ms:+(performance.now()-t).toFixed(2),hash:v?.structuredContent?createHash('sha256').update(JSON.stringify(v.structuredContent.evidence)).digest('hex'):null,years:v?.structuredContent?.evidence?.map(e=>e.year),error:v?.isError?v.content?.[0]?.text:null};}catch(e){return {client:e?.name==='AbortError'?'aborted':'error',ms:+(performance.now()-t).toFixed(2),error:e?.name};}}
+async function batch(queries){const cs=queries.map(()=>new AbortController());const all=queries.map((q,i)=>call(q,cs[i].signal));await sleep(100);for(let i=0;i<4;i++)cs[i].abort();return Promise.all(all);}
+const shared=await batch(Array(8).fill('2026년 1회 추경 판교 연구센터 예산'));
+const mixed=await batch(['2007년 본예산 중앙도서관 로비 조명보수공사','2025년 본예산 시청 직장 어린이집 운영','2026년 본예산 청년월세 지원사업','2024년 결산 수내도서관 건립','2025년 본예산 시스템반도체산업 육성','2026년 본예산 재난 및 재해 예방','2025년 결산 청년월세 한시 특별지원','2026년 본예산 작은도서관 공립문고 운영']);
+const sentinel=await call('2025년 본예산 주택과 자본적위탁사업비',AbortSignal.timeout(60000));
+console.log(JSON.stringify({shared,mixed,sentinel,shared_live_equal:new Set(shared.slice(4).map(x=>x.hash)).size===1&&shared.slice(4).every(x=>x.client==='response'&&!x.isError),note:'Client abort observation only: server-side queued-work cancellation is not measured.'}));

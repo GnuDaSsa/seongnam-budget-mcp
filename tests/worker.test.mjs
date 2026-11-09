@@ -222,3 +222,12 @@ test('cached research does not wait behind an unrelated blocked cold search',asy
   assert.equal(fast.status,200);assert.deepEqual(fast.data.evidence,warm.data.evidence);
  }finally{clearTimeout(timer);unblock();await cold;}
 });
+
+test('verified budget pages retain the exact source, year, revision and unit',async()=>{
+ const cases=[
+  {query:'2025년 본예산 주택과 자본적위탁사업비',document:'0d36d672095ebcb1fede',page:8,year:2025,type:'본예산',revision:null,amount:'220,000',sha:'b38d9e1e893f4de36d8f48c77209418ccd7ef3e0b3bea146f0a92ac57a609ec8'},
+  {query:'2026년 1회 추경 판교 연구센터 예산',document:'ecf3620a37b739b371c6',page:21,year:2026,type:'추경',revision:1,amount:'26,299,000',sha:'c04dda0c0d3f6165873e3e496c7e885dbd3ab6488da5e0295e434b223ce427ea'}
+ ];
+ for(const c of cases){const r=(await rpc('tools/call',{name:'budget_research',arguments:{query:c.query,limit:4}})).result;assert.equal(r.isError,false);const e=r.structuredContent.evidence.find(x=>x.document_id===c.document&&x.page===c.page);assert(e);const p=(await rpc('tools/call',{name:'get_budget_page',arguments:{document_id:c.document,page:c.page}})).result.structuredContent;
+  assert.equal(e.year,c.year);assert.equal(e.budget_type,c.type);assert.equal(e.revision,c.revision);assert.equal(e.unit,'천원');assert.equal(e.pdf_page,c.page);assert.equal(e.sha256,c.sha);assert.equal(e.source_url,p.source_url);assert.equal(e.text,Array.from(p.text).slice(e.context.start,e.context.end).join(''));assert(p.text.includes(c.amount));}
+});
