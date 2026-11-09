@@ -231,3 +231,21 @@ test('verified budget pages retain the exact source, year, revision and unit',as
  for(const c of cases){const r=(await rpc('tools/call',{name:'budget_research',arguments:{query:c.query,limit:4}})).result;assert.equal(r.isError,false);const e=r.structuredContent.evidence.find(x=>x.document_id===c.document&&x.page===c.page);assert(e);const p=(await rpc('tools/call',{name:'get_budget_page',arguments:{document_id:c.document,page:c.page}})).result.structuredContent;
   assert.equal(e.year,c.year);assert.equal(e.budget_type,c.type);assert.equal(e.revision,c.revision);assert.equal(e.unit,'천원');assert.equal(e.pdf_page,c.page);assert.equal(e.sha256,c.sha);assert.equal(e.source_url,p.source_url);assert.equal(e.text,Array.from(p.text).slice(e.context.start,e.context.end).join(''));assert(p.text.includes(c.amount));}
 });
+
+test('stalled retrieval fails new same-key requests while cached evidence stays available',async()=>{
+ const nativeSetTimeout=globalThis.setTimeout;let isolated;
+ try{globalThis.setTimeout=(fn,ms,...args)=>nativeSetTimeout(fn,ms===30000?25:ms,...args);isolated=(await import('../dist/server/index.js?watchdog-integration')).default;}finally{globalThis.setTimeout=nativeSetTimeout;}
+ async function request(url,binding=env){const res=await isolated.fetch(new Request('https://test.local'+url),binding);return {status:res.status,data:await res.json()};}
+ const warmUrl='/api/research?'+new URLSearchParams({query:'2026년 본예산 청년월세 지원사업',limit:2});const warm=await request(warmUrl);assert.equal(warm.status,200);assert(warm.data.evidence.length);
+ let release,signalBlocked;const barrier=new Promise(r=>release=r),blocked=new Promise(r=>signalBlocked=r);
+ const slowEnv={ASSETS:{async fetch(req){signalBlocked();await barrier;return env.ASSETS.fetch(req);}}};
+ const coldUrl='/api/research?'+new URLSearchParams({query:'2026년 본예산 공공청사 시설 유지관리',limit:1});const first=request(coldUrl,slowEnv);
+ let timer;try{
+  await Promise.race([blocked,new Promise((_,reject)=>{timer=nativeSetTimeout(()=>reject(Error('cold search did not start')),2000)})]);clearTimeout(timer);
+  await new Promise(r=>nativeSetTimeout(r,150));
+  const same=await Promise.race([request(coldUrl,slowEnv),new Promise((_,reject)=>{timer=nativeSetTimeout(()=>reject(Error('stalled same-key request did not fail promptly')),2000)})]);clearTimeout(timer);
+  assert.equal(same.status,400);assert.match(same.data.error,/처리가 지연/);
+  const cached=await request(warmUrl);assert.equal(cached.status,200);assert.deepEqual(cached.data.evidence,warm.data.evidence);
+ }finally{clearTimeout(timer);release();await first;}
+ const recovered=await request('/api/research?'+new URLSearchParams({query:'2025년 본예산 시청 직장 어린이집 운영',limit:1}));assert.equal(recovered.status,200);
+});

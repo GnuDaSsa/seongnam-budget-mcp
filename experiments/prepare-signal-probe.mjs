@@ -1,0 +1,6 @@
+import {writeFile} from 'node:fs/promises';import path from 'node:path';import {build} from 'esbuild';
+// Local-only diagnostic; this does not change app or hosted compatibility settings.
+const source=`import worker from './index.js';\nlet started=0,aborted=0,completed=0;\nexport default {async fetch(req,env,ctx){const p=new URL(req.url).pathname;if(p==='/signal-test'){started++;req.signal.addEventListener('abort',()=>aborted++,{once:true});await new Promise(r=>setTimeout(r,1000));completed++;return new Response('done');}if(p==='/signal-state')return Response.json({started,aborted,completed});return worker.fetch(req,env,ctx);}};\n`;
+const server=path.resolve('dist/server'),client=path.resolve('dist/client');await writeFile(path.join(server,'signal-probe-wrapper.js'),source);
+await build({entryPoints:[path.join(server,'signal-probe-wrapper.js')],outfile:path.join(server,'signal-probe-bundle.js'),bundle:true,format:'esm',platform:'browser',target:'es2022'});
+for(const [label,flags] of [['baseline',[]],['gated',['enable_request_signal']]])await writeFile(`work/signal-probe-${label}.json`,JSON.stringify({main:path.join(server,'signal-probe-bundle.js'),compatibility_date:'2026-11-07',compatibility_flags:flags,assets:{directory:client,binding:'ASSETS'}},null,2));

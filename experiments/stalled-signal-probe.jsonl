@@ -1,0 +1,2 @@
+{"label":"baseline","trial":1,"client":{"client":"aborted","error":"AbortError"},"state":{"started":1,"aborted":0,"completed":1},"status":200,"note":"Test-only signal listener; no application cancellation is implemented."}
+{"label":"gated","trial":1,"client":{"client":"aborted","error":"AbortError"},"state":{"started":1,"aborted":0,"completed":1},"status":200,"note":"Test-only signal listener; no application cancellation is implemented."}

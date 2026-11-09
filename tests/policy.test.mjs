@@ -82,3 +82,9 @@ test('document-kind comparisons bound work and preserve performance comparisons'
  assert.throws(()=>resolveQuery({query:'2025년 본예산 추경 결산 비교'}),/두 종류/);
  const a=resolveQuery({query:'본예산과 성과계획서 비교 청년월세지원사업'});assert.equal(a.policy.source_preference,'mixed');
 });
+
+test('total card rejects malformed numeric tokens and values on another line',()=>{
+ const e={unit:'천원',year:2026,id:'test',page_url:'https://example.org/'};
+ for(const text of ['합계 1,00\n일반회계 70\n특별회계 30','합계 100.5\n일반회계 70\n특별회계 30','합계 100원\n일반회계 70\n특별회계 30','합계\n100\n일반회계 70\n특별회계 30'])assert.equal(totalAnswerCard({...e,text}),null);
+ assert.equal(totalAnswerCard({...e,text:'합 계 1,000\n일반회계 900\n특별회계 100'}).rows[0].amount,1000);
+});

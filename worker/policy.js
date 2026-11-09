@@ -67,7 +67,7 @@ export function isMunicipalTotal(query){
 export function totalAnswerCard(evidence){
  if(evidence.unit!=='천원')return null;
  const labels=['합계','일반회계','특별회계'];
- const amounts=labels.map(label=>{const pattern=label==='합계'?'합\\s*계':label;const m=evidence.text.match(new RegExp('(?:^|\\n)\\s*'+pattern+'\\s+([0-9][0-9,]*)'));return m?Number(m[1].replaceAll(',','')):null;});
+ const amounts=labels.map(label=>{const pattern=label==='합계'?'합[^\\S\\r\\n]*계':label;const m=evidence.text.match(new RegExp('(?:^|\\n)[^\\S\\r\\n]*'+pattern+'[^\\S\\r\\n]+([^\\s]+)'));const token=m?.[1];return token&&/^(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)$/.test(token)?Number(token.replaceAll(',','')):null;});
  if(amounts.some(x=>!Number.isSafeInteger(x)||!Number.isSafeInteger(x*1000))||amounts[0]!==amounts[1]+amounts[2])return null;
  return{kind:'municipal_budget_total',year:evidence.year,budget_type:'본예산',unit:'천원',rows:labels.map((label,i)=>({label,amount:amounts[i],amount_krw:amounts[i]*1000})),source_id:evidence.id,page_url:evidence.page_url,calculation:'원 환산값 = 원문 천원 금액 × 1000. 합계와 일반·특별회계 합을 대조했습니다.'};
 }

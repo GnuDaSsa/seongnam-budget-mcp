@@ -44,3 +44,38 @@ test('full default queue times out cleanly without starting stale work',async()=
  for(const fn of [...timers.values()])fn();assert((await outcomes).every(x=>x.status==='rejected'));assert.equal(started,0);assert.deepEqual(gate.stats(),{active:1,queued:0});
  release();await first;assert.deepEqual(gate.stats(),{active:0,queued:0});assert.equal(await gate.run(async()=>9),9);
 });
+
+test('stalled watchdog fails queued and new work without releasing the active permit',async()=>{
+ let fire,release;const gate=new RetrievalGate({activeTimeoutMs:30,setWatchdog:fn=>(fire=fn,1),clearWatchdog:()=>{}});
+ const active=gate.run(()=>new Promise(r=>release=r));const queued=gate.run(async()=>{throw Error('queued work must not start')});const rejected=assert.rejects(queued,/처리가 지연/);
+ fire();await rejected;assert.equal(gate.isStalled(),true);assert.deepEqual(gate.stats(),{active:1,queued:0});
+ await assert.rejects(gate.run(async()=>99),/처리가 지연/);assert.deepEqual(gate.stats(),{active:1,queued:0});
+ release('original result');assert.equal(await active,'original result');assert.equal(gate.isStalled(),false);assert.deepEqual(gate.stats(),{active:0,queued:0});assert.equal(await gate.run(async()=>7),7);
+});
+
+test('another completion cannot clear a watchdog belonging to a still-running task',async()=>{
+ const watchdogs=[];const gate=new RetrievalGate({maxActive:2,setWatchdog:fn=>(watchdogs.push(fn),watchdogs.length),clearWatchdog:()=>{}});let releaseA,releaseB;
+ const a=gate.run(()=>new Promise(r=>releaseA=r)),b=gate.run(()=>new Promise(r=>releaseB=r));watchdogs[0]();releaseB('b');assert.equal(await b,'b');assert.equal(gate.isStalled(),true);assert.deepEqual(gate.stats(),{active:1,queued:0});
+ await assert.rejects(gate.run(async()=>0),/처리가 지연/);releaseA('a');assert.equal(await a,'a');assert.equal(gate.isStalled(),false);assert.equal(await gate.run(async()=>1),1);
+});
+
+test('one simulated disconnected consumer cannot cancel an already shared result',async()=>{
+ const {Inflight}=await import('../worker/inflight.js');let fire,release,calls=0;const gate=new RetrievalGate({setWatchdog:fn=>(fire=fn,1),clearWatchdog:()=>{}}),group=new Inflight(),binding={};
+ const load=()=>gate.run(()=>{calls++;return new Promise(r=>release=r)});const leader=group.run(binding,'search','same',load),follower=group.run(binding,'search','same',load);
+ const controller=new AbortController();const abandoned=Promise.race([leader,new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(Error('client disconnected')),{once:true}))]);controller.abort();await assert.rejects(abandoned,/client disconnected/);
+ fire();assert.equal(gate.isStalled(),true);assert.equal(calls,1);assert.deepEqual(gate.stats(),{active:1,queued:0});release({year:2026,text:'원문'});const [a,b]=await Promise.all([leader,follower]);assert.deepEqual(a,b);assert.equal(gate.isStalled(),false);
+});
+
+test('invalid watchdog interval is rejected',()=>{assert.throws(()=>new RetrievalGate({activeTimeoutMs:0}));assert.throws(()=>new RetrievalGate({activeTimeoutMs:2147483648}));});
+
+test('stalled work that rejects clears only its own watchdog and permits recovery',async()=>{
+ let fire,rejectWork;const gate=new RetrievalGate({setWatchdog:fn=>(fire=fn,1),clearWatchdog:()=>{}});
+ const active=gate.run(()=>new Promise((_,reject)=>rejectWork=reject));const failed=assert.rejects(active,/upstream failed/);fire();assert.equal(gate.isStalled(),true);
+ rejectWork(Error('upstream failed'));await failed;assert.equal(gate.isStalled(),false);assert.deepEqual(gate.stats(),{active:0,queued:0});assert.equal(await gate.run(async()=>5),5);
+});
+
+test('multiple stalled tasks require every stalled task to settle before recovery',async()=>{
+ const watches=[];const gate=new RetrievalGate({maxActive:2,setWatchdog:fn=>(watches.push(fn),watches.length),clearWatchdog:()=>{}});let releaseA,releaseB;
+ const a=gate.run(()=>new Promise(r=>releaseA=r)),b=gate.run(()=>new Promise(r=>releaseB=r));watches[0]();watches[1]();releaseA('a');assert.equal(await a,'a');
+ assert.equal(gate.isStalled(),true);await assert.rejects(gate.run(async()=>0),/처리가 지연/);releaseB('b');assert.equal(await b,'b');assert.equal(gate.isStalled(),false);assert.equal(await gate.run(async()=>2),2);
+});

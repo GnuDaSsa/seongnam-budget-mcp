@@ -1,0 +1,7 @@
+{"name":"2026 total","pass":true,"first_ms":46.45,"warm_ms":[0.58,0.34,0.3,0.27,0.23],"bytes":18234,"ids":["04ea9506e9f6283a0f89:p1"]}
+{"name":"2026 youth rental","pass":true,"first_ms":215.99,"warm_ms":[0.7,0.25,0.2,0.18,0.25],"bytes":34035,"ids":["32c9f094ec3f79fa18d0:p345","6e730799a151af5944c2:p371"]}
+{"name":"2026 performance intent","pass":true,"first_ms":113.98,"warm_ms":[0.36,0.2,0.29,0.16,0.14],"bytes":19476,"ids":["69db4859ea4e4c122505:p636"]}
+{"name":"2026 research center","pass":true,"first_ms":132.48,"warm_ms":[0.39,0.19,0.16,0.15,0.15],"bytes":24198,"ids":["ecf3620a37b739b371c6:p21"]}
+{"name":"2007 spreadsheet","pass":true,"first_ms":72.96,"warm_ms":[0.27,0.13,0.11,0.14,0.1],"bytes":21159,"ids":["b6b50280e845dfee8282:p775"]}
+{"name":"no results","pass":true,"first_ms":19.94,"warm_ms":[0.14,0.09,0.07,0.07,0.06],"bytes":9876,"ids":[]}
+{"name":"year comparison","pass":true,"first_ms":227.84,"warm_ms":[0.75,0.54,0.52,0.5,0.51],"bytes":135012,"ids":["b7ec9860cde5eb1d050f:p1200","b7ec9860cde5eb1d050f:p1291","32c9f094ec3f79fa18d0:p111","43d7bd93c3bbe86560a1:p557"]}

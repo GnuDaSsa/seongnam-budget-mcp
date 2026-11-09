@@ -97,6 +97,7 @@ async function search(env,input){
  const key=JSON.stringify([a.query,a.year,a.year_scope,a.budget_type,a.revision,a.category,a.document_id,a.mode||'hybrid',a.limit,a.policy]);
  const cached=searchCache.get(key),now=Date.now();
  if(cached&&cached.expires>now){const r=JSON.parse(cached.json);r.retrieval={...r.retrieval,cache_hit:true,original_elapsed_ms:r.retrieval?.elapsed_ms??null,elapsed_ms:0};return r;}
+ retrievalGate.assertHealthy();
  return coalesce(env,'search',key,()=>retrievalGate.run(async()=>{const r=await uncachedSearch(env,a);r.query_interpretation=a.policy;r.retrieval={...r.retrieval,cache_hit:false};const body=JSON.stringify(r),bytes=body.length*2;
   if(searchCache.has(key)){cacheBytes-=searchCache.get(key).bytes;searchCache.delete(key);}
   if(bytes<500000){while(searchCache.size>=12||cacheBytes+bytes>2000000){const k=searchCache.keys().next().value;cacheBytes-=searchCache.get(k).bytes;searchCache.delete(k);}searchCache.set(key,{json:body,bytes,expires:Date.now()+300000});cacheBytes+=bytes;}
@@ -110,6 +111,7 @@ async function evidenceFor(env,hits,full=false,query=''){
  // Fully cached evidence avoids waiting behind unrelated cold retrievals.
  const cached=hits.map(h=>evidenceCache.get(evidenceKey(h,full,query)));
  if(cached.every(Boolean))return cached;
+ retrievalGate.assertHealthy();
  const key=JSON.stringify(hits.map(h=>evidenceKey(h,full,query)));
  return coalesce(env,'evidence',key,()=>retrievalGate.run(()=>loadEvidence(env,hits,full,query)));
 }

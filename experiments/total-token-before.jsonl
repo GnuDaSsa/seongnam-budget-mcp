@@ -1,0 +1,5 @@
+{"name":"malformed comma","accepted":true,"expected":false,"pass":false}
+{"name":"decimal prefix","accepted":true,"expected":false,"pass":false}
+{"name":"suffix","accepted":true,"expected":false,"pass":false}
+{"name":"cross-line","accepted":true,"expected":false,"pass":false}
+{"name":"valid grouping","accepted":true,"expected":true,"pass":true}
