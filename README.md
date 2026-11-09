@@ -1,9 +1,14 @@
 # 성남 예산 아카이브
 
+[![CI](https://github.com/GnuDaSsa/seongnam-budget-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/GnuDaSsa/seongnam-budget-mcp/actions/workflows/ci.yml)
+
 성남시청 공개 예산서를 수집하고 원문 위치로 검색하는 공개 읽기 전용 MCP·웹앱입니다. 제품 요구사항은 [PRD](docs/PRD.md), 재사용 지시문은 [META_PROMPT](docs/META_PROMPT.md), 재수집·배포는 [운영 안내](docs/OPERATIONS.md)를 읽으세요.
 
+- 관리 레포: https://github.com/GnuDaSsa/seongnam-budget-mcp
 - 공개 사이트: https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site
 - 인증 없는 공개 MCP: https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site/public-mcp
+
+현재 서버는 0.3.0입니다. 연도 미지정은 2026년이며, 사업별 답변에 부서·세부사업·편성목·통계목을 기본 표시하도록 구조화된 근거와 지침을 제공합니다. [실제 일반 ChatGPT 검증](docs/CHATGPT_E2E.md), [조회 규칙](docs/QUERY_POLICY.md), [Korean Law MCP 사례 검토](docs/MCP_DESIGN_REVIEW.md)를 확인할 수 있습니다.
 
 ## 실행
 
