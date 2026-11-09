@@ -209,3 +209,16 @@ test('page unit does not claim to apply to every amount in mixed-unit text',asyn
  const {data:p,status}=await get('/api/page?document_id=fe0548f98abd4cb6599b&page=417');assert.equal(status,200);
  assert.equal(p.unit,'원');assert.match(p.unit_scope,/직접 붙은 단위/);assert.match(p.text,/2,735백만원/);assert.match(p.text,/단위\s*:\s*원/);
 });
+
+test('cached research does not wait behind an unrelated blocked cold search',async()=>{
+ const url='/api/research?'+new URLSearchParams({query:'2026년 본예산 청년월세 지원사업',limit:2});
+ const warm=await get(url);assert.equal(warm.status,200);assert(warm.data.evidence.length);
+ let unblock,signalBlocked;const barrier=new Promise(r=>unblock=r),blocked=new Promise(r=>signalBlocked=r);
+ const blockedEnv={ASSETS:{async fetch(req){signalBlocked();await barrier;return env.ASSETS.fetch(req);}}};
+ const cold=worker.fetch(new Request('https://test.local/api/research?'+new URLSearchParams({query:'2026년 본예산 업무용 차량 운영 세부사업',limit:1})),blockedEnv);
+ let timer;try{
+  await Promise.race([blocked,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('cold search did not start')),2000)})]);clearTimeout(timer);
+  const fast=await Promise.race([get(url),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('cached search waited behind cold search')),2000)})]);clearTimeout(timer);
+  assert.equal(fast.status,200);assert.deepEqual(fast.data.evidence,warm.data.evidence);
+ }finally{clearTimeout(timer);unblock();await cold;}
+});

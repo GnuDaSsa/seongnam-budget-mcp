@@ -2,6 +2,7 @@ import {budgetClassification} from './classification.js';
 import {comparisonStatus} from './comparison.js';
 import {EvidenceCache} from './evidence-cache.js';
 import {Inflight} from './inflight.js';
+import {RetrievalGate} from './retrieval-gate.js';
 import {verifiedTableContext} from './verified-table-context.js';
 import {POLICY,SERVER_RULES,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePriority} from './policy.js';
 import {vectorSearch,rerank} from './semantic.js';
@@ -89,24 +90,28 @@ async function uncachedSearch(env,input){
 // Public corpus results only. No persistent question logs or external model API.
 const searchCache=new Map();let cacheBytes=0;
 const inflight=new Inflight();
+const retrievalGate=new RetrievalGate();
 function coalesce(env,kind,key,load){return inflight.run(env.ASSETS,kind,key,load);}
 async function search(env,input){
  const a=resolveQuery(args(input));if(a.policy.years.length>1)fail('여러 연도 비교는 budget_research를 사용하거나 각 연도로 조회하세요.');
  const key=JSON.stringify([a.query,a.year,a.year_scope,a.budget_type,a.revision,a.category,a.document_id,a.mode||'hybrid',a.limit,a.policy]);
  const cached=searchCache.get(key),now=Date.now();
  if(cached&&cached.expires>now){const r=JSON.parse(cached.json);r.retrieval={...r.retrieval,cache_hit:true,original_elapsed_ms:r.retrieval?.elapsed_ms??null,elapsed_ms:0};return r;}
- return coalesce(env,'search',key,async()=>{const r=await uncachedSearch(env,a);r.query_interpretation=a.policy;r.retrieval={...r.retrieval,cache_hit:false};const body=JSON.stringify(r),bytes=body.length*2;
+ return coalesce(env,'search',key,()=>retrievalGate.run(async()=>{const r=await uncachedSearch(env,a);r.query_interpretation=a.policy;r.retrieval={...r.retrieval,cache_hit:false};const body=JSON.stringify(r),bytes=body.length*2;
   if(searchCache.has(key)){cacheBytes-=searchCache.get(key).bytes;searchCache.delete(key);}
   if(bytes<500000){while(searchCache.size>=12||cacheBytes+bytes>2000000){const k=searchCache.keys().next().value;cacheBytes-=searchCache.get(k).bytes;searchCache.delete(k);}searchCache.set(key,{json:body,bytes,expires:Date.now()+300000});cacheBytes+=bytes;}
-  return r;});
+  return r;}));
 }
 // Bounded, transient cache of already-produced evidence. Keys include every
 // input used for text boundaries, query-specific classification and scores.
 const evidenceCache=new EvidenceCache();
 function evidenceKey(h,full,query){return JSON.stringify([SEMANTIC.corpus_catalog_sha256,h.id,h.gid,h.chunk??null,h.retrieval_scores??null,full,query]);}
 async function evidenceFor(env,hits,full=false,query=''){
+ // Fully cached evidence avoids waiting behind unrelated cold retrievals.
+ const cached=hits.map(h=>evidenceCache.get(evidenceKey(h,full,query)));
+ if(cached.every(Boolean))return cached;
  const key=JSON.stringify(hits.map(h=>evidenceKey(h,full,query)));
- return coalesce(env,'evidence',key,()=>loadEvidence(env,hits,full,query));
+ return coalesce(env,'evidence',key,()=>retrievalGate.run(()=>loadEvidence(env,hits,full,query)));
 }
 async function loadEvidence(env,hits,full=false,query=''){
  const grouped=new Map(),out=new Map();for(const h of hits){const key=evidenceKey(h,full,query),entry=evidenceCache.get(key);

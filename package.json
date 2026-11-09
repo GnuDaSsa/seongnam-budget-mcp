@@ -7,7 +7,7 @@
     "dev": "node scripts/dev.mjs",
     "test": "node --test tests/*.test.mjs",
     "validate": "node scripts/validate-artifact.mjs",
-    "test:unit": "node --test tests/policy.test.mjs tests/classification.test.mjs tests/retrieval-phrases.test.mjs tests/comparison.test.mjs tests/evidence-cache.test.mjs tests/inflight.test.mjs tests/verified-table-context.test.mjs",
+    "test:unit": "node --test tests/policy.test.mjs tests/classification.test.mjs tests/retrieval-phrases.test.mjs tests/comparison.test.mjs tests/evidence-cache.test.mjs tests/inflight.test.mjs tests/verified-table-context.test.mjs tests/retrieval-gate.test.mjs",
     "snapshot:download": "node scripts/download-snapshot.mjs"
   },
   "dependencies": {
