@@ -16,5 +16,5 @@ test('semantic reranking scores passage meaning and returns actual model scores'
 });
 test('every searchable location is covered and assets use nonempty IVF lists',async()=>{
  let m=JSON.parse(await readFile('snapshot/semantic/manifest.json','utf8')),c=JSON.parse(await readFile('snapshot/catalog.json','utf8'));
- assert.equal(m.pages,c.summary.snapshot_units);assert.equal(m.chunks,m.clusters.reduce((a,b)=>a+b,0));assert(m.chunks>m.pages);assert.equal(m.dimensions,256);assert(m.quantization_mean_cosine>0.999);assert(m.source_sha256['model.safetensors'].length===64);
+ assert.equal(m.pages,c.summary.snapshot_units);assert.equal(m.chunks,m.clusters.reduce((a,b)=>a+b,0));assert(m.chunks>m.pages);assert.equal(m.dimensions,256);assert(m.quantization_mean_cosine>0.999);assert.equal(m.source_files.find(f=>f.file==='model.safetensors').sha256.length,64);
 });

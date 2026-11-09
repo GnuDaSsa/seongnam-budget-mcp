@@ -42,7 +42,7 @@ node scripts/validate-artifact.mjs
 
 관련 게시판 탐색은 기본적으로 페이지와 첨부 목록을 다시 읽는다. --cached는 네트워크 없이 기존 탐색 자료를 재사용할 때만 지정한다. 이미 다운로드한 원본은 다시 받지 않는다. 같은 URL의 원본 교체를 자동 감지하는 기능은 아직 없다. 교체가 확인되면 기존 원본·DB를 백업한 후 해당 문서를 재수집하는 작업을 별도 검증해야 한다. 신규 파일 발견과 기존 파일 변경 감지는 다른 상태다.
 
-파서 개선 후 특정 형식을 다시 읽으려면 `python pipeline/parse_office.py --reparse-format hwpx`처럼 지정한다. 인용 위치·수치가 달라진 문서를 검토한 뒤 색인한다. HWP는 구버전 pyhwp 의존성 때문에 setuptools<81을 고정한다.
+파서 개선 후 특정 형식을 다시 읽으려면 `python pipeline/parse_office.py --reparse-format hwpx`처럼 지정한다. 인용 위치·수치가 달라진 문서를 검토한 뒤 색인한다. HWP 파서는 일반적인 압축 해제 설치의 리소스 경로를 사용하며, setuptools는 보안 수정 버전으로 고정한다.
 
 ## 배포
 

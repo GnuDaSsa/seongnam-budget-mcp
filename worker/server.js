@@ -50,7 +50,7 @@ async function lexicalSearch(env,input){let a=args(input),q=(a.query||'').trim()
 
  return{query:q,filters:{year:a.year??null,budget_type:a.budget_type??null,category:a.category??null},results,scanned_pages:scanned,matched_pages_before_dedup:matched,coverage:CATALOG.summary,instructions:RULES};}
 
-function retrievalStatus(){let {doc_ids,clusters,source_sha256,...m}=SEMANTIC;return {...m,clusters:clusters.length,vectorization_complete:SEMANTIC.pages===CATALOG.summary.snapshot_units,hybrid_search:true,reranking_enabled:true,cross_encoder:false};}
+function retrievalStatus(){let {doc_ids,clusters,source_files,...m}=SEMANTIC;return {...m,clusters:clusters.length,vectorization_complete:SEMANTIC.pages===CATALOG.summary.snapshot_units,hybrid_search:true,reranking_enabled:true,cross_encoder:false};}
 async function uncachedSearch(env,input){
  let a=args(input),q=(a.query||'').trim();if(q.length<2)fail('검색어를 두 글자 이상 입력하세요.');
  if(a.mode==='lexical')return {...await lexicalSearch(env,a),retrieval:{mode:'lexical',reranked:false}};

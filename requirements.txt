@@ -1,8 +1,9 @@
 beautifulsoup4==4.14.3
+defusedxml==0.7.1
 PyMuPDF==1.26.4
 openpyxl==3.1.5
 olefile==0.47
 pyhwp==0.1b15
 lxml>=5,<7
 xlrd==2.0.2
-setuptools>=70,<81
+setuptools==84.1.0
