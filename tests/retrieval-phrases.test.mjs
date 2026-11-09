@@ -1,12 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {withoutQueryYears,exactQueryPhrases,exactPhraseHit} from '../worker/retrieval-phrases.js';
+import {withoutQueryYears,exactQueryPhrases,exactPhraseHit,businessTermsHit,retrievalWords} from '../worker/retrieval-phrases.js';
 test('year boilerplate leaves formal Korean labels and model identifiers intact',()=>{
  assert.equal(withoutQueryYears('2025년도 자본적위탁사업비').trim(),'자본적위탁사업비');
  assert.equal(withoutQueryYears('2025년 자본적위탁사업비').trim(),'자본적위탁사업비');
  assert.equal(withoutQueryYears('AB2025X 사업'),'AB2025X 사업');
  assert(exactQueryPhrases('성남시 2025년 본예산 공기관 등에 대한 자본적 위탁사업비 알려줘').phrases.includes('공기관등에대한자본적위탁사업비'));
  assert.deepEqual(exactQueryPhrases('403-01 자본적위탁사업비').phrases,[]);
+});
+test('output requests are removed but bounded business terms must all be present',()=>{
+ assert.deepEqual(retrievalWords('청년월세지원사업 통계목 보여줘'),['청년월세지원사업']);
+ const h=businessTermsHit('판교 연구센터 예산','😀 판교시스템반도체연구센터조성 26,299,000');assert(h);assert.deepEqual(h.words,['판교','연구센터']);
+ assert.equal(businessTermsHit('판교 연구센터 예산','판교동 주민자치센터 운영'),null);
+ assert.equal(businessTermsHit('판교 연구센터','판교'+'가'.repeat(1000)+'연구센터'),null);
+ assert.equal(businessTermsHit('403-02 자본적위탁사업비','403 자치단체등자본이전 02 공기관등에대한자본적위탁사업비'),null);
 });
 test('exact phrase is contiguous after whitespace normalization, with original codepoint offsets',()=>{
  const text='😀 머리말\n공기관 등에 대한 자본적\n위탁 사업비 220,000';
