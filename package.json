@@ -1,0 +1,20 @@
+{
+  "name": "seongnam-budget-archive",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "validate": "node scripts/validate-artifact.mjs",
+    "test:unit": "node --test tests/policy.test.mjs tests/classification.test.mjs tests/retrieval-phrases.test.mjs",
+    "snapshot:download": "node scripts/download-snapshot.mjs"
+  },
+  "dependencies": {
+    "@huggingface/tokenizers": "^0.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "version": "0.3.0"
+}

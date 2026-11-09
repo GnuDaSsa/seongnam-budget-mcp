@@ -1,0 +1,28 @@
+import {mkdir,readFile,writeFile,cp,rm,access} from 'node:fs/promises';
+import path from 'node:path';
+import {build} from 'esbuild';
+import {createHash} from 'node:crypto';
+import {buildLexical} from './build-lexical.mjs';
+await buildLexical();
+const root=process.cwd();
+const out=path.resolve(root,'dist');
+if(path.dirname(out)!==root) throw new Error('Unsafe build destination');
+await rm(out,{recursive:true,force:true});
+await mkdir(path.join(out,'server'),{recursive:true});
+await mkdir(path.join(out,'.openai'),{recursive:true});
+await mkdir(path.join(out,'client'),{recursive:true});
+const catalog=JSON.parse(await readFile('snapshot/catalog.json','utf8'));
+const html=await readFile('web/index.html','utf8');
+const semantic=JSON.parse(await readFile('snapshot/semantic/manifest.json','utf8'));
+if(createHash('sha256').update(await readFile('snapshot/catalog.json')).digest('hex')!==semantic.corpus_catalog_sha256)throw Error('Corpus changed: rebuild vectors and ANN before publishing');
+catalog.summary.search_engine='Hybrid Korean lexical + Potion 256d cosine IVF + token MaxSim reranking; generation by connected GPT';
+for(const name of ['vocab','common','centroids','page-docs',...semantic.clusters.map((_,i)=>'cluster-'+i),...Array.from({length:Math.ceil(semantic.tokenizer_vocab/2048)},(_,i)=>'tokens-'+i)])await access(path.join(root,'snapshot/semantic',name+'.bin.gz'));
+let code=await readFile('worker/server.js','utf8');
+code=code.replace('/*__CATALOG__*/null',JSON.stringify(catalog)).replace('/*__HTML__*/null',JSON.stringify(html)).replace('/*__SEMANTIC__*/null',JSON.stringify(semantic));
+await build({stdin:{contents:code,resolveDir:path.join(root,'worker'),sourcefile:'server.js'},bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:path.join(out,'server/index.js')});
+await cp('.openai/hosting.json',path.join(out,'.openai/hosting.json'));
+await cp('snapshot/corpus',path.join(out,'client/corpus'),{recursive:true});
+await cp('snapshot/semantic',path.join(out,'client/semantic'),{recursive:true,filter:src=>!path.basename(src).startsWith('tokens-')});
+// Cloudflare conventional static asset metadata; Sites accepts dist/client assets.
+await writeFile(path.join(out,'server/wrangler.json'),JSON.stringify({main:'index.js',compatibility_date:'2026-11-07',assets:{directory:'../client',binding:'ASSETS'}},null,2));
+console.log(JSON.stringify({built:true,documents:catalog.summary.documents,pages:catalog.summary.snapshot_pages,shards:catalog.shards.length}));

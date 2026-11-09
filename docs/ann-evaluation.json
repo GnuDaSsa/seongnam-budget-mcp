@@ -1,0 +1,52 @@
+{
+  "kind": "IVF candidate recall vs exhaustive cosine (not relevance quality)",
+  "queries": [
+    {
+      "query": "노인일자리",
+      "recall_at_20": 1.0,
+      "best_cosine": 0.8603129386901855
+    },
+    {
+      "query": "어르신이 일할 수 있도록 돕는 사업",
+      "recall_at_20": 1.0,
+      "best_cosine": 0.6627928018569946
+    },
+    {
+      "query": "아이를 맡기는 시설 지원",
+      "recall_at_20": 1.0,
+      "best_cosine": 0.5558950901031494
+    },
+    {
+      "query": "도서관",
+      "recall_at_20": 0.95,
+      "best_cosine": 0.778517484664917
+    },
+    {
+      "query": "청년 주거비 지원",
+      "recall_at_20": 1.0,
+      "best_cosine": 0.7621462345123291
+    },
+    {
+      "query": "2026년 본예산 장애인 이동 지원",
+      "recall_at_20": 1.0,
+      "best_cosine": 0.6984254121780396
+    },
+    {
+      "query": "거동이 불편한 주민의 교통편",
+      "recall_at_20": 1.0,
+      "best_cosine": 0.49728432297706604
+    },
+    {
+      "query": "출산한 가정에 주는 지원금",
+      "recall_at_20": 0.95,
+      "best_cosine": 0.5508298277854919
+    },
+    {
+      "query": "주민이 책을 빌려 읽을 수 있는 곳",
+      "recall_at_20": 1.0,
+      "best_cosine": 0.5907458662986755
+    }
+  ],
+  "mean_recall_at_20": 0.9888888888888889,
+  "nprobe": 24
+}
