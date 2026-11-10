@@ -42,14 +42,14 @@ function find(arr,id){let lo=0,hi=arr.length;while(lo<hi){let m=(lo+hi)>>>1;if(a
 function unit(v){let norm=Math.sqrt(v.reduce((a,x)=>a+x*x,0));if(norm>0)for(let i=0;i<v.length;i++)v[i]/=norm;return v;}
 function dot(a,b){let sum=0;for(let i=0;i<DIM;i++)sum+=a[i]*b[i];return sum;}
 // 드문 질문 토큰 가중치는 별도 사이트에서 읽으므로 요청 사이에 재사용한다.
-// 정리는 요청 시작 때만 해서 한 요청 안에서 쓰는 토큰이 중간에 사라지지 않게 한다.
+// 요청마다 쓰는 행의 참조를 보존해 다른 요청의 캐시 정리가 검색 중인 벡터를 지우지 않게 한다.
 const tokenRows=new Map(),TOKEN_ROW_LIMIT=8192;
 export async function createEncoder(env){
  for(const id of tokenRows.keys()){if(tokenRows.size<=TOKEN_ROW_LIMIT)break;tokenRows.delete(id);}
- const s=await state(env),extra=tokenRows;
+ const s=await state(env),extra=new Map();
  function common(id){const i=find(s.commonIds,id);if(i<0)return null;return{row:s.vectors.subarray(i*DIM,(i+1)*DIM),scale:s.scales[i]};}
- async function ensure(ids){let missing=[...new Set(ids.filter(id=>!common(id)&&!extra.has(id)))],groups=new Map();for(let id of missing){let key=Math.floor(id/2048);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(id);}
-  for(let [key,list] of groups){let b=await binary(env,'tokens-'+key),h=new Uint32Array(b,0,2),scale=new Float32Array(b,8,h[1]),rows=new Int8Array(b,8+4*h[1]);for(let id of list){let i=id-h[0];extra.set(id,{row:rows.slice(i*DIM,(i+1)*DIM),scale:scale[i]});}}
+ async function ensure(ids){let missing=[],groups=new Map();for(const id of new Set(ids)){if(common(id)||extra.has(id))continue;const cached=tokenRows.get(id);if(cached)extra.set(id,cached);else missing.push(id);}for(let id of missing){let key=Math.floor(id/2048);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(id);}
+  for(let [key,list] of groups){let b=await binary(env,'tokens-'+key),h=new Uint32Array(b,0,2),scale=new Float32Array(b,8,h[1]),rows=new Int8Array(b,8+4*h[1]);for(let id of list){let i=id-h[0],value={row:rows.slice(i*DIM,(i+1)*DIM),scale:scale[i]};extra.set(id,value);tokenRows.set(id,value);}}
  }
  function row(id){return common(id)||extra.get(id);}
  function embed(ids){let v=new Float32Array(DIM);for(let id of ids){let w=row(id);if(w)for(let j=0;j<DIM;j++)v[j]+=w.row[j]*w.scale;}return unit(v);}
