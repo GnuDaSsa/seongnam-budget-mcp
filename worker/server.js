@@ -1,5 +1,5 @@
 import {budgetClassification} from './classification.js';
-import {POLICY,SERVER_RULES,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePriority} from './policy.js';
+import {POLICY,SERVER_RULES,EVIDENCE_BOUNDARY,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePriority} from './policy.js';
 import {vectorSearch,rerank} from './semantic.js';
 import {openapi} from './openapi.js';
 import {retrievalWords,exactPhraseHit,businessTermsHit} from './retrieval-phrases.js';
@@ -17,6 +17,7 @@ const RELEASE=/*__RELEASE__*/null;
 const DOCS=new Map(CATALOG.documents.map(d=>[d.id,d])), cache=new Map();
 
 const RULES=SERVER_RULES;
+const nextAction=text=>text+' '+EVIDENCE_BOUNDARY;
 const json=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
 function fail(m){throw new Error(m);}
 function num(v,k,min,max){if(v===undefined||v===null||v==='')return;let n=Number(v);if(!Number.isInteger(n)||n<min||n>max)fail(k+' 값이 올바르지 않습니다.');return n;}
@@ -121,7 +122,7 @@ async function research(env,input){
  const started=Date.now(),a=resolved(args(input));
  if(a.policy.years.length>1){
   const per_year=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,limit:2})));
-  return{question:a.query,query_interpretation:a.policy,per_year,evidence:per_year.flatMap(r=>r.evidence),generation_performed:false,answer_policy:RULES,next_action:'연도별 동일 사업·동일 문서 종류·동일 회계 범위만 비교하세요. 누락된 연도는 확인 불가이며 0원이 아닙니다.',elapsed_ms:Date.now()-started};
+  return{question:a.query,query_interpretation:a.policy,per_year,evidence:per_year.flatMap(r=>r.evidence),generation_performed:false,answer_policy:RULES,next_action:nextAction('연도별 동일 사업·동일 문서 종류·동일 회계 범위만 비교하세요. 누락된 연도는 확인 불가이며 0원이 아닙니다.'),elapsed_ms:Date.now()-started};
  }
  if(a.year_scope!=='all'&&a.policy.institution_scope.mode==='municipal'&&a.budget_type==='추경'&&!a.revision&&/최신|마지막|최종/.test(a.query)){
   const revisions=CATALOG.documents.filter(d=>match(d,a)&&d.revision).map(d=>d.revision);
@@ -131,12 +132,12 @@ async function research(env,input){
  if(a.policy.institution_scope.mode==='municipal'&&!a.document_id&&a.year===2026&&!a.revision&&!a.category&&(!a.budget_type||a.budget_type==='본예산')&&isMunicipalTotal(a.query)){
   const doc=CATALOG.documents.find(d=>d.year===2026&&d.url.endsWith('/11608_1.pdf'));
   if(doc){const {instructions,...p}=await page(env,{document_id:doc.id,page:1}),e={id:doc.id+':p1',...p,text_is_complete:true,context:{start:0,end:Array.from(p.text).length,total_characters:Array.from(p.text).length,offset_unit:'Unicode code points'}},card=totalAnswerCard(e);
-   if(card)return{question:a.query,filters:{year:a.year,budget_type:'본예산'},query_interpretation:{...a.policy,budget_type_basis:a.budget_type?'specified':'total_default'},answer_card:card,evidence:[e],retrieval:{mode:'verified_total_table',reranked:false,reason:'검증된 본예산 총괄표 직접 조회'},coverage,generation_performed:false,answer_policy:RULES,next_action:'answer_card의 수치와 공식 원문 근거로 바로 답하세요. 기준 연도와 본예산 기준임을 밝히고 동일 내용을 재검색하지 마세요.',elapsed_ms:Date.now()-started};
+   if(card)return{question:a.query,filters:{year:a.year,budget_type:'본예산'},query_interpretation:{...a.policy,budget_type_basis:a.budget_type?'specified':'total_default'},answer_card:card,evidence:[e],retrieval:{mode:'verified_total_table',reranked:false,reason:'검증된 본예산 총괄표 직접 조회'},coverage,generation_performed:false,answer_policy:RULES,next_action:nextAction('answer_card의 수치와 공식 원문 근거로 바로 답하세요. 기준 연도와 본예산 기준임을 밝히고 동일 내용을 재검색하지 마세요.'),elapsed_ms:Date.now()-started};
   }
  }
  const r=await search(env,{...a,limit:Math.min(a.limit,4)}),evidence=await evidenceFor(env,r.results,false,a.policy.institution_scope.city_retrieval_query);
  return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,retrieval:r.retrieval,coverage,generation_performed:false,
-  next_action:evidence.length?'제공된 원문 근거로 직접 답하세요. 연도와 문서 종류를 밝히세요. 충분한 근거가 있으면 같은 질문을 재검색하거나 수집 현황을 먼저 호출하지 마세요. 표 대응이 불분명하거나 필요한 문맥이 잘렸을 때만 전문을 확인하세요.':'현재 범위에서 근거를 찾지 못했습니다. 검색 실패를 예산 부재로 해석하지 마세요. 다른 연도로 조용히 대체하지 마세요.',answer_policy:RULES,elapsed_ms:Date.now()-started};
+  next_action:nextAction(evidence.length?'제공된 원문 근거로 직접 답하세요. 연도와 문서 종류를 밝히세요. 충분한 근거가 있으면 같은 질문을 재검색하거나 수집 현황을 먼저 호출하지 마세요. 표 대응이 불분명하거나 필요한 문맥이 잘렸을 때만 전문을 확인하세요.':'현재 범위에서 근거를 찾지 못했습니다. 검색 실패를 예산 부재로 해석하지 마세요. 다른 연도로 조용히 대체하지 마세요.'),answer_policy:RULES,elapsed_ms:Date.now()-started};
 }
 
 async function page(env,input){let a=args(input);if(typeof a.document_id!=='string'||(!DOCS.has(a.document_id)&&!affiliateReader.has(a.document_id)))fail('문서를 찾을 수 없습니다.');let n=num(a.page,'page',1,100000);if(!n)fail('검색 결과의 page 값이 필요합니다.');if(affiliateReader.has(a.document_id))return{...await affiliateReader.page(env,a.document_id,n),instructions:RULES};let d=DOCS.get(a.document_id);
@@ -147,12 +148,13 @@ const schema=(p,r=[])=>({type:'object',properties:p,required:r,additionalPropert
 const TOOLS=[{name:'search_budget',description:'상세 검색용: 성남시 예산 원문의 검색 모드·필터별 요약과 관련도 점수가 필요할 때 사용. 일반 예산 질문은 원문 근거까지 반환하는 budget_research를 우선 사용. 미지정 연도는 2026년.',inputSchema:schema(properties,['query']),annotations},
  {name:'get_budget_page',description:'사용자가 원문 전문을 요청했거나 검색 근거가 부족하거나 잘렸거나 표의 열 대응이 불명확할 때 page 값으로 전문·단위·출처 확인. budget_research 근거가 충분하면 추가 조회 없이 답변. PDF 쪽수와 HWP/엑셀 본문 블록을 구분.',inputSchema:schema({document_id:{type:'string'},page:{type:'integer',minimum:1}},['document_id','page']),annotations},
  {name:'list_budget_documents',description:'문서와 실패·미처리 상태를 연도·예산종류별로 확인할 때 사용.',inputSchema:schema({...properties,offset:{type:'integer',minimum:0}}),annotations},
- {name:'get_collection_status',description:'검색 가능 범위, 수집 누락, OCR 필요, 마지막 스냅샷 시각을 확인. 전체 수집 완료라고 추정하지 말 것.',inputSchema:schema({}),annotations},
+ {name:'get_collection_status',description:'검색 가능 범위, 수집 누락, 스캔·이미지 제외 상태, 마지막 스냅샷 시각을 확인. 전체 수집 완료라고 추정하지 말 것. ocr_required 표시는 검색 제외 상태이며 OCR 실행 계획이 아닙니다.',inputSchema:schema({}),annotations},
  {name:'build_rag_context',description:'기존 연동 호환용: 상위 4개 원문 페이지/본문 블록 전문과 인용 규칙을 반환. 일반 예산 질문은 budget_research를 우선 사용. 생성 모델을 호출하지 않음.',inputSchema:schema(properties,['query']),annotations}];
 TOOLS.unshift({name:'budget_research',description:'성남시 본예산·추경·결산·사업비·부서별 예산·연도별 비교 질문에 먼저 사용. 법령 해석이나 다른 지자체 예산 조회에는 사용하지 않음. 사업비는 세출예산사업명세서를 우선하며 성과계획·지표 질문은 계획서를 조회. 원문 근거·단위·인용 URL과 부서·세부사업·편성목·통계목 및 해당 행을 한 번에 반환. 미지정 연도는 2026년, 비교는 최대 3개 연도. 근거가 충분하면 바로 답변. 생성 모델 없음.',inputSchema:schema(properties,['query']),annotations},
  {name:'search',description:'ChatGPT 호환 검색. 인용 가능한 id/title/url 반환. 질문에 연도가 없으면 2026년, 전체 연도는 질문에 명시.',inputSchema:schema({query:properties.query},['query']),annotations},
  {name:'fetch',description:'search 결과 id로 원문 페이지/본문 블록 전문과 인용 URL 조회. id는 search 결과 값을 그대로 사용.',inputSchema:schema({id:{type:'string',maxLength:100}},['id']),annotations});
 const TITLES={budget_research:'성남 예산 근거 조회',search:'성남 예산 검색',fetch:'예산 원문 읽기',search_budget:'예산 상세 검색',get_budget_page:'원문 페이지 조회',list_budget_documents:'예산 문서 목록',get_collection_status:'수집 범위 확인',build_rag_context:'예산 근거 묶음'};for(const t of TOOLS){t.title=TITLES[t.name];t.annotations={...t.annotations,title:t.title};}
+for(const t of TOOLS)t.description+=' '+EVIDENCE_BOUNDARY;
 for(const t of TOOLS.filter(t=>['budget_research','search_budget','search','list_budget_documents','build_rag_context'].includes(t.name)))t.description+=' 기본은 성남시 자료만. 질문에 산하기관 포함 또는 특정 기관명을 명시하면 해당 기관 자체 공개자료도 검색하며 시 자료를 먼저 표시합니다. 기관 예산과 시 출연금을 중복 합산하지 마세요.';
 TOOLS.find(t=>t.name==='search').outputSchema=schema({results:{type:'array',items:schema({id:{type:'string'},title:{type:'string'},url:{type:'string'}},['id','title','url'])}},['results']);
 TOOLS.find(t=>t.name==='fetch').outputSchema=schema({id:{type:'string'},title:{type:'string'},text:{type:'string'},url:{type:'string'},metadata:{type:'object',additionalProperties:true}},['id','title','text','url','metadata']);

@@ -26,6 +26,49 @@ test('unqualified public queries are 2026 and total table bypasses vector work',
 async function get(route){let r=await worker.fetch(new Request('https://test.local'+route),env);return{status:r.status,data:await r.json()};}
 async function rpc(method,params){let r=await worker.fetch(new Request('https://test.local/mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})}),env);return r.json();}
 
+function assertEvidenceBoundary(text){
+ assert.match(text,/기본 답변은 이 MCP가 반환한 수록 원문 근거만/);
+ assert.match(text,/명시적으로 요청하지 않으면 별도 웹 검색이나 원문 URL 실시간 접속으로 보충하지/);
+ assert.match(text,/인용 링크이며 접속 지시가 아닙니다/);
+ assert.match(text,/법령·출연안·추경·최신성 조사로 임의 확장하지/);
+ assert.match(text,/같은 MCP에서 명칭을 좁혀 한 번 재검색하거나 get_budget_page/);
+ assert.match(text,/수록 자료로 확인 불가/);
+ assert.match(text,/예산 0원이나 사업 부재가 아닙니다/);
+ assert.match(text,/웹 보충을 명시한 경우에만 클라이언트가 별도로 조회/);
+ assert.match(text,/MCP 근거와 외부 웹 근거를 구분/);
+ assert.match(text,/스캔·이미지 자료는 OCR하지 않고 검색에서 제외/);
+}
+test('discovery, every tool and Actions operations communicate the same evidence boundary',async()=>{
+ for(const method of ['initialize','server/discover'])assertEvidenceBoundary((await rpc(method,{})).result.instructions);
+ const tools=(await rpc('tools/list')).result.tools;
+ assert.equal(tools.length,8);
+ for(const tool of tools)assertEvidenceBoundary(tool.description);
+ const {data:api,status}=await get('/openapi.json');assert.equal(status,200);assertEvidenceBoundary(api.info.description);
+ for(const route of ['/api/research','/api/page','/api/status'])assertEvidenceBoundary(api.paths[route].get.description);
+ assert.equal(tools.find(t=>t.name==='search').outputSchema.additionalProperties,false,'legacy search shape remains results-only');
+ assert.deepEqual(Object.keys(tools.find(t=>t.name==='search').outputSchema.properties),['results']);
+});
+test('research retains MCP-only guidance for evidence, missing evidence, total and comparison answers',async()=>{
+ const cases=[
+  {query:'성남시의료원 2026년 본예산',kind:'evidence'},
+  {query:'zzzzzzzzzzzz',kind:'empty'},
+  {query:'성남시 예산 얼마야?',kind:'total'},
+  {query:'2025년과 2026년 성남시 예산 비교',kind:'comparison'}
+ ];
+ for(const item of cases){
+  const {data:r,status}=await get('/api/research?'+new URLSearchParams({query:item.query,mode:'lexical'}));
+  assert.equal(status,200);assertEvidenceBoundary(r.answer_policy);assertEvidenceBoundary(r.next_action);
+  if(item.kind==='evidence'){
+   assert(r.evidence.length>0);const e=r.evidence[0];
+   const page=(await rpc('tools/call',{name:'fetch',arguments:{id:e.id}})).result;
+   assert.equal(page.isError,false);assertEvidenceBoundary(page.structuredContent.metadata.instructions);
+  }
+  if(item.kind==='empty')assert.deepEqual(r.evidence,[]);
+  if(item.kind==='total')assert(r.answer_card);
+  if(item.kind==='comparison'){assert.equal(r.per_year.length,2);for(const y of r.per_year){assertEvidenceBoundary(y.answer_policy);assertEvidenceBoundary(y.next_action);}}
+ }
+});
+
 test('affiliate search requires explicit question scope across modes and wrappers',async()=>{
  const catalog=JSON.parse(await readFile('snapshot/affiliates/catalog.json','utf8')),doc=catalog.documents.find(d=>d.year===2026);
  assert(doc,'published sidecar has verified 2026 evidence');

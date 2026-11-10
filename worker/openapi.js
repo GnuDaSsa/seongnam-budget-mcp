@@ -1,5 +1,12 @@
 // Optional GPT Actions compatibility; the same retrieval service, no model proxy.
+import {EVIDENCE_BOUNDARY} from './policy.js';
 export function openapi(origin){
+ const document=schemaDefinition(origin);
+ document.info.description+=' '+EVIDENCE_BOUNDARY;
+ for(const path of Object.values(document.paths))for(const operation of Object.values(path))operation.description=(operation.description?operation.description+' ':'')+EVIDENCE_BOUNDARY;
+ return document;
+}
+function schemaDefinition(origin){
  const parameter=(name,schema,description,required=false)=>({name,in:'query',required,description,schema});
  const evidence={type:'object',properties:{document_id:{type:'string'},page:{type:'integer'},title:{type:'string'},year:{type:['integer','null']},budget_type:{type:'string'},locator_label:{type:'string'},unit:{type:'string'},source_url:{type:'string'},page_url:{type:'string'},text:{type:'string'},text_is_complete:{type:'boolean'}},additionalProperties:true};
  const response={description:'원문 근거와 출처. 답변 생성은 호출한 GPT가 수행합니다.',content:{'application/json':{schema:{type:'object',properties:{question:{type:'string'},evidence:{type:'array',items:evidence},text:{type:'string'},source_url:{type:'string'},page_url:{type:'string'},unit:{type:'string'},next_action:{type:'string'},generation_performed:{type:'boolean'},documents:{type:'integer'}},additionalProperties:true}}}};
