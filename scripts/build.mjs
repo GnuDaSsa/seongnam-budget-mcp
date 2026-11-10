@@ -3,6 +3,7 @@ import path from 'node:path';
 import {build} from 'esbuild';
 import {createHash} from 'node:crypto';
 import {buildLexical} from './build-lexical.mjs';
+import {buildIdentity} from './release-identity.mjs';
 await buildLexical();
 const root=process.cwd();
 const out=path.resolve(root,'dist');
@@ -18,7 +19,7 @@ if(createHash('sha256').update(await readFile('snapshot/catalog.json')).digest('
 catalog.summary.search_engine='Hybrid Korean lexical + Potion 256d cosine IVF + token MaxSim reranking; generation by connected GPT';
 for(const name of ['vocab','common','centroids','page-docs',...semantic.clusters.map((_,i)=>'cluster-'+i),...Array.from({length:Math.ceil(semantic.tokenizer_vocab/2048)},(_,i)=>'tokens-'+i)])await access(path.join(root,'snapshot/semantic',name+'.bin.gz'));
 let code=await readFile('worker/server.js','utf8');
-code=code.replace('/*__CATALOG__*/null',JSON.stringify(catalog)).replace('/*__HTML__*/null',JSON.stringify(html)).replace('/*__SEMANTIC__*/null',JSON.stringify(semantic));
+code=code.replace('/*__CATALOG__*/null',JSON.stringify(catalog)).replace('/*__HTML__*/null',JSON.stringify(html)).replace('/*__SEMANTIC__*/null',JSON.stringify(semantic)).replace('/*__RELEASE__*/null',JSON.stringify(await buildIdentity(root)));
 await build({stdin:{contents:code,resolveDir:path.join(root,'worker'),sourcefile:'server.js'},bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:path.join(out,'server/index.js')});
 await cp('.openai/hosting.json',path.join(out,'.openai/hosting.json'));
 await cp('snapshot/corpus',path.join(out,'client/corpus'),{recursive:true});

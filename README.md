@@ -1,7 +1,11 @@
 # 성남 예산 아카이브
 
+[![CI](https://github.com/GnuDaSsa/seongnam-budget-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/GnuDaSsa/seongnam-budget-mcp/actions/workflows/ci.yml)
+
 성남시청 공개 예산서를 수집하고 원문 위치로 검색하는 공개 읽기 전용 MCP·웹앱입니다. 제품 요구사항은 [PRD](docs/PRD.md), 재사용 지시문은 [META_PROMPT](docs/META_PROMPT.md), 재수집·배포는 [운영 안내](docs/OPERATIONS.md)를 읽으세요.
 
+- GitHub: https://github.com/GnuDaSsa/seongnam-budget-mcp
+- 공공 GitLab: https://gitlab.aigov.go.kr/sajw1994/snbudget
 - 공개 사이트: https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site
 - 인증 없는 공개 MCP: https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site/public-mcp
 
@@ -42,6 +46,8 @@ docs/           PRD·메타프롬프트·운영 및 검증 기록
 연결 방법은 [MCP 연결 안내](docs/MCP_CONNECT.md)를 참고하세요. 일반 질문에는 `budget_research`를 먼저 사용합니다.
 
 사업비·통계목 조회의 문서 선택과 표시 기준은 [세출예산 근거 우선 조회](docs/EXPENDITURE_SEARCH.md)를 참고하세요. 성과계획서의 요약 수치와 세출명세서의 편성 내역을 구분합니다.
+
+수정 완료 후의 GitHub·GitLab·사이트·MCP 반영은 [통합 배포 절차](docs/RELEASE.md)를 따릅니다. 과거 일반 ChatGPT 화면 검증은 [실제 사용 기록](docs/CHATGPT_E2E.md), 조회 기준은 [조회 규칙](docs/QUERY_POLICY.md)에 있습니다.
 
 ## MCP 계약
 

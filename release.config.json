@@ -1,0 +1,12 @@
+{
+  "branch": "main",
+  "remotes": [
+    {"name": "origin", "url": "https://gitlab.aigov.go.kr/sajw1994/snbudget.git"},
+    {"name": "github", "url": "https://github.com/GnuDaSsa/seongnam-budget-mcp.git"}
+  ],
+  "site": {
+    "project_id": "appgprj_6aef26f1fb688191917c0dfb877e31cd",
+    "url": "https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site"
+  },
+  "connections": ["성남 예산 아카이브", "성남 예산 공개 MCP"]
+}
