@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,readFile,writeFile,rm,copyFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {Release} from '../scripts/release.mjs';
+import {Release,run} from '../scripts/release.mjs';
 import {allowed,sourceDigest,buildIdentity} from '../scripts/release-identity.mjs';
 const sha='1'.repeat(40),old='2'.repeat(40);
 const config={branch:'main',remotes:[{name:'origin',url:'https://gitlab.example.test/user/repo.git'},{name:'github',url:'https://github.example.test/user/repo.git'}],site:{project_id:'test-site',url:'https://budget.example.test'},connections:['first','second']};
@@ -28,6 +28,15 @@ function runner({heads={origin:old,github:old},failPush=null,failValidation=fals
  };return{execute,calls,state};
 }
 async function saved(release,root){const s={source_sha:sha,source_digest:await sourceDigest(root,['README.md']),files:['README.md'],remotes:{origin:sha,github:sha},stage:'validated'};await release.save(s);return s;}
+test('command output preserves UTF-8 characters split across stdout and stderr chunks',async()=>{
+ const message='성남시 예산 검증';
+ for(const stream of ['stdout','stderr']){
+  const script=`const bytes=Buffer.from(${JSON.stringify(message)});for(const byte of bytes){await new Promise(resolve=>process.${stream}.write(Buffer.from([byte]),resolve));await new Promise(resolve=>setTimeout(resolve,10));}process.exitCode=${stream==='stderr'?1:0};`;
+  const result=run(process.execPath,['--input-type=module','-e',script],process.cwd());
+  if(stream==='stdout')assert.equal(await result,message);
+  else await assert.rejects(result,error=>{assert.equal(error.message,process.execPath+' failed (1): '+message);return true;});
+ }
+});
 test('failed validation never commits or pushes',async t=>{
  const root=await fixture(t),fake=runner({failValidation:true}),r=new Release(root,config,{execute:fake.execute});
  await assert.rejects(r.prepare('validated change'),/validation failed/);

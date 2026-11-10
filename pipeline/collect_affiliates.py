@@ -26,6 +26,12 @@ UA = 'SeongnamBudgetResearch/0.2'
 MAX_BYTES = 30_000_000
 
 
+class OCRRequired(ValueError):
+    def __init__(self, page_count):
+        super().__init__('No searchable text; OCR required')
+        self.page_count = page_count
+
+
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -161,7 +167,7 @@ def run(cached=False):
                 raise ValueError('Source content changed; review before indexing')
             page_count, pages = parse_pdf(payload)
             if not pages:
-                raise ValueError('No searchable text; OCR required')
+                raise OCRRequired(page_count)
             packed = gzip.compress(json.dumps({'pages': pages}, ensure_ascii=False, separators=(',', ':')).encode(), mtime=0)
             (OUT / (identifier + '.json.gz')).write_bytes(packed)
             d = {**source, 'id': identifier, 'title': institution['name'] + ' · ' + source['title'],
@@ -173,7 +179,11 @@ def run(cached=False):
             docs.append(d)
             print(json.dumps({'institution': institution['id'], 'year': d['year'], 'pages': page_count, 'indexed': len(pages)}), flush=True)
         except (ValueError, OSError, subprocess.SubprocessError) as exc:
-            failures.append({**source, 'id': identifier, 'status': 'not_indexed', 'reason': str(exc)[:200]})
+            failure = {**source, 'id': identifier, 'status': 'not_indexed', 'reason': str(exc)[:200]}
+            if isinstance(exc, OCRRequired):
+                failure.update({'extraction_status': 'ocr_required', 'page_count': exc.page_count,
+                    'indexed_pages': 0, 'sha256': sha(payload), 'bytes': len(payload)})
+            failures.append(failure)
             # Do not erase verified earlier snapshots on temporary source failures.
             # Keep both original provenance and an explicit refresh failure marker.
             old = previous.get(identifier)
@@ -188,12 +198,19 @@ def run(cached=False):
         i['indexed_documents'] = sum(d['institution_id'] == i['id'] for d in docs)
         i['indexed_pages'] = sum(d['indexed_pages'] for d in docs if d['institution_id'] == i['id'])
         i.pop('hosts', None)
+    indexed_ids = {d['id'] for d in docs}
+    # A failed refresh can still have a verified searchable older snapshot.
+    # Count wholly unindexed OCR documents separately from indexed-document gaps.
+    ocr_required = {d['id']: d for d in failures
+        if d.get('extraction_status') == 'ocr_required' and d['id'] not in indexed_ids}
     catalog = {'schema_version': 1, 'generated_at': datetime.now(timezone.utc).isoformat(),
         'roster_source': config['roster_source'], 'roster_note': config['roster_note'],
         'institutions': list(institutions.values()), 'documents': docs, 'unavailable_documents': failures,
         'summary': {'documents': len(docs), 'indexed_documents': len(docs),
             'indexed_pages': sum(d['indexed_pages'] for d in docs), 'coverage_complete': False,
             'unindexed_pdf_pages': sum(d['page_count'] - d['indexed_pages'] for d in docs),
+            'ocr_required_documents': len(ocr_required),
+            'ocr_required_pdf_pages': sum(d['page_count'] for d in ocr_required.values()),
             'failed_documents': len(failures), 'retrieval': 'lexical',
             'note': '확인된 공개자료만 수록. 총괄표는 사업별 세부 예산서가 아니며 기관·연도별 누락이 있습니다.'}}
     (OUT / 'catalog.json').write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

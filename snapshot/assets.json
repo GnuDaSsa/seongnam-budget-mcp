@@ -5072,6 +5072,26 @@
       "path": "affiliates/409635de5e9c3d9c2221.json.gz",
       "bytes": 1673,
       "sha256": "4037af49240e1eb1199c27dbf33639218e02e600c622fc75a58ecf67f42cf894"
+    },
+    {
+      "path": "affiliates/688a5a889e55d48e0b4e.json.gz",
+      "bytes": 1306,
+      "sha256": "98a1e93700b25707271e5205a43deef7201ddcd7333306a3ae7ef1f21be6e631"
+    },
+    {
+      "path": "affiliates/cb444cdeb1a5c50800b9.json.gz",
+      "bytes": 783,
+      "sha256": "63def1993042cbe244c39d0ff270f1ba9bfaa97ef4d70cbcf70f2ab9f90b4ae1"
+    },
+    {
+      "path": "affiliates/c15cecf0421ab20ebd60.json.gz",
+      "bytes": 803,
+      "sha256": "7c2d8420dba759c540a114746a0c30b8a44ea1333aa92ed721b7d84a4ec61dfb"
+    },
+    {
+      "path": "affiliates/8c5ff98850c5a2981d6b.json.gz",
+      "bytes": 539,
+      "sha256": "d5f0da290bc80e73626b013f935498578f324b516dab8a99de74ca07d10fef1d"
     }
   ]
 }

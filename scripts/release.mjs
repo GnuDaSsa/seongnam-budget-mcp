@@ -8,6 +8,7 @@ import {allowed,managed,boundedFile,sourceDigest} from './release-identity.mjs';
 export async function run(command,args,cwd){
  return new Promise((resolve,reject)=>{
   const child=spawn(command,args,{cwd,windowsHide:true,shell:false,env:{...process.env,GIT_TERMINAL_PROMPT:'0'}});let out='',err='';
+  child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
   child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);
   child.on('error',reject);child.on('close',code=>code===0?resolve(out.trim()):reject(Error(command+' failed ('+code+'): '+err.slice(-3000))));
  });
