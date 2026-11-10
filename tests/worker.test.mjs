@@ -98,7 +98,9 @@ test('affiliate search requires explicit question scope across modes and wrapper
 test('collection totals expose incomplete coverage',async()=>{let {data:s}=await get('/api/status');assert.equal(s.whole_city_coverage_complete,false);assert.equal(s.documents,Object.values(s.status_counts).reduce((a,b)=>a+b,0));assert(s.snapshot_pages>0);});
 test('document inventory does not inherit the default expenditure search preference',async()=>{
  const catalog=JSON.parse(await readFile('snapshot/catalog.json','utf8')),{data:r}=await get('/api/documents?year=2026&limit=20');
- assert.equal(r.total,catalog.documents.filter(d=>d.year===2026).length);
+ const council=JSON.parse(await readFile('snapshot/council/catalog.json','utf8'));
+ assert.equal(r.total,catalog.documents.filter(d=>d.year===2026).length+council.documents.filter(d=>d.year===2026).length);
+ const {data:c}=await get('/api/documents?'+new URLSearchParams({year:2026,category:'의회 예산심사 회의록'}));assert.equal(c.total,1);assert.equal(c.documents[0].source_scope,'council');
  const {data:p}=await get('/api/documents?'+new URLSearchParams({year:2026,category:'성과계획서'}));assert(p.total>0);assert(p.documents.every(d=>d.category==='성과계획서'));
 });
 test('Korean retrieval returns real 2026 evidence and exact page',async()=>{let start=performance.now();let {data:s,status}=await get('/api/search?query='+encodeURIComponent('노인일자리')+'&year=2026&budget_type='+encodeURIComponent('본예산')+'&limit=5');assert.equal(status,200);assert(s.results.length>0);for(let h of s.results){assert.equal(h.year,2026);assert.equal(h.budget_type,'본예산');assert(h.source_url.startsWith('https://www.seongnam.go.kr/'));let {data:p}=await get('/api/page?document_id='+h.document_id+'&page='+h.pdf_page);assert(p.text.includes('일자리'));assert.equal(p.pdf_page,h.pdf_page);}console.log('2026 search+pages milliseconds:',Math.round(performance.now()-start));});

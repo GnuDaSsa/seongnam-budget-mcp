@@ -5092,6 +5092,11 @@
       "path": "affiliates/8c5ff98850c5a2981d6b.json.gz",
       "bytes": 539,
       "sha256": "d5f0da290bc80e73626b013f935498578f324b516dab8a99de74ca07d10fef1d"
+    },
+    {
+      "path": "council/f9d54158c070628a0630.json.gz",
+      "bytes": 10222,
+      "sha256": "6da6ec8723d3738d56ed18283d56b48beeb9b7f7d06ee8cc2af04f3d9e6fa1c3"
     }
   ]
 }

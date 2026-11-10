@@ -7,7 +7,7 @@ export const EXCLUDED=['.gitignore','.gitlab-ci.yml'];
 export function managed(file){return !EXCLUDED.includes(file)&&!file.startsWith('.github/');}
 export function allowed(file){
  if(!file||file.includes('\\')||file.split('/').some(p=>!p||p==='.'||p==='..')||/(?:^|\/)(?:\.env|credentials?|secrets?|id_rsa)(?:[./_-]|$)/i.test(file))return false;
- return /^(?:[A-Z_]+\.md|LICENSE|package(?:-lock)?\.json|requirements(?:-rag)?\.txt|release\.config\.json|\.gitignore|\.gitlab-ci\.yml|\.github\/workflows\/[\w-]+\.ya?ml|\.openai\/hosting\.json|(?:docs|worker|scripts|pipeline|tests|web)\/[\w./-]+\.(?:md|json|mjs|js|py|html|css)|snapshot\/(?:catalog|assets)\.json|snapshot\/semantic\/manifest\.json|snapshot\/affiliates\/catalog\.json)$/.test(file);
+ return /^(?:[A-Z_]+\.md|LICENSE|package(?:-lock)?\.json|requirements(?:-rag)?\.txt|release\.config\.json|\.gitignore|\.gitlab-ci\.yml|\.github\/workflows\/[\w-]+\.ya?ml|\.openai\/hosting\.json|(?:docs|worker|scripts|pipeline|tests|web)\/[\w./-]+\.(?:md|json|mjs|js|py|html|css)|snapshot\/(?:catalog|assets)\.json|snapshot\/semantic\/manifest\.json|snapshot\/(?:affiliates|council)\/catalog\.json)$/.test(file);
 }
 export async function boundedFile(root,file,{missing=false}={}){
  if(!allowed(file))throw Error('Unapproved source path: '+file);

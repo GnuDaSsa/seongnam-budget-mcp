@@ -15,6 +15,7 @@ __pycache__/
 *.partial
 /snapshot/corpus/
 /snapshot/affiliates/*.json.gz
+/snapshot/council/*.json.gz
 /snapshot/semantic/*
 !/snapshot/semantic/manifest.json
 /deployment/model-assets/assets/
