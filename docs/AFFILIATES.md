@@ -21,7 +21,7 @@
 
 근거가 확인되지 않은 자료, 검색·관리 기능 경로, 그 밖의 제한 경로는 수집하지 않는다. 지방의회에 제출된 예산안 설명자료(회의록 부록)는 공시 의무 근거가 명확하지 않아 계속 수집하지 않는다. OCR을 사용하지 않는 원칙은 그대로다.
 
-구현은 `pipeline/affiliate-sources.json`의 자료별 `legal_basis`가 `pipeline/collect_affiliates.py`의 `DISCLOSURE_BASES` 중 하나로 시작할 때만 제한 경로에서 받는다. 제한 경로 요청은 3초 간격을 둔다. 수록 문서마다 `legal_basis`와 `robots_disallowed`를 카탈로그에 기록한다. 이 규칙은 로컬 수집기와 카탈로그에 반영한 것이며 운영 서버에는 아직 게시하지 않았다.
+구현은 `pipeline/affiliate-sources.json`의 자료별 `legal_basis`가 `pipeline/collect_affiliates.py`의 `DISCLOSURE_BASES` 중 하나로 시작할 때만 제한 경로에서 받는다. 제한 경로 요청은 3초 간격을 둔다. 수록 문서마다 `legal_basis`와 `robots_disallowed`를 검색용 카탈로그에 기록한다.
 
 ## 확인 범위 — 2026-11-10
 

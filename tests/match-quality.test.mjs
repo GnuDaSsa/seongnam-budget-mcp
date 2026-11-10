@@ -415,15 +415,113 @@ test('부서가 다른 네 쪽의 행을 모아 네 부서와 금액 합계를 �
   assert.equal(rollup.rows_may_be_incomplete, false);
 });
 
-test('같은 금액의 행이 부서 없음과 부서 있음으로 두 번 들어오면 한 행으로 합치고 부서 있는 쪽을 남긴다', () => {
+test('부서 미확인 행은 같은 금액의 특정 부서 행에 임의 대응하지 않고 합계를 억제한다', () => {
   const noDept = deptPage('whole', null, '100,000', '50,000', '50,000');
   const withDept = deptPage('dept', '정보통신과', '100,000', '50,000', '50,000');
-  const forward = businessRollup([noDept, withDept], '공공근로사업추진', '본예산', false);
-  const backward = businessRollup([withDept, noDept], '공공근로사업추진', '본예산', false);
+  const otherDept = deptPage('other', '복지정책과', '100,000', '50,000', '50,000');
+  const forward = businessRollup([noDept, withDept, otherDept], '공공근로사업추진', '본예산', false);
+  const backward = businessRollup([otherDept, withDept, noDept], '공공근로사업추진', '본예산', false);
   for (const rollup of [forward, backward]) {
-    assert.equal(rollup.rows.length, 1);
-    assert.equal(rollup.rows[0].department, '정보통신과');
+    assert.equal(rollup.rows.length, 3);
+    assert.deepEqual(new Set(rollup.rows.map(row => row.id)), new Set(['whole', 'dept', 'other']));
+    assert.equal(rollup.calculated_total, null);
   }
+});
+
+test('금액이 같은 다른 부서는 모두 남기고 같은 부서의 중복 수록만 한 번 센다', () => {
+  const first = deptPage('whole-a', 'A과', '100', '0', '100');
+  const duplicate = deptPage('dept-a', 'A과', '100', '0', '100');
+  const second = deptPage('dept-b', 'B과', '100', '0', '100');
+  const rollup = businessRollup([first, duplicate, second], '공공근로사업추진', '본예산');
+  assert.equal(rollup.rows.length, 2);
+  assert.deepEqual(new Set(rollup.departments), new Set(['A과', 'B과']));
+  assert.equal(rollup.calculated_total.amount, 200);
+});
+
+test('부서가 확인되지 않은 별도 출처 행끼리도 금액만으로 합치지 않는다', () => {
+  const rollup = businessRollup([
+    deptPage('unknown-a', null, '100', '0', '100'),
+    deptPage('unknown-b', null, '100', '0', '100'),
+  ], '공공근로사업추진', '본예산');
+  assert.equal(rollup.rows.length, 2);
+  assert.equal(rollup.calculated_total, null);
+});
+
+for (const [label, extra] of [
+  ['연도', {year: 2025}],
+  ['편성 종류', {budget_type: '본예산', revision: null}],
+  ['추경 회차', {revision: 2}],
+  ['금액 단위', {unit: '원'}],
+]) {
+  test(`${label}가 다른 부서 행은 합산하지 않는다`, () => {
+    const edition = {budget_type: '추경', revision: 1};
+    const rollup = businessRollup([
+      deptPage('a', 'A과', '100', '0', '100', edition),
+      deptPage('b', 'B과', '200', '0', '200', {...edition, ...extra}),
+    ], '공공근로사업추진', '추경');
+    assert.equal(rollup.rows.length, 2);
+    assert.equal(rollup.calculated_total, null);
+  });
+}
+
+test('같은 연도와 추경 회차의 서로 다른 부서는 합산할 수 있다', () => {
+  const edition = {budget_type: '추경', revision: 1};
+  const rollup = businessRollup([
+    deptPage('a', 'A과', '100', '0', '100', edition),
+    deptPage('b', 'B과', '200', '0', '200', edition),
+  ], '공공근로사업추진', '추경');
+  assert.equal(rollup.calculated_total.amount, 300);
+});
+
+test('같은 부서의 같은 숫자라도 단위가 다르면 중복으로 없애지 않는다', () => {
+  const rollup = businessRollup([
+    deptPage('a', 'A과', '100', '0', '100'),
+    deptPage('b', 'A과', '100', '0', '100', {unit: '원'}),
+  ], '공공근로사업추진', '본예산');
+  assert.equal(rollup.rows.length, 2);
+  assert.equal(rollup.calculated_total, null);
+});
+
+for (const [label, extra] of [
+  ['연도 미확인', {year: null}],
+  ['편성 종류 미확인', {budget_type: null}],
+  ['금액 단위 미확인', {unit: null}],
+  ['추경 회차 미확인', {budget_type: '추경', revision: null}],
+]) {
+  test(`${label} 행끼리는 동일 편성으로 추정하여 합산하지 않는다`, () => {
+    const rollup = businessRollup([
+      deptPage('a', 'A과', '100', '0', '100', extra),
+      deptPage('b', 'B과', '200', '0', '200', extra),
+    ], '공공근로사업추진', '본예산');
+    assert.equal(rollup.rows.length, 2);
+    assert.equal(rollup.calculated_total, null);
+  });
+}
+
+test('공백 부서와 공백만 다른 같은 부서 행으로 합계를 만들지 않는다', () => {
+  for (const departments of [[' ', 'B과'], ['A 과', 'A과']]) {
+    const rollup = businessRollup([
+      deptPage('a', departments[0], '100', '0', '100'),
+      deptPage('b', departments[1], '200', '0', '200'),
+    ], '공공근로사업추진', '본예산');
+    assert.equal(rollup.calculated_total, null);
+  }
+});
+
+test('본예산의 null과 0 회차는 같은 편성으로 처리한다', () => {
+  const rollup = businessRollup([
+    deptPage('a', 'A과', '100', '0', '100', {revision: null}),
+    deptPage('b', 'B과', '200', '0', '200', {revision: 0}),
+  ], '공공근로사업추진', '본예산');
+  assert.equal(rollup.calculated_total.amount, 300);
+});
+
+test('안전한 정수 범위를 넘는 합계는 반환하지 않는다', () => {
+  const rollup = businessRollup([
+    deptPage('a', 'A과', '9,007,199,254,740,991', '0', '9,007,199,254,740,991'),
+    deptPage('b', 'B과', '1', '0', '1'),
+  ], '공공근로사업추진', '본예산');
+  assert.equal(rollup.calculated_total, null);
 });
 
 test('후보가 잘렸으면 합계 없이 행이 불완전할 수 있다고 표시한다', () => {

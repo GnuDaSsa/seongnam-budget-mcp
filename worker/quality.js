@@ -189,31 +189,43 @@ export function businessRollup(pages = [], name, edition, candidatesTruncated = 
     if (page.source_family !== 'expenditure') continue;
     const row = businessRow(page.text, name);
     if (!row) continue;
-    const key = [page.year, page.budget_type, page.revision || 0, row.amount, row.previous_amount, row.change].join(':');
     const candidate = {
-      year: page.year, budget_type: page.budget_type, revision: page.revision ?? null,
+      year: page.year, budget_type: page.budget_type,
+      revision: page.budget_type === '본예산' && (page.revision == null || page.revision === 0) ? null : page.revision ?? null,
       department: page.classification?.department ?? null, unit: page.unit, ...row,
       id: page.id, page_url: page.page_url, locator_label: page.locator_label,
     };
-    const existing = byKey.get(key);
-    if (!existing || (!existing.department && candidate.department)) byKey.set(key, candidate);
+    // 금액이 같아도 부서가 다르면 별도 편성이다. 부서 미확인 행은 임의로 대응시키지 않는다.
+    const key = normalize(candidate.department)
+      ? JSON.stringify([candidate.year, candidate.budget_type, candidate.revision, normalize(candidate.department),
+        candidate.unit, row.amount, row.previous_amount, row.change])
+      : Symbol('unidentified-department');
+    if (!byKey.has(key)) byKey.set(key, candidate);
   }
   const rows = [...byKey.values()].sort((a, b) => String(a.department).localeCompare(String(b.department), 'ko'));
   if (!rows.length) return null;
   const departments = [...new Set(rows.map(r => r.department).filter(Boolean))];
-  const summable = !candidatesTruncated && rows.length > 1 && departments.length === rows.length
-    && rows.every(r => r.columns_verified && r.unit === rows[0].unit);
+  const departmentKeys = rows.map(r => normalize(r.department));
+  const sameKnownEdition = Number.isInteger(rows[0].year) && rows[0].year > 0
+    && (rows[0].budget_type === '본예산' && rows[0].revision === null
+      || rows[0].budget_type === '추경' && Number.isInteger(rows[0].revision) && rows[0].revision > 0);
+  const summable = !candidatesTruncated && rows.length > 1 && departmentKeys.every(Boolean)
+    && new Set(departmentKeys).size === rows.length && sameKnownEdition && Boolean(normalize(rows[0].unit))
+    && rows.every(r => r.columns_verified && r.unit === rows[0].unit
+      && Number.isSafeInteger(r.amount)
+      && r.year === rows[0].year && r.budget_type === rows[0].budget_type && r.revision === rows[0].revision);
+  const total = summable ? rows.reduce((sum, r) => sum + r.amount, 0) : null;
   return {
     business_name: name,
     edition,
     departments,
     rows,
     rows_may_be_incomplete: candidatesTruncated,
-    calculated_total: summable
-      ? { amount: rows.reduce((sum, r) => sum + r.amount, 0), unit: rows[0].unit, basis: 'sum_of_listed_department_rows' }
+    calculated_total: total !== null && Number.isSafeInteger(total)
+      ? { amount: total, unit: rows[0].unit, basis: 'sum_of_listed_department_rows' }
       : null,
     note: '같은 세부사업명이 여러 부서에 편성될 수 있습니다. 부서별 금액을 모두 제시하세요. calculated_total은 나열한 부서 행의 '
-      + '단순 합계(계산값)이며 수록 범위 밖의 부서나 추경 변경분은 포함하지 않습니다. 본예산과 추경을 합산하지 마세요.',
+      + '단순 합계(계산값)이며 수록 범위 밖의 부서나 추경 변경분은 포함하지 않습니다. 부서 미확인 행이나 서로 다른 연도·편성 종류·추경 회차는 합산하지 마세요.',
   };
 }
 

@@ -60,13 +60,34 @@ test('2021~2027년 조회는 연도별 묶음과 축소된 근거를 반환한�
   assert.equal(status, 200);
   assert.equal(r.per_year.length, 7);
 
-  const totals = {2021: 2199000, 2022: 6387000, 2023: 6387000, 2024: 6432700, 2025: 6775500, 2026: 7082200};
+  const totals = {2022: 6387000, 2023: 6387000, 2024: 6432700, 2025: 6775500, 2026: 7082200};
   // per_year는 요청한 연도 순서대로 배열된다(2021~2027).
   for (const [index, year] of [2021, 2022, 2023, 2024, 2025, 2026].entries()) {
     const entry = r.per_year[index];
     assert.equal(entry.business_rollup.rows[0].year, year, year + '년 항목 순서');
     assert.equal(entry.business_rollup.departments.length, 4, year + '년 부서 수');
-    assert.equal(entry.business_rollup.calculated_total.amount, totals[year], year + '년 합계');
+    assert(entry.business_rollup.rows.every(row => row.year === year && row.budget_type === '본예산'));
+    if (year === 2021) {
+      // 2021 전체본의 확인된 4개 부서 외에 분리 PDF 4쪽은 부서 머리말이 미확인이다.
+      // 금액이 같다는 이유만으로 이 쪽들을 특정 부서에 대응시켜 합산하지 않는다.
+      const rollup = entry.business_rollup;
+      const unknown = rollup.rows.filter(row => row.department === null);
+      const known = rollup.rows.filter(row => row.department !== null);
+      assert.equal(rollup.rows.length, 8);
+      assert.equal(known.length, 4);
+      assert.deepEqual(new Set(unknown.map(row => row.id)), new Set([
+        '8536c9c4f91b9c755ecf:p5', 'c8b6796623f925d7a48e:p34',
+        'dd36e9bc7e46821e6b6e:p32', '3048a6359d8e2d8d9e3e:p38',
+      ]));
+      for (const rows of [known, unknown]) {
+        assert.deepEqual(new Set(rows.map(row => row.amount)), new Set([595000, 549000, 410000, 645000]));
+        assert(rows.every(row => row.columns_verified && row.unit === '천원'));
+      }
+      assert.equal(rollup.calculated_total, null);
+    } else {
+      assert.equal(entry.business_rollup.rows.length, 4, year + '년 확인된 부서 행 수');
+      assert.equal(entry.business_rollup.calculated_total.amount, totals[year], year + '년 합계');
+    }
   }
 
   const last = r.per_year[6];
