@@ -1,0 +1,1394 @@
+{
+ "schema_version": 1,
+ "labelling": "모델이 초안을 만들고 수록 원문으로 대조 확인함. 사람이 검수한 정답셋이 아님.",
+ "items": [
+  {
+   "id": "biz-001",
+   "category": "exact_business",
+   "query": "노인일자리 및 사회활동지원 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "노인복지과",
+     "text_includes": [
+      "노인일자리및사회활동지원확대"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 252,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-002",
+   "category": "exact_business",
+   "query": "경기도 시내버스 공공관리제 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "대중교통과",
+     "text_includes": [
+      "경기도시내버스공공관리제사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "31b022e23f8345d88887",
+    "page": 6,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-003",
+   "category": "exact_business",
+   "query": "공공도서관 개관시간 연장 지원사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "분당도서관",
+     "text_includes": [
+      "공공도서관개관시간연장지원사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 781,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-004",
+   "category": "exact_business",
+   "query": "중소기업 디지털 전환 지원",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "기업혁신과",
+     "text_includes": [
+      "중소기업디지털전환지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 128,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-005",
+   "category": "exact_business",
+   "query": "야간연장형 어린이집 운영지원",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "아동보육과",
+     "text_includes": [
+      "야간연장형어린이집운영지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 314,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-006",
+   "category": "exact_business",
+   "query": "성남문화재단 운영비 지원",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "문화관광과",
+     "text_includes": [
+      "성남문화재단운영비지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 371,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-007",
+   "category": "exact_business",
+   "query": "전통시장 소규모 시설 현대화 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "지역경제상권과",
+     "text_includes": [
+      "전통시장소규모시설현대화사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 153,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-008",
+   "category": "exact_business",
+   "query": "장애인 택시 바우처 지원",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "장애인복지과",
+     "text_includes": [
+      "장애인택시바우처지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "bd1ee88bbdc48a8b05b7",
+    "page": 49,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-009",
+   "category": "exact_business",
+   "query": "성남시 산후조리비 지원 확대",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "수정구보건소건강증진과",
+     "text_includes": [
+      "성남시산후조리비지원확대"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 528,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-010",
+   "category": "exact_business",
+   "query": "미세먼지 배출원 조사 및 감시 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "기후에너지과",
+     "text_includes": [
+      "미세먼지배출원조사및감시사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 438,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-011",
+   "category": "exact_business",
+   "query": "평생학습관 프로그램 운영",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "미래교육과",
+     "text_includes": [
+      "평생학습관프로그램운영"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 336,
+    "note": "2"
+   }
+  },
+  {
+   "id": "biz-012",
+   "category": "exact_business",
+   "query": "도시재생지원센터 운영",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "도시개발과",
+     "text_includes": [
+      "도시재생지원센터운영"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "54c735c285745c194e7a",
+    "page": 48,
+    "note": "2"
+   }
+  },
+  {
+   "id": "dep-001",
+   "category": "department",
+   "query": "노인복지과 2026년 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "노인복지과"
+    },
+    "all_evidence": {
+     "department": "노인복지과"
+    }
+   },
+   "ground_truth": {
+    "document_id": "bd1ee88bbdc48a8b05b7",
+    "page": 70,
+    "note": "2"
+   }
+  },
+  {
+   "id": "dep-002",
+   "category": "department",
+   "query": "아동보육과 2026년 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "아동보육과"
+    },
+    "all_evidence": {
+     "department": "아동보육과"
+    }
+   },
+   "ground_truth": {
+    "document_id": "bd1ee88bbdc48a8b05b7",
+    "page": 124,
+    "note": "2"
+   }
+  },
+  {
+   "id": "dep-003",
+   "category": "department",
+   "query": "대중교통과 2026년 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "대중교통과"
+    },
+    "all_evidence": {
+     "department": "대중교통과"
+    }
+   },
+   "ground_truth": {
+    "document_id": "31b022e23f8345d88887",
+    "page": 10,
+    "note": "2"
+   }
+  },
+  {
+   "id": "dep-004",
+   "category": "department",
+   "query": "기업혁신과 2026년 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "기업혁신과"
+    },
+    "all_evidence": {
+     "department": "기업혁신과"
+    }
+   },
+   "ground_truth": {
+    "document_id": "c824246dd5b81e56f8a1",
+    "page": 23,
+    "note": "2"
+   }
+  },
+  {
+   "id": "dep-005",
+   "category": "department",
+   "query": "장애인복지과 2026년 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "장애인복지과"
+    },
+    "all_evidence": {
+     "department": "장애인복지과"
+    }
+   },
+   "ground_truth": {
+    "document_id": "bd1ee88bbdc48a8b05b7",
+    "page": 53,
+    "note": "2"
+   }
+  },
+  {
+   "id": "dep-006",
+   "category": "department",
+   "query": "기후에너지과 2026년 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "기후에너지과"
+    },
+    "all_evidence": {
+     "department": "기후에너지과"
+    }
+   },
+   "ground_truth": {
+    "document_id": "58df092e412b0032725b",
+    "page": 42,
+    "note": "2"
+   }
+  },
+  {
+   "id": "acc-001",
+   "category": "account_code",
+   "query": "노인복지과 노인일자리및사회활동지원확대 사무관리비 201-01",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "노인복지과",
+     "matched_path": {
+      "detailed_business": "노인일자리및사회활동지원확대",
+      "combined_code": "201-01",
+      "statistical_item": "사무관리비"
+     }
+    }
+   },
+   "ground_truth": {
+    "document_id": "bd1ee88bbdc48a8b05b7",
+    "page": 66,
+    "note": "2"
+   }
+  },
+  {
+   "id": "acc-002",
+   "category": "account_code",
+   "query": "노인복지과 노인일자리창출지원 민간위탁금 307-05",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "노인복지과",
+     "matched_path": {
+      "detailed_business": "노인일자리창출지원",
+      "combined_code": "307-05",
+      "statistical_item": "민간위탁금"
+     }
+    }
+   },
+   "ground_truth": {
+    "document_id": "bd1ee88bbdc48a8b05b7",
+    "page": 68,
+    "note": "2"
+   }
+  },
+  {
+   "id": "acc-003",
+   "category": "account_code",
+   "query": "아동보육과 야간연장형어린이집운영지원 민간위탁금 307-05",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "아동보육과",
+     "matched_path": {
+      "detailed_business": "야간연장형어린이집운영지원",
+      "combined_code": "307-05",
+      "statistical_item": "민간위탁금"
+     }
+    }
+   },
+   "ground_truth": {
+    "document_id": "bd1ee88bbdc48a8b05b7",
+    "page": 128,
+    "note": "2"
+   }
+  },
+  {
+   "id": "acc-004",
+   "category": "account_code",
+   "query": "지역경제상권과 전통시장활성화추진 사무관리비 201-01",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "지역경제상권과",
+     "matched_path": {
+      "detailed_business": "전통시장활성화추진",
+      "combined_code": "201-01",
+      "statistical_item": "사무관리비"
+     }
+    }
+   },
+   "ground_truth": {
+    "document_id": "6aea52dd972b16b415b2",
+    "page": 12,
+    "note": "2"
+   }
+  },
+  {
+   "id": "acc-005",
+   "category": "account_code",
+   "query": "수정구보건소건강증진과 경기도산후조리비지원사업 의료및회복비 307-01",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "department": "수정구보건소건강증진과",
+     "matched_path": {
+      "detailed_business": "경기도산후조리비지원사업",
+      "combined_code": "307-01",
+      "statistical_item": "의료및회복비"
+     }
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 528,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-001",
+   "category": "total",
+   "query": "2010년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 1757774347,
+    "any_evidence": {
+     "year": 2010,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "1,757,774,347"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "2ecc109a03a9ab8c9ac9",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-002",
+   "category": "total",
+   "query": "2014년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 2231041826,
+    "any_evidence": {
+     "year": 2014,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "2,231,041,826"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "069d33ddffacf1e8cc60",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-003",
+   "category": "total",
+   "query": "2018년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 3001455526,
+    "any_evidence": {
+     "year": 2018,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "3,001,455,526"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "283a4b5c4fde85347c83",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-004",
+   "category": "total",
+   "query": "2020년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 3084061570,
+    "any_evidence": {
+     "year": 2020,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "3,084,061,570"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "3fe6ddbc5670dc6f242c",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-005",
+   "category": "total",
+   "query": "2022년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 3263922826,
+    "any_evidence": {
+     "year": 2022,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "3,263,922,826"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "c6b965a41265a4c32898",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-006",
+   "category": "total",
+   "query": "2024년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 3540162018,
+    "any_evidence": {
+     "year": 2024,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "3,540,162,018"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "311202a405b2a2a98b64",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-007",
+   "category": "total",
+   "query": "2025년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 3829777841,
+    "any_evidence": {
+     "year": 2025,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "3,829,777,841"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "bcb8850c3df310bf46ee",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "tot-008",
+   "category": "total",
+   "query": "2026년 성남시 예산 총액",
+   "args": {},
+   "expect": {
+    "answer_card_total": 3940847350,
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "본예산",
+     "text_includes": [
+      "합계",
+      "3,940,847,350"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "04ea9506e9f6283a0f89",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "cmp-001",
+   "category": "comparison",
+   "query": "2024년과 2026년 노인일자리 예산 비교",
+   "args": {},
+   "expect": {
+    "all_evidence": {
+     "budget_type": "본예산"
+    },
+    "any_evidence": [
+     {
+      "year": 2024,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "노인일자리"
+      ]
+     },
+     {
+      "year": 2026,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "노인일자리"
+      ]
+     }
+    ]
+   },
+   "ground_truth": [
+    {
+     "document_id": "090d551dcbcf9ef9950e",
+     "page": 64,
+     "note": "2024 본예산 세출명세서에서 '노인일자리' 확인"
+    },
+    {
+     "document_id": "32c9f094ec3f79fa18d0",
+     "page": 254,
+     "note": "2026 본예산 세출명세서에서 '노인일자리' 확인"
+    }
+   ]
+  },
+  {
+   "id": "cmp-002",
+   "category": "comparison",
+   "query": "2023년 2025년 2026년 산후조리비 지원 비교",
+   "args": {},
+   "expect": {
+    "all_evidence": {
+     "budget_type": "본예산"
+    },
+    "any_evidence": [
+     {
+      "year": 2023,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "산후조리비"
+      ]
+     },
+     {
+      "year": 2025,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "산후조리비"
+      ]
+     },
+     {
+      "year": 2026,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "산후조리비"
+      ]
+     }
+    ]
+   },
+   "ground_truth": [
+    {
+     "document_id": "90419f2e5847c5789b74",
+     "page": 585,
+     "note": "2023 본예산 세출명세서에서 '산후조리비' 확인"
+    },
+    {
+     "document_id": "4195ae6fd8617df90fd1",
+     "page": 29,
+     "note": "2025 본예산 세출명세서에서 '산후조리비' 확인"
+    },
+    {
+     "document_id": "32c9f094ec3f79fa18d0",
+     "page": 608,
+     "note": "2026 본예산 세출명세서에서 '산후조리비' 확인"
+    }
+   ]
+  },
+  {
+   "id": "cmp-003",
+   "category": "comparison",
+   "query": "2025년과 2026년 시내버스 공공관리제 예산 비교",
+   "args": {},
+   "expect": {
+    "all_evidence": {
+     "budget_type": "본예산"
+    },
+    "any_evidence": [
+     {
+      "year": 2025,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "시내버스공공관리제"
+      ]
+     },
+     {
+      "year": 2026,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "시내버스공공관리제"
+      ]
+     }
+    ]
+   },
+   "ground_truth": [
+    {
+     "document_id": "4548bf11f52e1e2bb0ac",
+     "page": 490,
+     "note": "2025 본예산 세출명세서에서 '시내버스공공관리제' 확인"
+    },
+    {
+     "document_id": "31b022e23f8345d88887",
+     "page": 6,
+     "note": "2026 본예산 세출명세서에서 '시내버스공공관리제' 확인"
+    }
+   ]
+  },
+  {
+   "id": "cmp-004",
+   "category": "comparison",
+   "query": "2022년과 2026년 전통시장 활성화 예산 비교",
+   "args": {},
+   "expect": {
+    "all_evidence": {
+     "budget_type": "본예산"
+    },
+    "any_evidence": [
+     {
+      "year": 2022,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "전통시장활성화"
+      ]
+     },
+     {
+      "year": 2026,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "전통시장활성화"
+      ]
+     }
+    ]
+   },
+   "ground_truth": [
+    {
+     "document_id": "a3f48705ececff53615d",
+     "page": 141,
+     "note": "2022 본예산 세출명세서에서 '전통시장활성화' 확인"
+    },
+    {
+     "document_id": "32c9f094ec3f79fa18d0",
+     "page": 153,
+     "note": "2026 본예산 세출명세서에서 '전통시장활성화' 확인"
+    }
+   ]
+  },
+  {
+   "id": "cmp-005",
+   "category": "comparison",
+   "query": "2020년과 2023년, 2026년 평생학습관 프로그램 운영 비교",
+   "args": {},
+   "expect": {
+    "all_evidence": {
+     "budget_type": "본예산"
+    },
+    "any_evidence": [
+     {
+      "year": 2020,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "평생학습관프로그램"
+      ]
+     },
+     {
+      "year": 2023,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "평생학습관프로그램"
+      ]
+     },
+     {
+      "year": 2026,
+      "budget_type": "본예산",
+      "source_family": "expenditure",
+      "text_includes": [
+       "평생학습관프로그램"
+      ]
+     }
+    ]
+   },
+   "ground_truth": [
+    {
+     "document_id": "f3dcbb1253537791e033",
+     "page": 304,
+     "note": "2020 본예산 세출명세서에서 '평생학습관프로그램' 확인"
+    },
+    {
+     "document_id": "638b0bedf701d657791e",
+     "page": 22,
+     "note": "2023 본예산 세출명세서에서 '평생학습관프로그램' 확인"
+    },
+    {
+     "document_id": "32c9f094ec3f79fa18d0",
+     "page": 336,
+     "note": "2026 본예산 세출명세서에서 '평생학습관프로그램' 확인"
+    }
+   ]
+  },
+  {
+   "id": "sem-001",
+   "category": "semantic",
+   "query": "어르신이 일할 수 있도록 돕는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "노인일자리및사회활동지원확대"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 252,
+    "note": "노"
+   }
+  },
+  {
+   "id": "sem-002",
+   "category": "semantic",
+   "query": "시내버스를 지자체가 직접 관리하는 제도를 지원하는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "경기도시내버스공공관리제사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "31b022e23f8345d88887",
+    "page": 6,
+    "note": "시"
+   }
+  },
+  {
+   "id": "sem-003",
+   "category": "semantic",
+   "query": "아이를 낳은 산모의 몸조리 비용을 도와주는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "산후조리비지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 608,
+    "note": "산"
+   }
+  },
+  {
+   "id": "sem-004",
+   "category": "semantic",
+   "query": "장애인이 택시를 탈 때 요금을 보조해 주는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "장애인택시바우처지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 235,
+    "note": "장"
+   }
+  },
+  {
+   "id": "sem-005",
+   "category": "semantic",
+   "query": "도서관을 더 오래 열도록 돕는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "공공도서관개관시간연장지원사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 781,
+    "note": "도"
+   }
+  },
+  {
+   "id": "sem-006",
+   "category": "semantic",
+   "query": "중소기업이 디지털 기술을 도입하도록 지원하는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "중소기업디지털전환지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 128,
+    "note": "디"
+   }
+  },
+  {
+   "id": "sem-007",
+   "category": "semantic",
+   "query": "재래시장의 낡은 시설을 고치는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "전통시장소규모시설현대화사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 153,
+    "note": "전"
+   }
+  },
+  {
+   "id": "sem-008",
+   "category": "semantic",
+   "query": "공기 중 먼지가 어디서 나오는지 조사하는 사업",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "source_family": "expenditure",
+     "text_includes": [
+      "미세먼지배출원조사및감시사업"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "32c9f094ec3f79fa18d0",
+    "page": 438,
+    "note": "미"
+   }
+  },
+  {
+   "id": "rev-001",
+   "category": "revenue",
+   "query": "2026년 지방소득세 세입 예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "본예산",
+     "source_family": "revenue",
+     "text_includes": [
+      "지방소득세",
+      "808,282,000"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "900cfcf0496b43682393",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "rev-002",
+   "category": "revenue",
+   "query": "2026년 재산세 세입예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "본예산",
+     "source_family": "revenue",
+     "text_includes": [
+      "재산세",
+      "462,385,000"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "900cfcf0496b43682393",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "rev-003",
+   "category": "revenue",
+   "query": "2026년 자동차세 세입 얼마",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "본예산",
+     "source_family": "revenue",
+     "text_includes": [
+      "자동차세",
+      "135,556,000"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "900cfcf0496b43682393",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "rev-004",
+   "category": "revenue",
+   "query": "2026년 주민세 세입예산",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "본예산",
+     "source_family": "revenue",
+     "text_includes": [
+      "주민세",
+      "99,926,000"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "900cfcf0496b43682393",
+    "page": 1,
+    "note": "2"
+   }
+  },
+  {
+   "id": "sup-001",
+   "category": "supplementary",
+   "query": "2026년 3회 추경 노인복지과 노인일자리",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "추경",
+     "revision": 3,
+     "source_family": "expenditure",
+     "department": "노인복지과",
+     "text_includes": [
+      "노인일자리"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "6e730799a151af5944c2",
+    "page": 334,
+    "note": "2"
+   }
+  },
+  {
+   "id": "sup-002",
+   "category": "supplementary",
+   "query": "2026년 1회 추경 분당도서관",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "추경",
+     "revision": 1,
+     "source_family": "expenditure",
+     "department": "분당도서관",
+     "text_includes": [
+      "분당도서관"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "ecf3620a37b739b371c6",
+    "page": 278,
+    "note": "2"
+   }
+  },
+  {
+   "id": "sup-003",
+   "category": "supplementary",
+   "query": "2025년 2회 추경 노인복지과 노인일자리",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2025,
+     "budget_type": "추경",
+     "revision": 2,
+     "source_family": "expenditure",
+     "department": "노인복지과",
+     "text_includes": [
+      "노인일자리"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "1ea09347f342117c33c9",
+    "page": 51,
+    "note": "2"
+   }
+  },
+  {
+   "id": "sup-004",
+   "category": "supplementary",
+   "query": "2026년 4회 추경 분당도서관",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2026,
+     "budget_type": "추경",
+     "revision": 4,
+     "source_family": "expenditure",
+     "department": "분당도서관",
+     "text_includes": [
+      "분당도서관"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "d0e97257468c97daf2d9",
+    "page": 305,
+    "note": "2"
+   }
+  },
+  {
+   "id": "his-001",
+   "category": "historical",
+   "query": "2012년 무상교복 지원",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2012,
+     "budget_type": "본예산",
+     "source_family": "expenditure",
+     "department": "체육청소년과",
+     "text_includes": [
+      "무상교복지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "b0bdd51ead0c90c2f270",
+    "page": 223,
+    "note": "2"
+   }
+  },
+  {
+   "id": "his-002",
+   "category": "historical",
+   "query": "2016년 공공산후조리원 운영",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2016,
+     "budget_type": "본예산",
+     "source_family": "expenditure",
+     "department": "중원구보건소보건행정과",
+     "text_includes": [
+      "공공산후조리원운영"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "ca7fc33b2dbc294852e8",
+    "page": 380,
+    "note": "2"
+   }
+  },
+  {
+   "id": "his-003",
+   "category": "historical",
+   "query": "2017년 청년배당 지급",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2017,
+     "budget_type": "본예산",
+     "source_family": "expenditure",
+     "department": "사회복지과",
+     "text_includes": [
+      "청년배당지급"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "00954f42e4d414c0885f",
+    "page": 51,
+    "note": "2"
+   }
+  },
+  {
+   "id": "his-004",
+   "category": "historical",
+   "query": "2013년 무상교복 지원",
+   "args": {},
+   "expect": {
+    "any_evidence": {
+     "year": 2013,
+     "budget_type": "본예산",
+     "source_family": "expenditure",
+     "department": "교육지원과",
+     "text_includes": [
+      "무상교복지원"
+     ]
+    }
+   },
+   "ground_truth": {
+    "document_id": "2618924d1eefc31e2cda",
+    "page": 163,
+    "note": "2"
+   }
+  },
+  {
+   "id": "abs-001",
+   "category": "absent",
+   "query": "화성 탐사선 발사 지원 사업 예산",
+   "args": {},
+   "expect": {
+    "match_quality_in": [
+     "semantic_only",
+     "none"
+    ]
+   },
+   "ground_truth": {
+    "note": "성남시 예산서 2010~2026 전체에서 핵심어가 원문에 나오지 않음을 확인(핵심어 직접 포함 근거 0건)"
+   }
+  },
+  {
+   "id": "abs-002",
+   "category": "absent",
+   "query": "바다 양식어장 조성 지원 사업",
+   "args": {},
+   "expect": {
+    "match_quality_in": [
+     "semantic_only",
+     "none"
+    ]
+   },
+   "ground_truth": {
+    "note": "성남시 예산서 2010~2026 전체에서 핵심어가 원문에 나오지 않음을 확인(핵심어 직접 포함 근거 0건)"
+   }
+  },
+  {
+   "id": "abs-003",
+   "category": "absent",
+   "query": "제주 해녀 복지수당 지급",
+   "args": {},
+   "expect": {
+    "match_quality_in": [
+     "semantic_only",
+     "none"
+    ]
+   },
+   "ground_truth": {
+    "note": "성남시 예산서 2010~2026 전체에서 핵심어가 원문에 나오지 않음을 확인(핵심어 직접 포함 근거 0건)"
+   }
+  },
+  {
+   "id": "abs-004",
+   "category": "absent",
+   "query": "핵잠수함 건조 사업 예산",
+   "args": {},
+   "expect": {
+    "match_quality_in": [
+     "semantic_only",
+     "none"
+    ]
+   },
+   "ground_truth": {
+    "note": "성남시 예산서 2010~2026 전체에서 핵심어가 원문에 나오지 않음을 확인(핵심어 직접 포함 근거 0건)"
+   }
+  }
+ ]
+}

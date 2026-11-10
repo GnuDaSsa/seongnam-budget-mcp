@@ -130,9 +130,19 @@ npm run test:unit
 npm run snapshot:download
 npm run build
 npm test
+npm run evaluate
 npm run dev
 ```
 
 스냅샷은 공개 배포 저장소에서 내려받으며 `snapshot/assets.json`에 고정한 SHA-256을 검증합니다. 자료 재수집으로 코퍼스가 바뀌면 임베딩과 ANN을 다시 생성하고 카탈로그 해시와 함께 갱신해야 합니다. 원본 수집부터 다시 만들 때는 위 수집 단계 이후 `pipeline/build_terms.py`, `pipeline/download_model.py`, `pipeline/build_vectors.py`, `pipeline/build_ann.py`의 실행 인자를 확인하세요.
 
 서버 운영 환경에는 OpenAI API 키가 필요하지 않습니다. `.env*`는 커밋 금지입니다. 신규 배포는 자신의 Site 프로젝트 ID와 호스팅 환경을 사용해야 합니다.
+
+## 2026-11-10 서버 0.4.0 변경
+
+- 총액 질문은 모든 연도에서 해당 연도 본예산 총괄표 1쪽을 직접 읽습니다. 합계·단위가 대조되면 `answer_card`, 대조되지 않으면 원문만 반환합니다.
+- 편성 구분을 밝히지 않은 세출 사업의 연도 비교는 연도별 본예산으로 맞춥니다.
+- 비교 응답의 근거 본문은 최상위 `evidence`에 한 번만 있고 `per_year[]`는 `evidence_ids`만 가집니다. `per_year[].evidence`를 읽던 클라이언트는 최상위 `evidence`를 사용해야 합니다.
+- 응답의 `match_quality.level`(verified / keyword / semantic_bridge / semantic_only / none)로 일치 신뢰도를 구분합니다. `semantic_only`는 같은 사업이라는 단정 근거가 아닙니다.
+- 깨진 인코딩 요청은 오류로 처리합니다.
+- 정답셋 60개 질의(`tests/fixtures/golden-queries.json`)와 평가기(`npm run evaluate`)를 추가했습니다. 정답셋은 모델이 초안을 만들고 원문으로 대조한 것이며 사람 검수본이 아닙니다. 로컬 빌드 결과 54/60이며 풀어 쓴 의미 질의는 8개 중 6개가 풀리지 않았습니다. 이 변경은 운영 서버에 아직 게시되지 않았고 측정 표와 한계는 [검증 기록](docs/VALIDATION.md)에 있습니다.

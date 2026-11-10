@@ -3,6 +3,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * 0'
 permissions:
   contents: read
 jobs:
@@ -18,7 +20,8 @@ jobs:
       - run: npm run test:unit
       - run: node --check worker/server.js
   corpus:
-    if: github.event_name == 'workflow_dispatch'
+    # 검색 회귀는 main 반영·주간 일정·수동 실행에서 확인한다. 자산이 바뀐 커밋은 공개 사이트 게시 후 통과한다.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -31,3 +34,4 @@ jobs:
       - run: npm run snapshot:download
       - run: npm run build
       - run: npm test
+      - run: npm run evaluate

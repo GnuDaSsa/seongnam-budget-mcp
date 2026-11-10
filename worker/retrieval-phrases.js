@@ -1,7 +1,7 @@
 // Exact matches supplement semantic ranking; postings alone never prove a phrase.
 const boilerplate=new Set(['성남','성남시','예산','예산은','본예산','추경','결산','관련계획','얼마','얼마야','얼마인가요','알려줘','알려주세요','찾아줘','찾아주세요','조회','조회해줘','관련','기준','통계목','편성목','세부사업','예산목','보여줘','보여주세요','금액','내역','세출예산','세출예산서','사업명세서','성과계획','성과계획서','성과지표','성과목표']);
 for(const word of ['본예산과','추경과','결산과','성과계획서와','비교','및','세부사업과','통계목도','통계목은','편성목은','최종','최신','마지막','최종예산','최신예산','마지막예산'])boilerplate.add(word);
-export function withoutQueryYears(query){return query.replace(/(?<![\p{L}\p{N}])(?:19|20)\d{2}(?:\s*(?:년도|년))?(?![\p{L}\p{N}])/gu,' ');}
+export function withoutQueryYears(query){return query.replace(/(?<![\p{L}\p{N}])(?:19|20)\d{2}(?:\s*(?:년도|년)(?:과|와|의|에서|에는|에|은|는|도|부터|까지|보다|대비)?)?(?![\p{L}\p{N}])/gu,' ');}
 function compact(text){return text.toLowerCase().replace(/\s/gu,'');}
 export function retrievalWords(query){return(withoutQueryYears(query).toLowerCase().match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[]).filter(w=>w.length>=2&&!boilerplate.has(w));}
 
