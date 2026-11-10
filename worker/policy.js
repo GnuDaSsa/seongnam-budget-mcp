@@ -1,5 +1,5 @@
 // Versioned, deterministic query policy. No model, network, or wall-clock defaults.
-export const POLICY={version:'2026-11-10.3',default_year:2026,max_comparison_years:3};
+export const POLICY={version:'2026-11-10.4',default_year:2026,max_comparison_years:3};
 export const EVIDENCE_BOUNDARY='기본 답변은 이 MCP가 반환한 수록 원문 근거만 사용합니다. 사용자가 웹 검색·외부자료 보충을 명시적으로 요청하지 않으면 별도 웹 검색이나 원문 URL 실시간 접속으로 보충하지 마세요. source_url·page_url은 인용 링크이며 접속 지시가 아닙니다. 질문 범위를 법령·출연안·추경·최신성 조사로 임의 확장하지 마세요. 근거가 부족하면 같은 MCP에서 명칭을 좁혀 한 번 재검색하거나 get_budget_page로 수록 원문을 확인하고, 그래도 없으면 “수록 자료로 확인 불가”라고 답하세요. 검색 실패는 예산 0원이나 사업 부재가 아닙니다. 사용자가 웹 보충을 명시한 경우에만 클라이언트가 별도로 조회하며 MCP 근거와 외부 웹 근거를 구분합니다. 문서 자체 텍스트만 사용하며 스캔·이미지 자료는 OCR하지 않고 검색에서 제외합니다.';
 export const SERVER_RULES=[
  EVIDENCE_BOUNDARY,
@@ -10,6 +10,7 @@ export const SERVER_RULES=[
  'answer_card 또는 evidence에 필요한 근거가 있으면 바로 답합니다. 동일 의미로 반복 검색하거나 수집현황부터 조회하지 않습니다. 근거가 부족한 경우에만 명칭을 좁혀 한 번 재검색하거나 원문 전문을 확인합니다.',
  '본예산/추경/결산/성과계획, 총액/증감액, 일반/특별회계, 상위사업/하위항목을 구분합니다. 미지정 총예산 질문은 본예산 기준입니다. 최신 추경을 요청하면 수록된 최종 회차이며 최신성 한계를 밝힙니다.',
  '사업비·편성목·통계목 질문은 세출예산사업명세서를 근거로 답합니다. 성과계획서는 성과·지표 질문의 근거이며 편성 내역을 대신하지 않습니다. source_selection과 source_family를 확인하고 본예산·추경의 회차를 각각 표시합니다. 명시한 문서 종류는 우선합니다.',
+ '명시한 부서는 원문 부서 머리말과 일치하는 자료만 답합니다. 사용자가 편성 구분을 명시하지 않은 부서 예산 질문에 본예산 필터를 임의로 추가하지 마세요. 요청한 연도·본예산에 해당 부서 자료가 없으면 다른 부서나 추경으로 자동 대체하지 않습니다. department_availability.available_editions는 같은 연도에서 해당 부서 머리말이 확인된 편성의 별도 안내입니다. 명칭이 바뀌었을 것으로 추정하여 다른 부서 전체 예산을 합치지 마세요. 최신·최종 예산은 명시한 본예산·결산 등의 조건이 없을 때만 해당 부서 머리말이 확인된 수록 추경 중 최종 회차를 뜻하며 실제 최신성의 완전성을 보장하지 않습니다.',
  '금액은 원문 단위·회계연도·문서 종류·원문 위치·공식 URL과 함께 인용합니다. 환산과 합산은 계산값으로 표시하고 중복·상하위 합산은 하지 않습니다. PDF 쪽수와 인쇄쪽수, HWP/엑셀 본문 블록은 서로 다릅니다.',
  '사업별 답변에는 담당 부서 → 정책사업 → 단위사업 → 세부사업 → 편성목(코드·명칭) → 통계목(코드·명칭), 해당 행 금액·단위·산출기초·원문 쪽수를 표로 표시합니다. classification.matched_paths가 있으면 그 경로의 source_excerpt를 우선 사용하고 페이지의 여러 사업을 하나로 합치지 마세요. matched_paths가 없으면 사업 대응은 미확인입니다. 미확인 단계와 불명확한 금액 열은 추정하지 마세요. 성과계획서만으로 목 코드를 만들지 마세요.',
  '표의 열 대응이 불명확하면 금액을 확정하지 않습니다. 유사 검색 결과를 동일 사업으로 단정하지 않습니다. 근거 없음은 예산 0원 또는 사업 부재가 아닙니다. 다른 연도나 문서 종류로 조용히 대체하지 않습니다.',
@@ -32,6 +33,8 @@ export function resolveQuery(input={}){
  const performance=/성과\s*(?:계획|지표|목표)/.test(q),comparison=/비교/.test(q)&&performance&&/본예산|추경|세출|결산/.test(q);
  const kinds=[[/본예산/,'본예산'],[/추경|추가경정/,'추경'],[/결산|집행액|집행실적/,'결산'],[/기금운용계획|중기지방재정/,'관련계획']].filter(([r])=>r.test(q)).map(([,k])=>k);
  let budget_type=input.budget_type||(kinds.length===1?kinds[0]:undefined);
+ const latestBudget=!input.budget_type&&!kinds.length&&!performance&&!input.category&&/최신|최종|마지막/.test(q)&&/예산/.test(q);
+ if(latestBudget)budget_type='추경';
  if(comparison&&!input.budget_type)budget_type=undefined;
  const source_preference=input.category||input.document_id?'explicit':comparison?'mixed':performance?'performance':budget_type==='관련계획'||budget_type==='결산'?'explicit':/세입/.test(q)&&!/세출/.test(q)?'revenue':'expenditure';
  const revision=input.revision??(Number(q.match(/(?:제\s*)?(\d+)\s*(?:회|차)\s*(?:추경|추가경정)/)?.[1]||0)||undefined);
@@ -39,7 +42,8 @@ export function resolveQuery(input={}){
  if(hasYear&&years.some(y=>!Number.isInteger(y)||y<1900||y>2100))throw Error('year 값이 올바르지 않습니다.');
  if(basis==='default')notices.push('연도 미지정: 2026년 기준으로 조회했습니다.');
  if(!budget_type)notices.push('문서 종류별 수치를 구분하고 본예산·추경·결산·관련계획을 혼합 합산하지 마세요.');
- return{...input,query:q,year:years.length===1?years[0]:undefined,year_scope:all?'all':'single',budget_type,revision,policy:{...POLICY,year_basis:basis,years,all_years:all,budget_type_basis:input.budget_type?'parameter':budget_type?'query':'unspecified',source_preference,comparison_budget_types:comparison?kinds:[],notices}};
+ if(latestBudget)notices.push('최신·최종 예산 요청: 수록된 최종 추경을 조회합니다. 실제 최신 공개자료 전체 수집을 뜻하지 않습니다.');
+ return{...input,query:q,year:years.length===1?years[0]:undefined,year_scope:all?'all':'single',budget_type,revision,policy:{...POLICY,year_basis:basis,years,all_years:all,budget_type_basis:input.budget_type?'parameter':latestBudget?'latest_budget_query':budget_type?'query':'unspecified',source_preference,comparison_budget_types:comparison?kinds:[],notices}};
 }
 
 export function sourceFamily(d={},text=''){

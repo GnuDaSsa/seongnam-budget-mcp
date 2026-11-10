@@ -20,6 +20,7 @@ export function councilAllowed(p,a){
  if(['performance','revenue'].includes(a.policy?.source_preference))return false;
  if(a.year&&p.year!==a.year||a.budget_type&&p.budget_type!==a.budget_type||a.revision!=null&&p.revision!==a.revision||a.category&&a.category!==COUNCIL_CATEGORY)return false;
  if(p.owner_source_scope!=='municipal'||p.institution_id!=='seongnam')return false;
+ if(a.policy?.department_scope?.names?.length&&!a.policy.department_scope.names.some(name=>normalizeBusiness(name)===normalizeBusiness(p.department)))return false;
  const q=normalizeBusiness(a.query),regions=q.match(/(?:수정|중원|분당)구/g)||[];
  if(regions.length&&!regions.some(r=>p.department.includes(r)))return false;
  if(/특별회계/.test(q)&&p.city_account!=='특별회계'||/일반회계/.test(q)&&p.city_account!=='일반회계')return false;

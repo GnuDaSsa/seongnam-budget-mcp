@@ -72,7 +72,15 @@ for(const [id,{source,rows}] of grouped){
  passages.push(...rows.map(({text,embedding_text,vector,city_evidence,link,amounts,...p})=>({...p,document_id:id})));
 }
 const catalog={schema_version:1,generated_at:new Date().toISOString(),embedding:{model:semantic.model,revision:semantic.model_revision,dimensions:256,method:'native Potion token mean+L2, exact cosine flat sidecar',vectorized:true},summary:{captured_meetings:meetingSources.length,searchable_meetings:documents.length,searchable_passages:passages.length,attachment_metadata:attachments.length,attachment_bodies_indexed:0,business_links:links.length,ocr_used:false,coverage_complete:false},documents,passages,meetings:meetingSources.map(s=>({source_url:s.source_url,meeting_date:s.meeting_date,sha256:s.source_sha256,acquisition_status:s.acquisition_status})),attachments:attachments.map(({meeting_html_sha256,captured_utc,...a})=>a),source_package_hashes:Object.fromEntries(await Promise.all(['budget_records.json','business_links.json','municipal_evidence.json','sources.json','council_catalog/catalog.json'].map(async f=>[f,hash(await readFile(path.join(input,f)))])))};
-await writeFile(path.join(out,'catalog.json'),JSON.stringify(catalog,null,2)+'\n');
+// Keep original public URLs and metadata unchanged in the corpus asset layer.
+// The tracked manifest contains only retrieval dimensions/counts and content digests.
+const metadataBytes=gzipSync(Buffer.from(JSON.stringify(catalog)));
+const metadataName=hash('seongnam-council-source-catalog-v1').slice(0,20)+'.json.gz';
+const dataAsset={path:'council/'+metadataName,bytes:metadataBytes.length,sha256:hash(metadataBytes)};
+await writeFile(path.join(out,metadataName),metadataBytes);
+packedFiles.push(dataAsset);
+const manifestDocuments=documents.map(({id,year,budget_type,revision,category,source_scope,institution_id,publisher,status,indexed_units,indexed_blocks,locator_kind,document_stage,shard,shard_sha256,shard_bytes})=>({id,year,budget_type,revision,category,source_scope,institution_id,publisher,status,indexed_units,indexed_blocks,locator_kind,document_stage,shard,shard_sha256,shard_bytes}));
+await writeFile(path.join(out,'catalog.json'),JSON.stringify({schema_version:2,generated_at:catalog.generated_at,embedding:catalog.embedding,summary:catalog.summary,documents:manifestDocuments,data_asset:dataAsset},null,2)+'\n');
 const assets=await readJson(path.join(root,'snapshot/assets.json'));
 assets.files=[...assets.files.filter(f=>!f.path.startsWith('council/')),...packedFiles];
 await writeFile(path.join(root,'snapshot/assets.json'),JSON.stringify(assets,null,2)+'\n');

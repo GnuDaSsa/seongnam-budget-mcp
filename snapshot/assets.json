@@ -5097,6 +5097,16 @@
       "path": "council/f9d54158c070628a0630.json.gz",
       "bytes": 10222,
       "sha256": "6da6ec8723d3738d56ed18283d56b48beeb9b7f7d06ee8cc2af04f3d9e6fa1c3"
+    },
+    {
+      "path": "council/9ecc4e4443f74a197aad.json.gz",
+      "bytes": 6250,
+      "sha256": "0ef4a1b636a6e37195a362eadd11ed04e5f8f750ab3ca48f51d6ad07c82b0b62"
+    },
+    {
+      "path": "corpus/departments.json.gz",
+      "bytes": 252959,
+      "sha256": "c71fa71dbf3baf4c99c5422709a8da344861ea288047ab496835674c56913553"
     }
   ]
 }

@@ -16,7 +16,8 @@ export function budgetClassification(text,metadata={},query=''){
    const account=label.match(/^(\d{3})\s+(.+)$/),stat=label.match(/^(\d{2})\s+(.+)$/);
    if(account){appropriation={code:account[1],name:account[2]};continue;}
    if(stat&&appropriation){paths.push({unit_business,detailed_business,appropriation:{...appropriation},statistical_item:{code:stat[1],name:stat[2]},combined_code:appropriation.code+'-'+stat[1],source_line:i+1,source_excerpt:line.trim(),basis:'expenditure_statement_indentation'});continue;}
-   if(!/^[가-힣]/.test(label)||/^[국도시]$/.test(label)||!label)continue;
+   if(/^[국도시기균]$/.test(label)||!label)continue;
+   if(!/^[가-힣A-Za-z0-9]/.test(label)){if(indent<9&&!/^[○―-]/.test(label)){detailed_business=null;appropriation=null;}continue;}
    if(indent===2){unit_business=label;detailed_business=null;appropriation=null;}
    else if(indent===3){detailed_business=label;appropriation=null;}
    else if(indent<2){unit_business=null;detailed_business=null;appropriation=null;}

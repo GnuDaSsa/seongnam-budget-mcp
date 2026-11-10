@@ -53,14 +53,14 @@ export async function createEncoder(env){
  function tokenWeight(id){const w=row(id);return w?Math.sqrt(w.row.reduce((sum,x)=>sum+x*x,0))*w.scale:0;}
  return{s,tokenize:text=>tokenize(s,text),ensure,embed,tokenVector,tokenWeight};
 }
-export async function vectorSearch(env,manifest,query,allowedDocs,limit=64){
+export async function vectorSearch(env,manifest,query,allowedDocs,limit=64,allowedGids=null){
  const enc=await createEncoder(env),ids=enc.tokenize(query);await enc.ensure(ids);const q=enc.embed(ids);
  if(!ids.length||!q.some(x=>x))return {enc,ids,q,hits:[],scanned:0};
  const clusters=manifest.clusters.map((_,i)=>({i,score:dot(q,enc.s.centers.subarray(i*DIM,(i+1)*DIM))})).sort((a,b)=>b.score-a.score).slice(0,manifest.nprobe);
  let candidates=[],scanned=0;
  for(let start=0;start<clusters.length;start+=8){const batch=await Promise.all(clusters.slice(start,start+8).map(async c=>({c,b:await binary(env,'cluster-'+c.i)})));
   for(let {b} of batch){let n=new Uint32Array(b,0,1)[0],loc=new Uint32Array(b,4,n*3),norm=new Float32Array(b,4+12*n,n),v=new Int8Array(b,4+16*n);
-   for(let i=0;i<n;i++){let gid=loc[i*3];if(!allowedDocs.has(enc.s.pageDocs[gid]))continue;scanned++;let sum=0,at=i*DIM;for(let k=0;k<DIM;k++)sum+=q[k]*v[at+k];let score=sum/(norm[i]||1);if(score>=0.15)candidates.push({gid,start:loc[i*3+1],end:loc[i*3+2],cosine:score});}
+   for(let i=0;i<n;i++){let gid=loc[i*3];if(!allowedDocs.has(enc.s.pageDocs[gid])||allowedGids&&!allowedGids.has(gid))continue;scanned++;let sum=0,at=i*DIM;for(let k=0;k<DIM;k++)sum+=q[k]*v[at+k];let score=sum/(norm[i]||1);if(score>=0.15)candidates.push({gid,start:loc[i*3+1],end:loc[i*3+2],cosine:score});}
   }candidates.sort((a,b)=>b.cosine-a.cosine);candidates.length=Math.min(candidates.length,limit*3);
  }
  let seen=new Set(),hits=[];for(let c of candidates){if(seen.has(c.gid))continue;seen.add(c.gid);hits.push(c);if(hits.length===limit)break;}

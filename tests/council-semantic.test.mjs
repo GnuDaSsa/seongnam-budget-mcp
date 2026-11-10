@@ -9,9 +9,10 @@ import {createCouncilReader} from '../worker/council.js';
 import {resolveQuery} from '../worker/policy.js';
 import {institutionScope} from '../worker/affiliates.js';
 import worker from '../dist/server/index.js';
+import {loadCouncilCatalog} from '../scripts/council-catalog.mjs';
 const root=path.resolve('snapshot');
 const env={ASSETS:{async fetch(req){const p=path.resolve(root,'.'+new URL(req.url).pathname);if(!p.startsWith(root+path.sep))throw Error('Invalid test asset path');return new Response(await readFile(p));}}};
-const catalog=JSON.parse(await readFile('snapshot/council/catalog.json','utf8'));
+const catalog=await loadCouncilCatalog();
 const resolve=query=>{const a=resolveQuery({query,mode:'vector',limit:3});a.policy.institution_scope=institutionScope(query,[]);return a;};
 async function research(query,extras={}){const r=await worker.fetch(new Request('https://test.local/api/research?'+new URLSearchParams({query,year:2026,...extras})),env);assert.equal(r.status,200);return r.json();}
 test('stored council vectors are reproducible native Potion embeddings, municipal index unchanged',async()=>{

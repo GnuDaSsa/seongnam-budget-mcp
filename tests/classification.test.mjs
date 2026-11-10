@@ -32,3 +32,13 @@ test('unsupported business indentation cannot inherit a previous business',()=>{
  const text='부서: 교통과\n정책: 교통사업\n단위: 버스\n부서ㆍ정책ㆍ단위(회계)ㆍ세부사업ㆍ편성목\n   이전사업  100\n         403 자치단체등자본이전  100\n          02 공기관등에대한자본적위탁사업비  100\n    성남시S-BRT 구축  12000000\n         401 시설비및부대비  12000000\n          01 시설비  12000000';
  const r=budgetClassification(text,{},'이전사업');assert.equal(r.paths[1].detailed_business,null);assert.equal(r.matched_paths.length,1);
 });
+test('ASCII-leading AI business row cannot inherit the preceding advisory budget identity',()=>{
+ const source=JSON.parse(readFileSync(new URL('./fixtures/ai-budget-2025-revision3-page37.json',import.meta.url),'utf8'));
+ const result=budgetClassification(source.text,source,'AI 인재양성지원사업');
+ assert.equal(result.department,'AI반도체과');
+ const advisory=result.paths.find(p=>p.detailed_business==='성남시AI혁신도시추진자문단운영'&&p.combined_code==='201-01');assert(advisory);assert.match(advisory.source_excerpt,/5,100/);
+ const training=result.paths.find(p=>p.combined_code==='307-05'&&p.source_excerpt.includes('600,000'));assert(training);assert.equal(training.detailed_business,null,'unrecognized indent 6 stays unknown, never carries the previous business');
+ assert(!result.paths.some(p=>p.detailed_business==='성남시AI혁신도시추진자문단운영'&&p.source_excerpt.includes('600,000')));
+ const regular=source.text.replace('      AI 인재양성지원사업','   AI 인재양성지원사업');
+ assert(budgetClassification(regular,source).paths.some(p=>p.detailed_business==='AI 인재양성지원사업'&&p.combined_code==='307-05'));
+});

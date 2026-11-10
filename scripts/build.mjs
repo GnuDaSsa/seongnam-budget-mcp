@@ -6,6 +6,7 @@ import {gunzipSync} from 'node:zlib';
 import {buildLexical} from './build-lexical.mjs';
 import {buildIdentity} from './release-identity.mjs';
 import {validateCouncilShard} from '../worker/council.js';
+import {loadCouncilCatalog} from './council-catalog.mjs';
 await buildLexical();
 const root=process.cwd();
 const out=path.resolve(root,'dist');
@@ -16,8 +17,10 @@ await mkdir(path.join(out,'.openai'),{recursive:true});
 await mkdir(path.join(out,'client'),{recursive:true});
 const catalog=JSON.parse(await readFile('snapshot/catalog.json','utf8'));
 const affiliates=JSON.parse(await readFile('snapshot/affiliates/catalog.json','utf8'));
-const council=JSON.parse(await readFile('snapshot/council/catalog.json','utf8'));
+const council=await loadCouncilCatalog(root);
 const assets=JSON.parse(await readFile('snapshot/assets.json','utf8'));
+const departmentBytes=await readFile('snapshot/corpus/departments.json.gz'),departmentAsset=assets.files.find(f=>f.path==='corpus/departments.json.gz'),departmentIndex=JSON.parse(gunzipSync(departmentBytes,{maxOutputLength:16*1024*1024}));
+if(!departmentAsset||departmentBytes.length!==departmentAsset.bytes||createHash('sha256').update(departmentBytes).digest('hex')!==departmentAsset.sha256||departmentIndex.schema_version!==1||departmentIndex.corpus_catalog_sha256!==createHash('sha256').update(await readFile('snapshot/catalog.json')).digest('hex'))throw Error('Department header index checksum or corpus mismatch');
 if(council.schema_version!==1||council.embedding?.dimensions!==256||!council.embedding?.vectorized||!Array.isArray(council.documents))throw Error('Invalid council catalog');
 for(const d of council.documents){
  if(!/^[a-f0-9]{20}$/.test(d.id)||d.shard!==d.id||d.source_scope!=='council')throw Error('Invalid council document');
@@ -50,6 +53,8 @@ await mkdir(path.join(out,'client/affiliates'),{recursive:true});
 for(const d of affiliates.documents)await cp('snapshot/affiliates/'+d.shard+'.json.gz',path.join(out,'client/affiliates',d.shard+'.json.gz'));
 await mkdir(path.join(out,'client/council'),{recursive:true});
 for(const d of council.documents)await cp('snapshot/council/'+d.shard+'.json.gz',path.join(out,'client/council',d.shard+'.json.gz'));
+const councilAsset=JSON.parse(await readFile('snapshot/council/catalog.json','utf8')).data_asset;
+await cp('snapshot/'+councilAsset.path,path.join(out,'client',councilAsset.path));
 await cp('snapshot/semantic',path.join(out,'client/semantic'),{recursive:true,filter:src=>!path.basename(src).startsWith('tokens-')});
 // Cloudflare conventional static asset metadata; Sites accepts dist/client assets.
 await writeFile(path.join(out,'server/wrangler.json'),JSON.stringify({main:'index.js',compatibility_date:'2026-11-07',assets:{directory:'../client',binding:'ASSETS'}},null,2));

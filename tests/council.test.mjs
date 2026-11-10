@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {gzipSync} from 'node:zlib';
+import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import path from 'node:path';
+import os from 'node:os';
+import {loadCouncilCatalog} from '../scripts/council-catalog.mjs';
 import {councilAllowed,createCouncilReader,matchingCityEvidence,mergeCouncilLast,normalizeBusiness,validateCouncilShard} from '../worker/council.js';
 import {resolveQuery} from '../worker/policy.js';
 import {institutionScope} from '../worker/affiliates.js';
@@ -44,4 +49,22 @@ test('city evidence stays first, no inferred sums or overwritten source stage',(
 test('malformed vectors and acquired-attachment claims fail ingestion validation',()=>{
  validateCouncilShard(d,{passages:[p]});
  for(const patch of [{vector:Array(256).fill(0)},{vector:[1]},{vector:[NaN,...Array(255).fill(0)]},{attachment_body_verified:true},{account:'일반회계'},{document_stage:'approved'}])assert.throws(()=>validateCouncilShard(d,{passages:[{...p,...patch}]}));
+});
+test('external council metadata retains original URLs and must pass both manifest checksums',async t=>{
+ const root=await mkdtemp(path.join(os.tmpdir(),'council-manifest-'));
+ t.after(async()=>{if(path.dirname(root)!==path.resolve(os.tmpdir())||!path.basename(root).startsWith('council-manifest-'))throw Error('Invalid cleanup path');await rm(root,{recursive:true,force:true});});
+ await mkdir(path.join(root,'snapshot/council'),{recursive:true});
+ const full={schema_version:1,summary:{searchable_passages:1},embedding:{dimensions:256},documents:[d],attachments:[{url:'https://www.sncouncil.go.kr/record/appendixDownload.do?key=test'}]};
+ const bytes=gzipSync(Buffer.from(JSON.stringify(full))),f={path:'council/'+d.id+'.json.gz',bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+ const manifest={schema_version:2,summary:full.summary,embedding:full.embedding,documents:[{id:d.id}],data_asset:f};
+ await writeFile(path.join(root,'snapshot/council/catalog.json'),JSON.stringify(manifest));
+ await writeFile(path.join(root,'snapshot/assets.json'),JSON.stringify({files:[f]}));
+ await writeFile(path.join(root,'snapshot',f.path),bytes);
+ assert.deepEqual(await loadCouncilCatalog(root),full);
+ assert(!JSON.stringify(manifest).includes('sncouncil.go.kr'));
+ await writeFile(path.join(root,'snapshot/assets.json'),JSON.stringify({files:[{...f,sha256:'0'.repeat(64)}]}));
+ await assert.rejects(loadCouncilCatalog(root),/not registered/);
+ await writeFile(path.join(root,'snapshot/assets.json'),JSON.stringify({files:[f]}));
+ await writeFile(path.join(root,'snapshot',f.path),Buffer.concat([bytes,Buffer.from('changed')]));
+ await assert.rejects(loadCouncilCatalog(root),/checksum mismatch/);
 });

@@ -5,6 +5,7 @@ import {openapi} from './openapi.js';
 import {retrievalWords,exactPhraseHit,businessTermsHit} from './retrieval-phrases.js';
 import {institutionScope,createAffiliateReader,eligibleAffiliateDocuments,mergeCityFirst,affiliateWords} from './affiliates.js';
 import {createCouncilReader,mergeCouncilLast,councilAllowed,COUNCIL_CATEGORY} from './council.js';
+import {requestedDepartments,canonicalDepartmentQuery,departmentMatches} from './departments.js';
 const CATALOG=/*__CATALOG__*/null, HTML=/*__HTML__*/null, SEMANTIC=/*__SEMANTIC__*/null;
 const AFFILIATES=/*__AFFILIATES__*/null;
 const COUNCIL=/*__COUNCIL__*/null;
@@ -28,11 +29,29 @@ function num(v,k,min,max){if(v===undefined||v===null||v==='')return;let n=Number
 function args(a={}){if(!a||typeof a!=='object'||Array.isArray(a))fail('객체 인자가 필요합니다.');let b={...a,year:num(a.year,'year',1900,2100),limit:num(a.limit,'limit',1,20)??8,offset:num(a.offset,'offset',0,100000)??0,revision:num(a.revision,'revision',1,30)};
  if(a.query!==undefined&&(typeof a.query!=='string'||a.query.length>160))fail('검색어는 160자 이하 문자열이어야 합니다.');
  if(a.budget_type&&!['본예산','추경','결산','관련계획'].includes(a.budget_type))fail('지원하지 않는 예산 종류입니다.');return b;}
-function match(d,a){return !!d&&d.source_scope!=='affiliate'&&/^https:\/\/www\.seongnam\.go\.kr\//.test(d.url)&&(!a.year||d.year===a.year)&&(!a.budget_type||d.budget_type===a.budget_type||(a.budget_type==='관련계획'&&sourceFamily(d)==='performance'))&&(!a.revision||d.revision===a.revision)&&(!a.latest_city_revisions||d.revision===a.latest_city_revisions[d.year])&&(!a.category||d.category===a.category)&&(!a.document_id||d.id===a.document_id)&&sourceAllowed(d,a);}
+function match(d,a){return !!d&&d.source_scope!=='affiliate'&&/^https:\/\/www\.seongnam\.go\.kr\//.test(d.url)&&(!a.department_doc_ids||a.department_doc_ids.has(d.id))&&(!a.year||d.year===a.year)&&(!a.budget_type||d.budget_type===a.budget_type||(a.budget_type==='관련계획'&&sourceFamily(d)==='performance'))&&(!a.revision||d.revision===a.revision)&&(!a.latest_city_revisions||d.revision===a.latest_city_revisions[d.year])&&(!a.category||d.category===a.category)&&(!a.document_id||d.id===a.document_id)&&sourceAllowed(d,a);}
 async function asset(env,name){if(cache.has(name)){let x=cache.get(name);cache.delete(name);cache.set(name,x);return x;}
  if(!env.ASSETS)fail('검색 파일 저장소가 연결되지 않았습니다.');let r=await env.ASSETS.fetch(new Request('https://assets.local/corpus/'+name+'.json.gz'));if(!r.ok)fail('검색 파일 조회 실패: '+name);
  let x=await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();if(cache.size>=2)cache.delete(cache.keys().next().value);cache.set(name,x);return x;}
 let rankMetadata=null,rankLoading=null;
+let departmentIndex=null;
+async function departmentScoped(env,a){
+ if(!departmentIndex){const data=await asset(env,'departments');if(data.schema_version!==1||data.corpus_catalog_sha256!==SEMANTIC.corpus_catalog_sha256||!Array.isArray(data.departments))fail('부서 검색 메타데이터 버전 불일치');departmentIndex=data;}
+ const departments=requestedDepartments(a.query,departmentIndex),rows=departments.flatMap(d=>d.locations);
+ a.departments=departments;a.department_rows=rows;a.department_gids=departments.length?new Set(rows.map(p=>p[0])):null;a.department_doc_ids=departments.length?new Set(rows.map(p=>CATALOG.documents[p[1]].id)):null;
+ a.policy.department_scope={names:departments.map(d=>d.name),basis:departments.length?'exact_original_header':'unspecified',organizational_rename_inferred:false};
+ return a;
+}
+function departmentAvailability(a){
+ if(!a.departments?.length)return null;
+ const editions=new Map();
+ for(const [gid,docIndex,number] of a.department_rows){
+  const d=CATALOG.documents[docIndex];if(a.year&&d.year!==a.year||sourceFamily(d)!=='expenditure')continue;
+  const key=[d.year,d.budget_type,d.revision||0,d.account].join(':');
+  if(!editions.has(key))editions.set(key,{year:d.year,budget_type:d.budget_type,revision:d.revision,account:d.account,document_id:d.id,title:d.title,source_url:d.url,page:number,page_url:d.url+'#page='+number,department_names:a.departments.filter(dep=>dep.locations.some(p=>p[0]===gid)).map(dep=>dep.name)});
+ }
+ return{requested_departments:a.departments.map(d=>d.name),same_year_only:!!a.year,automatic_substitution:false,available_editions:[...editions.values()].sort((x,y)=>(x.year||0)-(y.year||0)||(x.revision||0)-(y.revision||0)),note:'원문 부서 머리말이 확인된 수록 편성만 안내합니다. 요청한 본예산에 해당 부서가 없으면 추경으로 자동 대체하거나 다른 부서명을 같은 조직으로 추정하지 않습니다.'};
+}
 async function ranks(env){
  if(rankMetadata)return rankMetadata;if(rankLoading)return rankLoading;
  rankLoading=(async()=>{const r=await env.ASSETS.fetch(new Request('https://assets.local/corpus/rank.bin.gz'));if(!r.ok)fail('검색 메타데이터가 없습니다.');const b=await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(),v=new DataView(b),hash=Array.from(new Uint8Array(b,8,32),x=>x.toString(16).padStart(2,'0')).join('');if(v.getUint32(0,true)!==0x314c4253||v.getUint32(4,true)!==CATALOG.summary.snapshot_units||hash!==SEMANTIC.corpus_catalog_sha256||b.byteLength!==40+CATALOG.summary.snapshot_units*16)fail('검색 메타데이터 버전 불일치');return new Uint32Array(b,40);})();
@@ -51,17 +70,18 @@ async function lexicalSearch(env,input){let a=args(input),q=(a.query||'').trim()
  for(let term of new Set(gs.flatMap(g=>g.grams))){let values=await asset(env,'terms-'+termBucket(term)),post=values[term]||[];if(!post.length)return{query:q,filters:{year:a.year??null,budget_type:a.budget_type??null,category:a.category??null},results:[],scanned_pages:0,matched_pages_before_dedup:0,coverage:CATALOG.summary,instructions:RULES};posts.push(post);weight+=Math.log(1+CATALOG.summary.snapshot_units/(1+post.length));}
  posts.sort((x,y)=>x.length-y.length);let eligible=new Set(posts[0]);for(let post of posts.slice(1)){let other=new Set(post);eligible=new Set([...eligible].filter(x=>other.has(x)));if(!eligible.size)break;}posts=null;
  const meta=await ranks(env);let candidates=[],scanned=0,matched=0;
- for(const gid of eligible){const d=CATALOG.documents[meta[gid*4]];if(!d||!match(d,a))continue;scanned++;matched++;let score=weight/Math.sqrt(Math.max(1200,meta[gid*4+1])/1500);if(meta[gid*4+2])score+=3;score+=2*sourcePriority(d,a);for(const g of gs)if(d.title.includes(g.word))score+=3;candidates.push({gid,d,score,hashId:meta[gid*4+3]});}
+ for(const gid of eligible){const d=CATALOG.documents[meta[gid*4]];if(!d||!match(d,a)||a.department_gids&&!a.department_gids.has(gid))continue;scanned++;matched++;let score=weight/Math.sqrt(Math.max(1200,meta[gid*4+1])/1500);if(meta[gid*4+2])score+=3;score+=2*sourcePriority(d,a);for(const g of gs)if(d.title.includes(g.word))score+=3;candidates.push({gid,d,score,hashId:meta[gid*4+3]});}
  candidates.sort((x,y)=>sourcePriority(y.d,a)-sourcePriority(x.d,a)||y.score-x.score||((y.d.year||0)-(x.d.year||0)));if(candidates.length>1000)candidates.length=1000;
  const seen=new Set(),selected=[];for(const c of candidates){if(seen.has(c.hashId))continue;seen.add(c.hashId);selected.push(c);if(selected.length>=a.limit)break;}
  const grouped=new Map(),hydrated=new Map();for(const c of selected){const sh=shardFor(c.gid);if(!grouped.has(sh.id))grouped.set(sh.id,{sh,items:[]});grouped.get(sh.id).items.push(c);}
  for(const {sh,items} of grouped.values()){
   const [index,texts]=await Promise.all([asset(env,'pages-'+sh.id),asset(env,'text-'+sh.id)]);
   for(const c of items){const pi=c.gid-sh.offset,p=index.pages[pi],raw=texts[pi],exact_match=exactPhraseHit(q,raw,c.d.title),business_match=businessTermsHit(q,raw,c.d.title),text=raw.replace(/[ \t]{2,}/g,' ').replace(/\n\s*\n/g,'\n'),exactExcerpt=exactPhraseHit(q,text,c.d.title),hit=exactExcerpt?Array.from(text).slice(0,exactExcerpt.start).join('').length:Math.max(0,...gs.map(g=>text.indexOf(g.word)).filter(n=>n>=0)),start=Math.max(0,hit-160);
+   if(!departmentMatches(raw,a.departments))continue;
    hydrated.set(c.gid,{id:c.d.id+':p'+p[1],...cite(c.d,p),gid:c.gid,score:Math.round(c.score*100)/100,excerpt:text.slice(start,start+1200),excerpt_is_partial:text.length>1200,exact_match,business_match,source_priority:sourcePriority(c.d,a)});
   }
  }
- const results=selected.map(c=>hydrated.get(c.gid));
+ const results=selected.map(c=>hydrated.get(c.gid)).filter(Boolean);
 
  return{query:q,filters:{year:a.year??null,budget_type:a.budget_type??null,category:a.category??null},results,scanned_pages:scanned,matched_pages_before_dedup:matched,coverage:CATALOG.summary,instructions:RULES};}
 
@@ -71,7 +91,7 @@ async function uncachedSearch(env,input){
  if(a.mode==='lexical')return {...await lexicalSearch(env,a),retrieval:{mode:'lexical',reranked:false}};
  if(a.mode&&!['hybrid','vector'].includes(a.mode))fail('mode는 hybrid, vector, lexical 중 하나입니다.');
  const started=Date.now(),allowed=new Set(SEMANTIC.doc_ids.map((id,i)=>match(DOCS.get(id),a)?i:-1).filter(i=>i>=0));
- const vec=await vectorSearch(env,SEMANTIC,q,allowed),vectorDone=Date.now(),lex=a.mode==='vector'?{results:[],scanned_pages:0,matched_pages_before_dedup:0}:await lexicalSearch(env,{...a,limit:20}),lexicalDone=Date.now();
+ const vec=await vectorSearch(env,SEMANTIC,q,allowed,64,a.department_gids),vectorDone=Date.now(),lex=a.mode==='vector'?{results:[],scanned_pages:0,matched_pages_before_dedup:0}:await lexicalSearch(env,{...a,limit:20}),lexicalDone=Date.now();
  const union=new Map();vec.hits.forEach((h,i)=>union.set(h.gid,{...h,rrf:1/(60+i+1),vector_rank:i+1,lexical_rank:null}));
  lex.results.forEach((h,i)=>{let c=union.get(h.gid)||{gid:h.gid,rrf:0,vector_rank:null};c.rrf+=1/(60+i+1);c.lexical_rank=i+1;c.exact_match=h.exact_match;c.business_match=h.business_match;c.source_priority=h.source_priority;union.set(h.gid,c);});
  let selected=[...union.values()].sort((x,y)=>Number(!!y.exact_match)-Number(!!x.exact_match)||Number(!!y.business_match)-Number(!!x.business_match)||(y.source_priority||0)-(x.source_priority||0)||y.rrf-x.rrf).slice(0,SEMANTIC.rerank_candidates),candidates=[];
@@ -80,7 +100,7 @@ async function uncachedSearch(env,input){
  // Read each shard once and release its full page arrays before the next shard.
  for(const {sh,items} of grouped.values()){
   const [idx,texts]=await Promise.all([asset(env,'pages-'+sh.id),asset(env,'text-'+sh.id)]);
-  for(let c of items){const pi=c.gid-sh.offset,p=idx.pages[pi],text=texts[pi],d=DOCS.get(p[0]);if(!match(d,a))continue;
+  for(let c of items){const pi=c.gid-sh.offset,p=idx.pages[pi],text=texts[pi],d=DOCS.get(p[0]);if(!match(d,a)||!departmentMatches(text,a.departments))continue;
    const chars=Array.from(text),exact=a.mode==='vector'?null:exactPhraseHit(q,text,d.title);c.exact_match=exact;c.business_match=a.mode==='vector'?null:businessTermsHit(q,text,d.title);c.source_priority=sourcePriority(d,a);
    const verified=exact||c.business_match;
    if(verified){c.start=Math.max(0,verified.start-120);c.end=Math.min(chars.length,Math.max(c.start+800,verified.end));}
@@ -108,15 +128,16 @@ async function verifiedCouncilAnchors(env,hits){
  return anchors;
 }
 async function search(env,input){
- const a=resolved(args(input));if(a.policy.years.length>1)fail('여러 연도 비교는 budget_research를 사용하거나 각 연도로 조회하세요.');
+ const a=await departmentScoped(env,resolved(args(input)));if(a.policy.years.length>1)fail('여러 연도 비교는 budget_research를 사용하거나 각 연도로 조회하세요.');
  const key=JSON.stringify([a.query,a.year,a.year_scope,a.budget_type,a.revision,a.category,a.document_id,a.mode||'hybrid',a.limit,a.policy]);
  const cached=searchCache.get(key),now=Date.now();
  if(cached&&cached.expires>now){const r=JSON.parse(cached.json);r.retrieval={...r.retrieval,cache_hit:true,original_elapsed_ms:r.retrieval?.elapsed_ms??null,elapsed_ms:0};return r;}
- const cityInput={...a,query:a.policy.institution_scope.city_retrieval_query};
+ const cityInput={...a,query:canonicalDepartmentQuery(a.policy.institution_scope.city_retrieval_query,a.departments)};
  if(cityInput.budget_type==='추경'&&!cityInput.revision&&/최신|마지막|최종/.test(a.query)){const docs=CATALOG.documents.filter(d=>match(d,cityInput)&&d.revision);if(docs.length){const latest={};for(const d of docs)latest[d.year]=Math.max(latest[d.year]||0,d.revision);cityInput.latest_city_revisions=latest;}}
  const r=await uncachedSearch(env,cityInput),affiliateHits=await affiliateReader.search(env,a),councilHits=await councilReader.search(env,a);
  const anchors=await verifiedCouncilAnchors(env,councilHits);
  r.query=a.query;r.results=mergeCouncilLast(mergeCityFirst(anchors.length?anchors:r.results,affiliateHits,a.limit),councilHits,a.limit);r.query_interpretation=a.policy;r.retrieval={...r.retrieval,cache_hit:false,affiliate_search:{requested:a.policy.institution_scope.mode==='municipal_and_affiliates',method:'lexical',vectorized:false,candidates:affiliateHits.length},council_search:{method:a.mode==='lexical'?'lexical':'native_potion_cosine',vectorized:a.mode!=='lexical',candidates:councilHits.length,verified_city_anchors:anchors.length}};r.filters.source_scope=a.policy.institution_scope.mode;r.coverage={...r.coverage,requested_affiliates:requestedAffiliateCoverage(a),council:councilCoverage()};
+ r.department_availability=r.results.length?null:departmentAvailability(a);
  const body=JSON.stringify(r),bytes=body.length*2;
  if(searchCache.has(key)){cacheBytes-=searchCache.get(key).bytes;searchCache.delete(key);}
  if(bytes<500000){while(searchCache.size>=12||cacheBytes+bytes>2000000){const k=searchCache.keys().next().value;cacheBytes-=searchCache.get(k).bytes;searchCache.delete(k);}searchCache.set(key,{json:body,bytes,expires:now+300000});cacheBytes+=bytes;}
@@ -133,7 +154,7 @@ async function evidenceFor(env,hits,full=false,query=''){
  return councilReader.attachLinks(env,hits.map(h=>out.get(h.id)).filter(Boolean));
 }
 async function research(env,input){
- const started=Date.now(),a=resolved(args(input));
+ const started=Date.now(),a=await departmentScoped(env,resolved(args(input)));
  if(a.policy.years.length>1){
   const per_year=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,limit:2})));
   return{question:a.query,query_interpretation:a.policy,per_year,evidence:per_year.flatMap(r=>r.evidence),generation_performed:false,answer_policy:RULES,next_action:nextAction('연도별 동일 사업·동일 문서 종류·동일 회계 범위만 비교하세요. 누락된 연도는 확인 불가이며 0원이 아닙니다.'),elapsed_ms:Date.now()-started};
@@ -150,7 +171,7 @@ async function research(env,input){
   }
  }
  const r=await search(env,{...a,limit:Math.min(a.limit,4)}),evidence=await evidenceFor(env,r.results,false,a.policy.institution_scope.city_retrieval_query);
- return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,retrieval:r.retrieval,coverage,generation_performed:false,
+ return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,retrieval:r.retrieval,coverage,department_availability:r.department_availability,generation_performed:false,
   next_action:nextAction(evidence.length?'제공된 원문 근거로 직접 답하세요. 연도와 문서 종류를 밝히세요. 충분한 근거가 있으면 같은 질문을 재검색하거나 수집 현황을 먼저 호출하지 마세요. 표 대응이 불분명하거나 필요한 문맥이 잘렸을 때만 전문을 확인하세요.':'현재 범위에서 근거를 찾지 못했습니다. 검색 실패를 예산 부재로 해석하지 마세요. 다른 연도로 조용히 대체하지 마세요.'),answer_policy:RULES,elapsed_ms:Date.now()-started};
 }
 
