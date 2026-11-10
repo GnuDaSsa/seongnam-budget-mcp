@@ -42,6 +42,11 @@ test('latest supplementary budgets are chosen per institution',()=>{
  const a=resolve('최신 추경 산하기관 포함');assert.deepEqual(eligibleAffiliateDocuments({documents:docs},a).map(d=>[d.institution_id,d.revision]),[['youth',2],['culture',1]]);
  const old={...documents[0],year:2025,budget_type:'추경',revision:1},all=resolve('역대 최신 추경 산하기관 포함');assert(eligibleAffiliateDocuments({documents:[...docs,old]},all).includes(old));
 });
+test('affiliate editions obey shared explicit allowed and excluded budget types',()=>{
+ const docs=['본예산','추경','결산'].map(budget_type=>({...documents[1],budget_type}));
+ assert.deepEqual(eligibleAffiliateDocuments({documents:docs},resolve('문화재단 본예산과 추경 모두')).map(d=>d.budget_type),['본예산','추경']);
+ assert.deepEqual(eligibleAffiliateDocuments({documents:docs},resolve('문화재단 추경 제외')).map(d=>d.budget_type),['본예산','결산']);
+});
 test('expanded results reserve affiliate evidence while keeping city first without adding amounts',()=>{
  const city=[{id:'c1'},{id:'c2'},{id:'c3'},{id:'c4'}],others=[{id:'a1'},{id:'a2'}];
  assert.deepEqual(mergeCityFirst(city,others,4).map(x=>x.id),['c1','c2','a1','a2']);

@@ -17,6 +17,9 @@ test('council passages enforce budget year, edition, owner, account and departme
  assert(councilAllowed(p,resolve('2026년 중원구보건소 산모신생아 본예산')));
  assert(councilAllowed(p,resolve('산모신생아 예산과 편성 이유')));
  assert(councilAllowed(p,resolve('성남시민건강박람회 예산과 편성 이유')));
+ assert.equal(councilAllowed(p,resolve('성남시민건강박람회 본예산 제외')),false);
+ assert.equal(councilAllowed(p,resolve('성남시민건강박람회 추경과 결산 모두')),false);
+ assert(councilAllowed(p,resolve('성남시민건강박람회 본예산과 추경 모두')));
  for(const query of ['복지정책과 암환자 의료비','여성가족과 암환자 의료비','예산과 소관 암환자'])assert.equal(councilAllowed(p,resolve(query)),false,query);
  for(const query of ['2025년 산모신생아','2026년 제3회 추경 산모신생아','분당구보건소 산모신생아','수정구 산모신생아','보건행정과 산모신생아','감염병관리센터 산모신생아','특별회계 산모신생아','시청 자료만 산모신생아','의회 자료 제외 산모신생아','산모신생아 성과계획','산모신생아 세입 예산','산모신생아 추가형'])assert.equal(councilAllowed(p,resolve(query)),false,query);
  assert.equal(councilAllowed({...p,owner_source_scope:'affiliate'},resolve('산모신생아')),false);

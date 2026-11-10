@@ -1,8 +1,9 @@
 // Versioned, deterministic query policy. No model, network, or wall-clock defaults.
-export const POLICY={version:'2026-11-10.4',default_year:2026,max_comparison_years:3};
+export const POLICY={version:'2026-11-10.5',default_year:2026,max_comparison_years:3};
 export const EVIDENCE_BOUNDARY='기본 답변은 이 MCP가 반환한 수록 원문 근거만 사용합니다. 사용자가 웹 검색·외부자료 보충을 명시적으로 요청하지 않으면 별도 웹 검색이나 원문 URL 실시간 접속으로 보충하지 마세요. source_url·page_url은 인용 링크이며 접속 지시가 아닙니다. 질문 범위를 법령·출연안·추경·최신성 조사로 임의 확장하지 마세요. 근거가 부족하면 같은 MCP에서 명칭을 좁혀 한 번 재검색하거나 get_budget_page로 수록 원문을 확인하고, 그래도 없으면 “수록 자료로 확인 불가”라고 답하세요. 검색 실패는 예산 0원이나 사업 부재가 아닙니다. 사용자가 웹 보충을 명시한 경우에만 클라이언트가 별도로 조회하며 MCP 근거와 외부 웹 근거를 구분합니다. 문서 자체 텍스트만 사용하며 스캔·이미지 자료는 OCR하지 않고 검색에서 제외합니다.';
 export const SERVER_RULES=[
  EVIDENCE_BOUNDARY,
+ '후속 요청을 호출할 때 직전 질문의 주제와 명시 연도를 query에 보존하고 새로 요청한 편성 조건을 반영하세요. 서버는 대화 내용을 기억하지 않습니다. 추경 반영 요청에 이전 본예산 인자를 유지하지 마세요. AI 주제 검색은 AI·인공지능이 실제 사업 원문에 나타나는 근거를 사용하며 AI 부서 소속만으로 관련 사업이라 단정하지 않습니다. 주제 검색 결과는 관련 원문 일부이며 전체 사업목록이 아닙니다. 추경 변경명세의 최종 회차만으로 연간 모든 사업의 최종 예산을 확정하거나 본예산과 추경 예산액을 합산하지 마세요.',
  '기본 검색은 성남시청 공개 예산자료를 우선하며, 수록된 의회 회의록 설명 근거는 별도 출처로 보충합니다. 산하기관·출자출연기관 포함을 명시하거나 기관명을 질문한 경우에만 해당 기관 자체 자료를 함께 검색하고 성남시 자료를 먼저 보여줍니다. 제외·시청 자료만 요청은 우선합니다. 각 근거의 source_scope·institution_name·detail_level·document_stage를 확인하세요. 총괄표만 있는 기관의 사업별 세부 예산을 추정하지 않습니다. 예산안(proposal)은 확정 예산으로 표현하지 않습니다. 시 출연금·위탁사업비와 기관 수입·지출은 중복될 수 있으므로 합산하지 않습니다.',
  '의회 회의록의 제안·설명은 시 세출명세서 금액을 대체하거나 합산하는 근거가 아닙니다. 회의 개최일과 예산연도를 구분하고, 연도·예산종류·회차·부서·사업 연결이 확인된 범위만 함께 설명하세요. council_minutes의 조회 위치는 텍스트 구간이며 발언 중 언급된 설명자료 쪽수를 실제 확보한 첨부 PDF 쪽수로 표현하지 마세요. 첨부 목록만 확보한 자료는 본문을 읽었다고 주장하지 않습니다. 원문에 없는 의회 회계·편성목·통계목·총액은 시 자료에서 복사하거나 추정하지 않습니다.',
  '성남시 공개 예산 검색 서버. 연도를 말하지 않으면 2026년 기준이며 답변 첫머리에 적용 연도를 명시합니다. 명시한 연도·범위는 우선합니다. 전체/역대 연도 요청은 year_scope=all입니다.',
@@ -31,19 +32,25 @@ export function resolveQuery(input={}){
  if(all)years=[];
  if(years.length>POLICY.max_comparison_years)throw Error('연도 비교는 최대 3년씩 지정하세요.');
  const performance=/성과\s*(?:계획|지표|목표)/.test(q),comparison=/비교/.test(q)&&performance&&/본예산|추경|세출|결산/.test(q);
- const kinds=[[/본예산/,'본예산'],[/추경|추가경정/,'추경'],[/결산|집행액|집행실적/,'결산'],[/기금운용계획|중기지방재정/,'관련계획']].filter(([r])=>r.test(q)).map(([,k])=>k);
- let budget_type=input.budget_type||(kinds.length===1?kinds[0]:undefined);
+ const kindRules=[[/본예산/,'본예산'],[/추경|추가경정/,'추경'],[/결산|집행액|집행실적/,'결산'],[/기금운용계획|중기지방재정/,'관련계획']];
+ const excluded=kindRules.filter(([r])=>new RegExp('(?:'+r.source+')(?:은|는|을|를|이)?\\s*(?:제외|빼고|말고|아닌|아니라|대신)').test(q)).map(([,k])=>k);
+ const kinds=kindRules.filter(([r,k])=>r.test(q)&&!excluded.includes(k)).map(([,k])=>k);
+ const conflicts=[...(input.policy?.conflicts||[])];
+ let budget_type=kinds.length===1?kinds[0]:kinds.length>1?undefined:excluded.includes(input.budget_type)?undefined:input.budget_type;
+ if(input.budget_type&&((kinds.length&& (kinds.length>1||kinds[0]!==input.budget_type))||excluded.includes(input.budget_type)))conflicts.push({field:'budget_type',parameter:input.budget_type,query_budget_types:kinds,excluded_budget_types:excluded,resolution:'explicit_query_precedence'});
  const latestBudget=!input.budget_type&&!kinds.length&&!performance&&!input.category&&/최신|최종|마지막/.test(q)&&/예산/.test(q);
  if(latestBudget)budget_type='추경';
  if(comparison&&!input.budget_type)budget_type=undefined;
  const source_preference=input.category||input.document_id?'explicit':comparison?'mixed':performance?'performance':budget_type==='관련계획'||budget_type==='결산'?'explicit':/세입/.test(q)&&!/세출/.test(q)?'revenue':'expenditure';
  const revision=input.revision??(Number(q.match(/(?:제\s*)?(\d+)\s*(?:회|차)\s*(?:추경|추가경정)/)?.[1]||0)||undefined);
  const notices=[];
+ if(conflicts.length)notices.push('자연어에 명시한 편성 범위와 budget_type 인자가 달라 자연어 범위를 적용했습니다. conflicts를 확인하세요.');
+ if(kinds.includes('추경')||budget_type==='추경')notices.push('추경 명세서는 해당 회차 변경 내역입니다. 최종 회차만으로 연간 전체 사업의 통합 최종 목록을 확정하지 마세요. 본예산과 회차별 같은 사업의 예산액을 중복 합산하지 마세요.');
  if(hasYear&&years.some(y=>!Number.isInteger(y)||y<1900||y>2100))throw Error('year 값이 올바르지 않습니다.');
  if(basis==='default')notices.push('연도 미지정: 2026년 기준으로 조회했습니다.');
  if(!budget_type)notices.push('문서 종류별 수치를 구분하고 본예산·추경·결산·관련계획을 혼합 합산하지 마세요.');
  if(latestBudget)notices.push('최신·최종 예산 요청: 수록된 최종 추경을 조회합니다. 실제 최신 공개자료 전체 수집을 뜻하지 않습니다.');
- return{...input,query:q,year:years.length===1?years[0]:undefined,year_scope:all?'all':'single',budget_type,revision,policy:{...POLICY,year_basis:basis,years,all_years:all,budget_type_basis:input.budget_type?'parameter':latestBudget?'latest_budget_query':budget_type?'query':'unspecified',source_preference,comparison_budget_types:comparison?kinds:[],notices}};
+ return{...input,query:q,year:years.length===1?years[0]:undefined,year_scope:all?'all':'single',budget_type,revision,policy:{...POLICY,year_basis:basis,years,all_years:all,budget_type_basis:conflicts.length?'query_over_parameter':kinds.length?'query':input.budget_type?'parameter':latestBudget?'latest_budget_query':'unspecified',source_preference,comparison_budget_types:comparison?kinds:[],allowed_budget_types:kinds.length>1?kinds:[],excluded_budget_types:excluded,conflicts,notices}};
 }
 
 export function sourceFamily(d={},text=''){
@@ -55,6 +62,8 @@ export function sourceFamily(d={},text=''){
 }
 export function sourceAllowed(d,a){
  const family=sourceFamily(d),preference=a.policy?.source_preference;
+ if(a.policy?.excluded_budget_types?.includes(d.budget_type))return false;
+ if(a.policy?.allowed_budget_types?.length&&!a.policy.allowed_budget_types.includes(d.budget_type)&&!(preference==='mixed'&&family==='performance'))return false;
  if(preference==='performance')return family==='performance';
  if(preference==='mixed'&&a.policy.comparison_budget_types?.length)return family==='performance'||a.policy.comparison_budget_types.includes(d.budget_type);
  if(preference==='expenditure')return family!=='performance';

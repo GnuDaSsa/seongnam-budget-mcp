@@ -4,6 +4,34 @@ for(const word of ['본예산과','추경과','결산과','성과계획서와','
 export function withoutQueryYears(query){return query.replace(/(?<![\p{L}\p{N}])(?:19|20)\d{2}(?:\s*(?:년도|년))?(?![\p{L}\p{N}])/gu,' ');}
 function compact(text){return text.toLowerCase().replace(/\s/gu,'');}
 export function retrievalWords(query){return(withoutQueryYears(query).toLowerCase().match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[]).filter(w=>w.length>=2&&!boilerplate.has(w));}
+
+// Topic requests are not department requests. Keep control language out of both
+// embeddings and postings, and require the topic in a business line, not a header.
+export function topicIntent(query){
+ const topic=/(?<![a-z])ai(?![a-z]|\s*반\s*도\s*체\s*과)|인공\s*지능/i.test(query)&&!/조류\s*인플루엔자|고병원성|가금|방역/.test(query);
+ if(!topic)return null;
+ let content=withoutQueryYears(query).replace(/(?:제\s*)?\d+\s*(?:회|차)\s*(?:추경|추가경정)/g,' ')
+  .replace(/사업\s*관련\s*예산|관련\s*사업(?:\s*예산)?/g,' ')
+  .replace(/본예산|추가경정|추경|결산|최신|최종|마지막/g,' ')
+  .replace(/반영(?:해서|하여|해줘|해주세요|해)?|포함(?:해서|하여|해줘|해주세요|해)?|찾아봐줘|찾아줘|알려줘|보여줘|제외(?:하고)?|빼고|말고|아니라|대신|모두|까지/g,' ')
+  .replace(/(?:^|\s)(?:성남시|성남|관련|사업|예산|예산을|예산은|및|와|과|만|은|는|이)(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();
+ content=content.replace(/인공\s*지능|(?<![a-z])ai(?![a-z])/gi,'AI');
+ return{topic:'artificial_intelligence',aliases:['AI','인공지능'],content_query:content||'AI',basis:'explicit_topic_words',department_inferred:false};
+}
+export function topicBusinessMatches(text,intent){
+ if(!intent)return[];
+ const matches=[],topic=/(?<![a-z])ai(?![a-z])|인공\s*지능/i,other=retrievalWords(intent.content_query).filter(w=>w!=='ai'&&w!=='인공지능');
+ let offset=0;const lines=String(text).split('\n');
+ for(let i=0;i<lines.length;i++){
+  const line=lines[i],start=offset;offset+=Array.from(line).length+1;
+  if(!topic.test(line)||/^\s*(?:부서|정책|단위)\s*[:：]/.test(line)||/^\s*AI\s*반도체과(?:\s|$)/i.test(line)||/조류\s*인플루엔자|고병원성|가금|방역|(?:재무활동|행정운영경비)\s*\(\s*AI\s*반도체과/i.test(line))continue;
+  // Never borrow another business on the same page to satisfy extra terms.
+  const context=line.toLowerCase().replace(/\s/g,'');
+  if(other.some(w=>!context.includes(w)))continue;
+  matches.push({source_line:i+1,source_excerpt:line.trim(),start,end:start+Array.from(line).length,basis:'topic_in_original_business_line'});
+ }
+ return matches;
+}
 export function exactQueryPhrases(query){
  const core=withoutQueryYears(query),words=retrievalWords(query);
  if(/\d/.test(core))return{words,phrases:[]}; // Do not reinterpret account codes as independent amounts.

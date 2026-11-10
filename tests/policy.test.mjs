@@ -40,6 +40,15 @@ test('budget kinds and supplementary revision are inferred without collapsing co
  assert.equal(resolveQuery({query:'제2회 추경 노인일자리'}).revision,2);
  assert.equal(resolveQuery({query:'본예산과 성과계획서 비교'}).budget_type,undefined);
 });
+test('explicit natural-language budget scope corrects stale parameters and preserves exclusions',()=>{
+ const corrected=resolveQuery({query:'2025년도 AI 관련 사업 추경 반영',budget_type:'본예산'});
+ assert.equal(corrected.budget_type,'추경');assert.equal(corrected.policy.conflicts[0].resolution,'explicit_query_precedence');
+ const both=resolveQuery({query:'AI 사업 본예산과 추경 모두',budget_type:'본예산'});
+ assert.equal(both.budget_type,undefined);assert.deepEqual(both.policy.allowed_budget_types,['본예산','추경']);assert(!sourceAllowed({budget_type:'결산'},both));
+ const main=resolveQuery({query:'AI 사업 본예산만 추경 제외',budget_type:'추경'});assert.equal(main.budget_type,'본예산');assert(!sourceAllowed({budget_type:'추경'},main));
+ assert.equal(resolveQuery({query:'본예산은 제외하고 AI 사업 제2회 추경',budget_type:'본예산'}).revision,2);
+ assert.equal(resolveQuery({query:'AI 사업 최신 예산',budget_type:'본예산'}).budget_type,'본예산');
+});
 test('municipal fast path does not swallow a department or business total',()=>{
  assert(isMunicipalTotal('성남시 예산 얼마야?'));
  assert(isMunicipalTotal('2026년 본예산 총규모'));

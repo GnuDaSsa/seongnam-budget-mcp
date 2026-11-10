@@ -1,4 +1,4 @@
-import {retrievalWords} from './retrieval-phrases.js';
+import {retrievalWords,topicIntent,topicBusinessMatches} from './retrieval-phrases.js';
 // Preserve explicit headings and the known expenditure-statement hierarchy.
 // Unknown layouts remain partial; a page can contain several different paths.
 export function budgetClassification(text,metadata={},query=''){
@@ -24,8 +24,10 @@ export function budgetClassification(text,metadata={},query=''){
    else if(indent===4||(indent<9&&columns.length>=3&&columns.slice(1).every(x=>/^[△▲-]?\d[\d,]*(?:\.\d+)?$/.test(x)))){detailed_business=null;appropriation=null;}
   }
  }
- const words=retrievalWords(query),normalize=s=>String(s||'').toLowerCase().replace(/\s/g,'');
- const matched=words.length?paths.filter(p=>{const own=[p.detailed_business,p.appropriation.name,p.statistical_item.name,p.combined_code].map(normalize).join('\n'),context=[department,policy_business,p.unit_business,own].map(normalize).join('\n');return words.some(w=>own.includes(w))&&words.every(w=>context.includes(w));}):[];
+ const topic=topicIntent(query);
+ if(topic&&department)topic.content_query=topic.content_query.replace(new RegExp(Array.from(department.replace(/\s/g,'')).join('\\s*'),'gi'),' ').replace(/\s+/g,' ').trim();
+ const words=retrievalWords(topic?.content_query||query),normalize=s=>String(s||'').toLowerCase().replace(/\s/g,'');
+ const matched=words.length?paths.filter(p=>{const own=[p.detailed_business,p.appropriation.name,p.statistical_item.name,p.combined_code].map(normalize).join('\n'),context=[department,policy_business,p.unit_business,own].map(normalize).join('\n');if(topic)return topicBusinessMatches(own,topic).length>0;return words.some(w=>own.includes(w))&&words.every(w=>context.includes(w));}):[];
  return{status:paths.length?'layout_extracted':'partial',department,policy_business,header_unit_business,
   account:metadata.account&&metadata.account!=='원문 확인'?metadata.account:(metadata.title?.includes('일반회계')?'일반회계':null),
   paths:paths.slice(0,24),paths_truncated:paths.length>24,matched_paths:matched.slice(0,24),matched_paths_truncated:matched.length>24,

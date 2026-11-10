@@ -18,6 +18,7 @@ export function councilAllowed(p,a){
  const scope=a.policy?.institution_scope;
  if(scope?.basis==='municipal_only'||/의회\s*(?:자료|회의록)?\s*(?:제외|빼고)/.test(a.query||''))return false;
  if(['performance','revenue'].includes(a.policy?.source_preference))return false;
+ if(a.policy?.excluded_budget_types?.includes(p.budget_type)||a.policy?.allowed_budget_types?.length&&!a.policy.allowed_budget_types.includes(p.budget_type))return false;
  if(a.year&&p.year!==a.year||a.budget_type&&p.budget_type!==a.budget_type||a.revision!=null&&p.revision!==a.revision||a.category&&a.category!==COUNCIL_CATEGORY)return false;
  if(p.owner_source_scope!=='municipal'||p.institution_id!=='seongnam')return false;
  if(a.policy?.department_scope?.names?.length&&!a.policy.department_scope.names.some(name=>normalizeBusiness(name)===normalizeBusiness(p.department)))return false;

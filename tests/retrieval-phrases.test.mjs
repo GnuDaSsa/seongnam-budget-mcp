@@ -1,12 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {withoutQueryYears,exactQueryPhrases,exactPhraseHit,businessTermsHit,retrievalWords} from '../worker/retrieval-phrases.js';
+import {withoutQueryYears,exactQueryPhrases,exactPhraseHit,businessTermsHit,retrievalWords,topicIntent,topicBusinessMatches} from '../worker/retrieval-phrases.js';
 test('year boilerplate leaves formal Korean labels and model identifiers intact',()=>{
  assert.equal(withoutQueryYears('2025년도 자본적위탁사업비').trim(),'자본적위탁사업비');
  assert.equal(withoutQueryYears('2025년 자본적위탁사업비').trim(),'자본적위탁사업비');
  assert.equal(withoutQueryYears('AB2025X 사업'),'AB2025X 사업');
  assert(exactQueryPhrases('성남시 2025년 본예산 공기관 등에 대한 자본적 위탁사업비 알려줘').phrases.includes('공기관등에대한자본적위탁사업비'));
  assert.deepEqual(exactQueryPhrases('403-01 자본적위탁사업비').phrases,[]);
+});
+test('AI topic controls are separate from contents and topic evidence cannot be only a department name',()=>{
+ for(const q of ['2025년도 Ai사업관련예산 찾아봐줘','2025년도 AI 관련 사업 추경 반영','2025년 인공지능 관련 사업 본예산과 추경 모두'])assert.equal(topicIntent(q).content_query,'AI');
+ for(const q of ['AI반도체과 2025년도 예산','Email 예산','AIDS 사업','고병원성 AI 방역'])assert.equal(topicIntent(q),null,q);
+ const t=topicIntent('AI 관련 사업');
+ assert.equal(topicBusinessMatches('부서: AI반도체과\nAI반도체과   100  0  100\n팹리스기업지원   100  0  100',t).length,0);
+ assert.equal(topicBusinessMatches('Email 서비스\nAIDS 지원\n고병원성 AI 방역\n행정운영경비(AI반도체과)',t).length,0);
+ assert.equal(topicBusinessMatches('AI 인재양성지원사업   600,000  0  600,000\n인공지능 플랫폼   30,000',t).length,2);
+ assert.equal(topicBusinessMatches('   AI어르신건강관리사업  100\n         201 일반운영비  100\n          01 사무관리비  100\n   청년교육사업  200',topicIntent('AI 청년교육')).length,0);
 });
 test('output requests are removed but bounded business terms must all be present',()=>{
  assert.deepEqual(retrievalWords('청년월세지원사업 통계목 보여줘'),['청년월세지원사업']);
