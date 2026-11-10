@@ -9,6 +9,11 @@ import {
   trimSemanticEvidence,
   bridgeBusinessNames,
   asBridgedEvidence,
+  businessRow,
+  rollupBusinessName,
+  businessRollup,
+  compactEvidence,
+  trimSemanticEvidence as trimForCompare,
 } from '../worker/quality.js';
 
 // 깨진 인코딩 문자(U+FFFD)가 섞인 검색어를 식별하는지 확인한다.
@@ -315,4 +320,190 @@ test('세출이 아닌 source_family 근거는 사업명이 있어도 null을 �
   const link = { business_name: '노인일자리및사회활동지원확대', from_id: 'desc-1' };
   const evidence = { id: 'other-1', source_family: 'other', text: '노인일자리 및 사회활동지원확대' };
   assert.equal(asBridgedEvidence(evidence, link), null);
+});
+
+// ── 부서별 세부사업 행 읽기 ──────────────────────────────────────────────
+
+// 사업 행 한 줄을 만든다. 열 구분은 두 칸 이상의 공백이다.
+function amountLine(name, amount, previous, change) {
+  return `   ${name}                    ${amount}    ${previous}   ${change}`;
+}
+
+test('사업 행에서 예산액·전년도·증감과 열 검증 결과를 읽는다', () => {
+  const text = `머리말\n그 밖의 줄\n${amountLine('공공근로사업 추진', '871,000', '595,000', '276,000')}`;
+  const row = businessRow(text, '공공근로사업추진');
+  assert.equal(row.amount, 871000);
+  assert.equal(row.previous_amount, 595000);
+  assert.equal(row.change, 276000);
+  assert.equal(row.columns_verified, true);
+  assert.equal(row.source_line, 3);
+});
+
+test('증감이 음수(△)로 적힌 행도 읽고 열 검증을 통과한다', () => {
+  const text = amountLine('공공근로사업 추진', '410,000', '1,155,000', '△745,000');
+  const row = businessRow(text, '공공근로사업추진');
+  assert.equal(row.change, -745000);
+  assert.equal(row.columns_verified, true);
+});
+
+test('세 금액이 서로 맞지 않는 행은 열 검증이 실패한다', () => {
+  const text = amountLine('공공근로사업 추진', '100', '50', '10');
+  const row = businessRow(text, '공공근로사업추진');
+  assert.equal(row.columns_verified, false);
+});
+
+test('이름이 없는 텍스트는 null을 반환한다', () => {
+  const text = amountLine('도서관 운영', '871,000', '595,000', '276,000');
+  assert.equal(businessRow(text, '공공근로사업추진'), null);
+});
+
+test('이름이 더 긴 다른 사업의 행은 일치로 보지 않는다', () => {
+  const text = amountLine('공공근로사업 추진지원', '871,000', '595,000', '276,000');
+  assert.equal(businessRow(text, '공공근로사업추진'), null);
+});
+
+test('세출명세서 경로에서 묶음 기준 세부사업명을 정규화해 얻는다', () => {
+  const evidence = [{
+    id: 'exp-1',
+    source_family: 'expenditure',
+    classification: { matched_paths: [{ detailed_business: '공공근로사업 추진' }] },
+  }];
+  assert.equal(rollupBusinessName(evidence), '공공근로사업추진');
+});
+
+test('경로가 없거나 세출명세서가 아니면 묶음 이름은 null이다', () => {
+  assert.equal(rollupBusinessName([{ id: 'a', source_family: 'expenditure' }]), null);
+  assert.equal(rollupBusinessName([{
+    id: 'b',
+    source_family: 'other',
+    classification: { matched_paths: [{ detailed_business: '공공근로사업 추진' }] },
+  }]), null);
+});
+
+// ── 부서별 묶음 합계 ──────────────────────
+
+// 부서 하나의 세출명세서 쪽을 만든다.
+function deptPage(id, department, amount, previous, change, extra = {}) {
+  return {
+    id,
+    source_family: 'expenditure',
+    year: 2024,
+    budget_type: '본예산',
+    unit: '천원',
+    classification: { department },
+    text: `부서 머리말\n${amountLine('공공근로사업 추진', amount, previous, change)}`,
+    page_url: `https://example.test/${id}`,
+    locator_label: id,
+    ...extra,
+  };
+}
+
+const FOUR_DEPARTMENTS = [
+  deptPage('p1', '복지정책과', '754,000', '500,000', '254,000'),
+  deptPage('p2', '노인정책과', '2,000,000', '1,000,000', '1,000,000'),
+  deptPage('p3', '일자리정책과', '1,312,500', '800,000', '512,500'),
+  deptPage('p4', '사회복지과', '2,366,200', '1,500,000', '866,200'),
+];
+
+test('부서가 다른 네 쪽의 행을 모아 네 부서와 금액 합계를 계산한다', () => {
+  const rollup = businessRollup(FOUR_DEPARTMENTS, '공공근로사업추진', '본예산', false);
+  assert.equal(rollup.rows.length, 4);
+  assert.equal(rollup.departments.length, 4);
+  assert.equal(rollup.calculated_total.amount, 754000 + 2000000 + 1312500 + 2366200);
+  assert.equal(rollup.edition, '본예산');
+  assert.equal(rollup.calculated_total.unit, '천원');
+  assert.equal(rollup.rows_may_be_incomplete, false);
+});
+
+test('같은 금액의 행이 부서 없음과 부서 있음으로 두 번 들어오면 한 행으로 합치고 부서 있는 쪽을 남긴다', () => {
+  const noDept = deptPage('whole', null, '100,000', '50,000', '50,000');
+  const withDept = deptPage('dept', '정보통신과', '100,000', '50,000', '50,000');
+  const forward = businessRollup([noDept, withDept], '공공근로사업추진', '본예산', false);
+  const backward = businessRollup([withDept, noDept], '공공근로사업추진', '본예산', false);
+  for (const rollup of [forward, backward]) {
+    assert.equal(rollup.rows.length, 1);
+    assert.equal(rollup.rows[0].department, '정보통신과');
+  }
+});
+
+test('후보가 잘렸으면 합계 없이 행이 불완전할 수 있다고 표시한다', () => {
+  const rollup = businessRollup(FOUR_DEPARTMENTS, '공공근로사업추진', '본예산', true);
+  assert.equal(rollup.calculated_total, null);
+  assert.equal(rollup.rows_may_be_incomplete, true);
+  assert.equal(rollup.rows.length, 4);
+});
+
+test('한 행이라도 열 검증에 실패하면 합계를 내지 않는다', () => {
+  const pages = [...FOUR_DEPARTMENTS.slice(0, 3), deptPage('p4', '사회복지과', '100', '50', '10')];
+  const rollup = businessRollup(pages, '공공근로사업추진', '본예산', false);
+  assert.equal(rollup.rows.length, 4);
+  assert.equal(rollup.calculated_total, null);
+});
+
+test('세출명세서가 아닌 쪽은 묶음에서 제외한다', () => {
+  const other = { ...deptPage('o1', '기타과', '9,999,999', '1', '9,999,998'), source_family: 'other' };
+  const rollup = businessRollup([...FOUR_DEPARTMENTS, other], '공공근로사업추진', '본예산', false);
+  assert.equal(rollup.rows.length, 4);
+  assert.equal(rollup.departments.includes('기타과'), false);
+});
+
+test('해당 세부사업 행이 하나도 없으면 null을 반환한다', () => {
+  assert.equal(businessRollup(FOUR_DEPARTMENTS, '도서관운영', '본예산', false), null);
+  assert.equal(businessRollup(FOUR_DEPARTMENTS, null, '본예산', false), null);
+});
+
+// ── 긴 기간 조회용 근거 축소 ─────────────────────────────────────────────
+
+// 4,000자짜리 세출 본문을 만든다. 40번째 줄에 사업 행을 둔다.
+function longEvidence(extra = {}) {
+  const lines = Array.from({ length: 80 }, (_, i) => `줄${i + 1}`.padEnd(48, '.'));
+  lines[39] = amountLine('공공근로사업 추진', '871,000', '595,000', '276,000');
+  const text = lines.join('\n');
+  return {
+    id: 'long-1',
+    source_family: 'expenditure',
+    text,
+    context: { start: 0, end: Array.from(text).length, total_characters: Array.from(text).length },
+    classification: {
+      department: '노인정책과',
+      paths: ['경로1', '경로2'],
+      matched_paths: [{ detailed_business: '공공근로사업 추진', source_line: 40 }],
+    },
+    ...extra,
+  };
+}
+
+test('긴 세출 근거를 줄이면 사업 행이 남고 1,500자 이하가 되며 경로는 비운다', () => {
+  const original = longEvidence();
+  const compact = compactEvidence(original);
+  assert(Array.from(compact.text).length <= 1500, '1,500자 이하');
+  assert(compact.text.includes(amountLine('공공근로사업 추진', '871,000', '595,000', '276,000')));
+  assert.deepEqual(compact.classification.paths, []);
+  assert.equal(compact.classification.paths_omitted, true);
+});
+
+test('경로 목록은 여섯 개까지만 남긴다', () => {
+  const matched = Array.from({ length: 8 }, (_, i) => ({ detailed_business: `사업${i}`, source_line: 40 }));
+  const compact = compactEvidence(longEvidence({ classification: { paths: [], matched_paths: matched } }));
+  assert.equal(compact.classification.matched_paths.length, 6);
+  assert.equal(compact.classification.paths_omitted, false);
+});
+
+test('경로가 없는 근거는 trimSemanticEvidence와 같은 결과이고 1,200자 이하다', () => {
+  const evidence = longEvidence({ classification: { department: '노인정책과' } });
+  const compact = compactEvidence(evidence);
+  assert.deepEqual(compact, trimForCompare(evidence));
+  assert(Array.from(compact.text).length <= 1200);
+});
+
+test('줄이는 과정에서 원본 근거 객체가 변경되지 않는다', () => {
+  const original = longEvidence();
+  const snapshot = structuredClone(original);
+  compactEvidence(original);
+  assert.deepEqual(original, snapshot);
+});
+
+test('context가 없는 근거는 그대로 돌려준다', () => {
+  const evidence = { id: 'plain', text: '본문' };
+  assert.equal(compactEvidence(evidence), evidence);
 });

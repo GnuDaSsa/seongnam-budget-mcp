@@ -1,0 +1,136 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
+import worker from '../dist/server/index.js';
+
+// 정적 자산 환경: dist/client 아래 파일을 읽고, 의미 검색 토큰은 snapshot에서 보충한다.
+const root = path.resolve('dist/client');
+const env = {ASSETS: {async fetch(req) {
+  const pathname = new URL(req.url).pathname;
+  const p = path.resolve(root, '.' + pathname);
+  if (!p.startsWith(root + path.sep)) return new Response('', {status: 403});
+  try {
+    return new Response(await readFile(p));
+  } catch (error) {
+    if (!/^\/semantic\/tokens-\d+\.bin\.gz$/.test(pathname)) return new Response('', {status: 404});
+    try {
+      return new Response(await readFile(path.resolve('snapshot', '.' + pathname)));
+    } catch (snapshotError) {
+      return new Response('', {status: 404});
+    }
+  }
+}}};
+
+async function get(route) {
+  const r = await worker.fetch(new Request('https://test.local' + route), env);
+  return {status: r.status, data: await r.json()};
+}
+async function research(query, extra = {}) {
+  const {data, status} = await get('/api/research?' + new URLSearchParams({query, ...extra}));
+  assert.equal(status, 200, query + ' 응답 상태');
+  return data;
+}
+
+// 같은 세부사업이 여러 부서에 편성된 경우의 부서별 묶음
+test('여러 부서에 편성된 세부사업은 부서별 행과 계산 합계를 함께 반환한다', async () => {
+  const r = await research('2024년 공공근로 지출과 시도비 비율');
+  assert.equal(r.match_quality.level, 'verified');
+  const rollup = r.business_rollup;
+  assert.equal(rollup.business_name, '공공근로사업추진');
+  assert.equal(rollup.edition, '본예산');
+  assert.equal(rollup.departments.length, 4);
+  assert.deepEqual(new Set(rollup.rows.map(row => row.amount)), new Set([754000, 2000000, 1312500, 2366200]));
+  assert.equal(rollup.calculated_total.amount, 6432700);
+  for (const row of rollup.rows) {
+    assert.equal(row.columns_verified, true);
+    assert.equal(row.unit, '천원');
+  }
+  assert.match(r.next_action, /4개 부서/);
+  for (const e of r.evidence) {
+    assert(e.budget_type === '본예산' || e.budget_type === '추경', '근거 편성 구분: ' + e.budget_type);
+  }
+});
+
+// 여러 연도를 한 번에 조회할 때 연도별 묶음과 응답 크기 제한
+test('2021~2027년 조회는 연도별 묶음과 축소된 근거를 반환한다', async () => {
+  const {status, data: r} = await get('/api/research?' + new URLSearchParams({
+    query: '2021~2027년 공공근로 지출과 시도비 비율',
+  }));
+  assert.equal(status, 200);
+  assert.equal(r.per_year.length, 7);
+
+  const totals = {2021: 2199000, 2022: 6387000, 2023: 6387000, 2024: 6432700, 2025: 6775500, 2026: 7082200};
+  // per_year는 요청한 연도 순서대로 배열된다(2021~2027).
+  for (const [index, year] of [2021, 2022, 2023, 2024, 2025, 2026].entries()) {
+    const entry = r.per_year[index];
+    assert.equal(entry.business_rollup.rows[0].year, year, year + '년 항목 순서');
+    assert.equal(entry.business_rollup.departments.length, 4, year + '년 부서 수');
+    assert.equal(entry.business_rollup.calculated_total.amount, totals[year], year + '년 합계');
+  }
+
+  const last = r.per_year[6];
+  assert.equal(last.match_quality.level, 'none');
+  assert.deepEqual(last.evidence_ids, []);
+
+  for (const e of r.evidence) {
+    assert(Array.from(e.text).length <= 1500, '근거 본문 1,500자 이하');
+  }
+  assert(JSON.stringify(r).length < 150000, '응답 JSON 150,000자 미만');
+  assert(
+    r.query_interpretation.notices.some(n => n.includes('4개 이상 연도')),
+    '4개 이상 연도 안내 문구',
+  );
+});
+
+test('최대 여덟 개 연도를 넘는 기간은 400과 안내 문구를 반환한다', async () => {
+  const {status, data} = await get('/api/research?' + new URLSearchParams({query: '2015~2026년 공공근로'}));
+  assert.equal(status, 400);
+  const message = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+  assert.match(message, /최대 8개/);
+});
+
+test('부서를 명시한 질의는 부서 묶음을 만들지 않는다', async () => {
+  const r = await research('정보통신과 2026년 예산');
+  assert.equal(r.business_rollup, null);
+});
+
+// 부서 개요: 한 부서의 편성별 총액과 세부사업 금액
+test('추경을 포함한 부서 질문은 본예산과 추경의 부서 개요를 함께 반환한다', async () => {
+  const r = await research('AI반도체과 2026년도 예산 중 가장 비싼거 추경 포함');
+  const overview = r.department_overview;
+  assert.equal(overview.department, 'AI반도체과');
+  const labels = overview.editions.map(e => e.label);
+  assert(labels.includes('본예산'), '본예산 편성 포함');
+  assert(labels.includes('1회 추경'), '1회 추경 편성 포함');
+  const sup = overview.editions.find(e => e.label === '1회 추경');
+  assert.equal(sup.department_total.amount, 34946472);
+  assert.equal(sup.department_total.previous_amount, 8837472);
+  assert.equal(overview.largest_business.name, '판교시스템반도체연구센터조성');
+  assert.equal(overview.largest_business.amount, 26299000);
+  assert.equal(overview.largest_business.as_of, '1회 추경');
+  assert.match(r.next_action, /department_overview/);
+  const budgetTypes = new Set(r.evidence.map(e => e.budget_type));
+  assert(budgetTypes.has('본예산') && budgetTypes.has('추경'), '근거에 본예산과 추경 모두 포함');
+});
+
+test('본예산만 묻는 부서 질문은 본예산 편성 하나와 가장 큰 사업을 반환한다', async () => {
+  const r = await research('AI반도체과 2026년 본예산 가장 큰 사업');
+  const overview = r.department_overview;
+  assert.equal(overview.editions.length, 1);
+  assert.equal(overview.editions[0].label, '본예산');
+  assert.equal(overview.editions[0].department_total.amount, 8837472);
+  assert.equal(overview.largest_business.amount, 2265924);
+});
+
+test('부서를 명시하지 않은 사업 질문은 부서 개요가 null이다', async () => {
+  const r = await research('2024년 공공근로 예산');
+  assert.equal(r.department_overview, null);
+});
+
+test('한 부서에만 편성된 사업은 묶음이 있어도 합계를 내지 않는다', async () => {
+  const r = await research('노인일자리 및 사회활동지원 예산');
+  if (r.business_rollup === null) return;
+  assert.equal(r.business_rollup.departments.length, 1);
+  assert.equal(r.business_rollup.calculated_total, null);
+});

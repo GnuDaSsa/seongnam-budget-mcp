@@ -24,6 +24,33 @@ OUT = ROOT / 'snapshot' / 'affiliates'
 RAW = ROOT / 'data' / 'affiliates'
 UA = 'SeongnamBudgetResearch/0.2'
 MAX_BYTES = 30_000_000
+# 법령이 인터넷 홈페이지 공시를 의무로 정한 자료의 근거. 명부의 legal_basis가 이 중 하나로
+# 시작하는 자료만 robots.txt 제한 경로에서도 받는다. 그 밖의 제한 경로는 계속 수집하지 않는다.
+DISCLOSURE_BASES = (
+    '지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항',
+    '지방재정법 제60조',
+)
+DISCLOSURE_DELAY_SECONDS = 3
+
+
+def disclosure_basis(source):
+    basis = source.get('legal_basis')
+    if basis is None:
+        return None
+    if not isinstance(basis, str) or not basis.startswith(DISCLOSURE_BASES):
+        raise ValueError('Unrecognised legal disclosure basis; review before collecting')
+    return basis
+
+
+def collection_permission(robots, url, basis):
+    """Return whether robots.txt disallows the URL; raise unless a legal disclosure basis permits it."""
+    readable = robots['status'] in (200, 404)
+    disallowed = not readable or not robots_allowed(robots['text'], url)
+    if disallowed and basis is None:
+        if not readable:
+            raise ValueError('robots.txt not available: HTTP %s' % robots['status'])
+        raise ValueError('Source robots.txt disallows this URL')
+    return disallowed
 
 
 class OCRRequired(ValueError):
@@ -95,7 +122,8 @@ def robots_allowed(text, url):
 
 
 def parse_pdf(payload):
-    if not payload.startswith(b'%PDF'):
+    # 일부 기관 서버는 PDF 앞에 공백·개행을 붙여 보낸다. 머리의 공백만 허용한다.
+    if not payload.lstrip(b' \t\r\n').startswith(b'%PDF'):
         raise ValueError('Not a PDF; login/error/other format must be reviewed')
     with pymupdf.open(stream=payload, filetype='pdf') as doc:
         if doc.needs_pass or not doc.page_count:
@@ -142,12 +170,11 @@ def run(cached=False):
                     robots[origin] = json.loads(robot_path.read_text(encoding='utf-8'))
                 else:
                     status, data = download(origin + '/robots.txt')
-                    if status not in (200, 404):
-                        raise ValueError('robots.txt not available: HTTP %s' % status)
                     robots[origin] = {'status': status, 'text': data.decode('utf-8', errors='replace') if status == 200 else ''}
-                    robot_path.write_text(json.dumps(robots[origin]), encoding='utf-8')
-            if not robots_allowed(robots[origin]['text'], source['url']):
-                raise ValueError('Source robots.txt disallows this URL')
+                    if status in (200, 404):
+                        robot_path.write_text(json.dumps(robots[origin]), encoding='utf-8')
+            basis = disclosure_basis(source)
+            robots_disallowed = collection_permission(robots[origin], source['url'], basis)
             path = RAW / (identifier + '.pdf')
             if path.exists():
                 if path.stat().st_size > MAX_BYTES:
@@ -156,11 +183,11 @@ def run(cached=False):
             elif cached:
                 raise ValueError('Cached source unavailable')
             else:
-                time.sleep(0.5)
+                time.sleep(DISCLOSURE_DELAY_SECONDS if robots_disallowed else 0.5)
                 status, payload = download(source['url'])
                 if status != 200:
                     raise ValueError('Public download HTTP %s; redirects are not followed' % status)
-                if not payload.startswith(b'%PDF'):
+                if not payload.lstrip(b' \t\r\n').startswith(b'%PDF'):
                     raise ValueError('Public endpoint did not return PDF')
                 path.write_bytes(payload)
             if source.get('expected_sha256') and sha(payload) != source['expected_sha256']:
@@ -172,6 +199,7 @@ def run(cached=False):
             (OUT / (identifier + '.json.gz')).write_bytes(packed)
             d = {**source, 'id': identifier, 'title': institution['name'] + ' · ' + source['title'],
                 'source_scope': 'affiliate', 'institution_name': institution['name'], 'revision': source.get('revision'),
+                'robots_disallowed': robots_disallowed, 'legal_basis': basis,
                 'account': source.get('account', '원문 확인'), 'category': '산하기관 ' + source['budget_type'],
                 'sha256': sha(payload), 'bytes': len(payload), 'page_count': page_count, 'indexed_pages': len(pages),
                 'status': 'indexed' if len(pages) == page_count else 'partial_ocr_required',

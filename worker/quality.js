@@ -130,3 +130,116 @@ export function asBridgedEvidence(evidence, link) {
     bridge: { ...link, basis: 'business_title_in_semantic_source', query_to_business_link: 'semantic_inference' },
   };
 }
+
+// ── 여러 부서에 나뉘어 편성된 같은 세부사업 묶음 ─────────────────────────────
+
+const AMOUNT = /^[△▲-]?\d[\d,]*$/;
+const ROLLUP_MATCHED_PATH_LIMIT = 6;
+const COMPACT_TEXT_LIMIT = 1500;
+const COMPACT_LEAD = 300;
+
+function toNumber(value) {
+  const digits = Number(value.replace(/^[△▲-]/, '').replaceAll(',', ''));
+  return /^[△▲-]/.test(value) ? -digits : digits;
+}
+
+// 명세서 한 줄을 들여쓰기, 첫 열 이름, 금액 열(예산액, 전년도 또는 기정액, 증감)로 읽는다. 금액이 없으면 amounts는 null.
+export function statementLine(line, index) {
+  const columns = line.trim().split(/\s{2,}/);
+  const numbers = columns.slice(1).map(c => c.trim()).filter(c => AMOUNT.test(c)).map(toNumber);
+  const parsed = { label: columns[0], indent: line.length - line.trimStart().length, amounts: null };
+  if (!numbers.length) return parsed;
+  const [amount, previous = null, change = null] = numbers;
+  parsed.amounts = {
+    source_line: index + 1,
+    source_excerpt: line.trim().replace(/\s{2,}/g, '  '),
+    amount,
+    previous_amount: previous,
+    change,
+    // 예산액 - 비교 대상 = 증감이 맞을 때만 열 대응을 확인된 것으로 본다.
+    columns_verified: numbers.length >= 3 && amount - previous === change,
+  };
+  return parsed;
+}
+
+// 세출명세서에서 세부사업명과 같은 행의 금액 열을 읽는다.
+export function businessRow(text, businessName) {
+  const wanted = normalize(businessName);
+  if (!wanted) return null;
+  const lines = String(text || '').split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    const parsed = statementLine(lines[index], index);
+    if (parsed.amounts && normalize(parsed.label) === wanted) return parsed.amounts;
+  }
+  return null;
+}
+
+// 검증된 근거의 첫 사업 경로에서 묶음 기준이 될 세부사업명을 정한다.
+export function rollupBusinessName(evidence = []) {
+  const top = evidence.find(e => e.source_family === 'expenditure' && e.classification?.matched_paths?.length);
+  return normalize(top?.classification.matched_paths[0].detailed_business) || null;
+}
+
+// 같은 편성(연도·종류·회차)에서 같은 세부사업명이 있는 부서별 행을 모은다.
+// 전체본과 부서별 PDF에 실린 같은 행은 한 번만 센다.
+export function businessRollup(pages = [], name, edition, candidatesTruncated = false) {
+  if (!name) return null;
+  const byKey = new Map();
+  for (const page of pages) {
+    if (page.source_family !== 'expenditure') continue;
+    const row = businessRow(page.text, name);
+    if (!row) continue;
+    const key = [page.year, page.budget_type, page.revision || 0, row.amount, row.previous_amount, row.change].join(':');
+    const candidate = {
+      year: page.year, budget_type: page.budget_type, revision: page.revision ?? null,
+      department: page.classification?.department ?? null, unit: page.unit, ...row,
+      id: page.id, page_url: page.page_url, locator_label: page.locator_label,
+    };
+    const existing = byKey.get(key);
+    if (!existing || (!existing.department && candidate.department)) byKey.set(key, candidate);
+  }
+  const rows = [...byKey.values()].sort((a, b) => String(a.department).localeCompare(String(b.department), 'ko'));
+  if (!rows.length) return null;
+  const departments = [...new Set(rows.map(r => r.department).filter(Boolean))];
+  const summable = !candidatesTruncated && rows.length > 1 && departments.length === rows.length
+    && rows.every(r => r.columns_verified && r.unit === rows[0].unit);
+  return {
+    business_name: name,
+    edition,
+    departments,
+    rows,
+    rows_may_be_incomplete: candidatesTruncated,
+    calculated_total: summable
+      ? { amount: rows.reduce((sum, r) => sum + r.amount, 0), unit: rows[0].unit, basis: 'sum_of_listed_department_rows' }
+      : null,
+    note: '같은 세부사업명이 여러 부서에 편성될 수 있습니다. 부서별 금액을 모두 제시하세요. calculated_total은 나열한 부서 행의 '
+      + '단순 합계(계산값)이며 수록 범위 밖의 부서나 추경 변경분은 포함하지 않습니다. 본예산과 추경을 합산하지 마세요.',
+  };
+}
+
+// 긴 기간 조회용: 사업 행 주변만 남기고 사업 경로 목록을 줄인다.
+export function compactEvidence(evidence) {
+  if (!evidence.context || typeof evidence.text !== 'string') return evidence;
+  const first = evidence.classification?.matched_paths?.[0];
+  if (!first) return trimSemanticEvidence(evidence);
+  const lines = evidence.text.split('\n');
+  const before = Array.from(lines.slice(0, Math.max(0, first.source_line - 1)).join('\n')).length;
+  const chars = Array.from(evidence.text);
+  const from = Math.max(0, Math.min(before, chars.length) - COMPACT_LEAD);
+  const to = Math.min(chars.length, from + COMPACT_TEXT_LIMIT);
+  const start = evidence.context.start + from;
+  const end = evidence.context.start + to;
+  const { paths, matched_paths, ...header } = evidence.classification;
+  return {
+    ...evidence,
+    text: chars.slice(from, to).join(''),
+    text_is_complete: start === 0 && end === evidence.context.total_characters,
+    context: { ...evidence.context, start, end },
+    classification: {
+      ...header,
+      paths: [],
+      matched_paths: matched_paths.slice(0, ROLLUP_MATCHED_PATH_LIMIT),
+      paths_omitted: (paths?.length || 0) > 0,
+    },
+  };
+}

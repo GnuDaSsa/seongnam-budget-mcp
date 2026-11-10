@@ -13,8 +13,8 @@
       "hosts": [
         "www.isdc.co.kr"
       ],
-      "status": "robots_disallowed",
-      "notes": "2026 본예산 XLSX 공개. 기관 다운로드 /board/ 및 의회 첨부 경로는 robots 제한. 클린아이 정식 예산결산 API(지방공기업, 명세상 2013~2024)는 인증키 필요로 미연결."
+      "status": "download_incomplete",
+      "notes": "2025·2026 본예산 XLSX 공개 확인. 공시 근거는 지방공기업법 제75조의2(제46조 준용)와 시행령 제64조·제44조. 2026-11-10 내려받기에서 서버가 응답 본문을 중간에 끊어 완결 파일을 확보하지 못했고 XLSX는 현재 수집기 대상 형식이 아님. 클린아이 예산결산 API는 인증키 필요로 미연결."
     },
     {
       "id": "snip",
@@ -26,8 +26,8 @@
       "hosts": [
         "www.snip.or.kr"
       ],
-      "status": "robots_disallowed",
-      "notes": "기관 사이트와 클린아이 일반 공시는 robots 제한. 의회 예산 심사 회의록은 확인했으나 기관 자체 예산 원문 대체본은 미확보."
+      "status": "partial",
+      "notes": "「지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률」 제32조제1항의 홈페이지 경영공시 자료로서 robots 제한 경로에서 수집. 2026 경영목표 및 운영계획, 2025 예산 요약, 2024·2025 결산서. 기관 전체 수입·지출 예산서는 공시에서 확인하지 못함."
     },
     {
       "id": "snart",
@@ -39,8 +39,8 @@
       "hosts": [
         "www.snart.or.kr"
       ],
-      "status": "robots_disallowed",
-      "notes": "새 공식 홈페이지는 정상 응답. 예산 게시판 /main/pst/list.do?pst_id=budget는 robots 제한. 의회 업무보고 부록도 다운로드 제한으로 미수록."
+      "status": "partial",
+      "notes": "「지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률」 제32조제1항의 홈페이지 경영공시 자료로서 robots 제한 경로에서 수집. 2025·2026 본예산 총괄표, 2024·2025 결산보고서. 사업별 세부 예산서는 게시되지 않음."
     },
     {
       "id": "snyouth",
@@ -112,8 +112,8 @@
         "snjh.or.kr",
         "www.snjh.or.kr"
       ],
-      "status": "robots_unavailable",
-      "notes": "2026 예산계획 스캔1쪽과 2025 감사보고서 공개 위치 확인. robots.txt HTTP500으로 자동수집 보류. 클린아이 대체 원문은 미확보."
+      "status": "partial",
+      "notes": "「지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률」 제32조제1항의 홈페이지 경영공시 자료로서 수집(robots.txt는 HTTP 500). 2025 외부회계감사인보고서 수록. 2025·2026 예산계획과 2024 감사보고서는 스캔본으로 OCR 필요."
     },
     {
       "id": "snwf",
@@ -293,6 +293,268 @@
       "document_stage": "published",
       "filename": "snri-2024-settlement.pdf",
       "expected_sha256": "b2f0f235580771cfe932acf1c79e9b32dff2d7020ef9a3ba0b0d13485885cb80"
+    },
+    {
+      "institution_id": "snart",
+      "url": "https://www.snart.or.kr/other/attach/process.file.do?TP=dn&sn=20006&key=8CAB261D7CC2AF4",
+      "source_page": "https://www.snart.or.kr/main/pst/view.do?pst_id=budget&pst_sn=20085",
+      "title": "2026년 본예산 총괄표",
+      "year": 2026,
+      "budget_type": "본예산",
+      "detail_level": "budget_summary",
+      "document_stage": "published",
+      "filename": "snart-2026-budget-summary.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "73ccc8e25fd74fbe146c20c463326b8c1f8c1177b55b8241cb1d3a59ed4b5ef6"
+    },
+    {
+      "institution_id": "snart",
+      "url": "https://www.snart.or.kr/other/attach/process.file.do?TP=dn&sn=15172&key=B29C60792CF4928",
+      "source_page": "https://www.snart.or.kr/main/pst/view.do?pst_id=budget&pst_sn=17476",
+      "title": "(성남문화재단) 2025년 본예산 총괄표",
+      "year": 2025,
+      "budget_type": "본예산",
+      "detail_level": "budget_summary",
+      "document_stage": "published",
+      "filename": "snart-2025-budget-summary.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "dc1a3deb108f219cd864617b4b7021ca9a449ba4e7b194973e6e24df3968de01"
+    },
+    {
+      "institution_id": "snart",
+      "url": "https://www.snart.or.kr/other/attach/process.file.do?TP=dn&sn=25499&key=BD99EC1A3FD736C",
+      "source_page": "https://www.snart.or.kr/main/pst/view.do?pst_id=settlement&pst_sn=20438",
+      "title": "결산보고서 (2025년)",
+      "year": 2025,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snart-2025-settlement-report.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "4fb2fa8ba288d65b7dfb1ca327a8c6eef2f4de73be630c33e89eacabd530cc66"
+    },
+    {
+      "institution_id": "snart",
+      "url": "https://www.snart.or.kr/other/attach/process.file.do?TP=dn&sn=15429&key=B0AEFD0F3BB740F",
+      "source_page": "https://www.snart.or.kr/main/pst/view.do?pst_id=settlement&pst_sn=17769",
+      "title": "결산보고서(2024)",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snart-2024-settlement-report.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "6941bb83e66662fad58ee69537dddbe3459440370f95365058cc70c3f1b6b8b3"
+    },
+    {
+      "institution_id": "snip",
+      "url": "https://www.snip.or.kr/afile/fileDownload/DKwmn",
+      "source_page": "https://www.snip.or.kr/SNIP/contents/notice221.do?schM=view&id=18883",
+      "title": "2026년 경영목표 및 운영계획",
+      "year": 2026,
+      "budget_type": "본예산",
+      "detail_level": "budget_summary",
+      "document_stage": "published",
+      "filename": "snip-2026-plan.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "be1e97b6d1c00934c17373dddb3c69e55b4c2666cfa38e1d9841dc765459c340"
+    },
+    {
+      "institution_id": "snip",
+      "url": "https://www.snip.or.kr/afile/fileDownload/bMwmn",
+      "source_page": "https://www.snip.or.kr/SNIP/contents/notice221.do?schM=view&id=17680",
+      "title": "2025년 예산 (기업지원 예산 현황)",
+      "year": 2025,
+      "budget_type": "본예산",
+      "detail_level": "budget_summary",
+      "document_stage": "published",
+      "filename": "snip-2025-budget.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "dfd1513caffd6f72d2835fe557715f918c659875714b7f63e2ab380833a0ce5a"
+    },
+    {
+      "institution_id": "snip",
+      "url": "https://www.snip.or.kr/afile/fileDownload/2Ewmn",
+      "source_page": "https://www.snip.or.kr/SNIP/contents/notice221.do?schM=view&id=18983",
+      "title": "성남산업진흥원 2025_결산서",
+      "year": 2025,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snip-2025-settlement.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "15fa58cd9985c3f19ddc57755ae2642fbf09b00ba7186f2885883c853e9fce28"
+    },
+    {
+      "institution_id": "snip",
+      "url": "https://www.snip.or.kr/afile/fileDownload/Jiwmn",
+      "source_page": "https://www.snip.or.kr/SNIP/contents/notice221.do?schM=view&id=17928",
+      "title": "성남산업진흥원 2024_결산서",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snip-2024-settlement.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "1ea039b8caf36f9364e482fc425dfe3e81cc582da6c9e202a4f891c63aab6ea2"
+    },
+    {
+      "institution_id": "snjh",
+      "url": "https://snjh.or.kr/EH2017/_include/file_download.asp?fp=notice&fn=2026%B3%E2%20%BF%B9%BB%EA%20%B0%E8%C8%B9%28%B0%E6%BF%B5%B0%F8%BD%C3%BF%EB%29.pdf",
+      "source_page": "https://snjh.or.kr/EH2024n3/C05-bulletin_view.asp?key=subject&kword=&page=1&seq=360",
+      "title": "2026년 예산 계획(경영공시용)",
+      "year": 2026,
+      "budget_type": "본예산",
+      "detail_level": "budget_summary",
+      "document_stage": "published",
+      "filename": "snjh-2026-budget-plan.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "c0295a6b1a07a26c370ada15334d0f1d4ccf2693102eda9d2dab760f2dd05af3"
+    },
+    {
+      "institution_id": "snjh",
+      "url": "https://snjh.or.kr/EH2017/_include/file_download.asp?fp=notice&fn=2025%B3%E2%20%BF%B9%BB%EA%20%B0%E8%C8%B9%28%B0%E6%BF%B5%B0%F8%BD%C3%BF%EB%29.pdf",
+      "source_page": "https://snjh.or.kr/EH2024n3/C05-bulletin_view.asp?key=subject&kword=&page=1&seq=333",
+      "title": "2025년 예산 계획(경영공시용)",
+      "year": 2025,
+      "budget_type": "본예산",
+      "detail_level": "budget_summary",
+      "document_stage": "published",
+      "filename": "snjh-2025-budget-plan.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "4ed9fec53dda7509f5bc723e7244669a9f9697ae693a7498272265fb9a26299a"
+    },
+    {
+      "institution_id": "snjh",
+      "url": "https://snjh.or.kr/EH2017/_include/file_download.asp?fp=notice&fn=%BC%BA%B3%B2%BD%C3%C0%E5%C7%D0%C8%B8%282025%29%BF%DC%BA%CE%C8%B8%B0%E8%B0%A8%BB%E7%C0%CE%BA%B8%B0%ED%BC%AD.pdf",
+      "source_page": "https://snjh.or.kr/EH2024n3/C05-bulletin_view.asp?key=subject&kword=&page=1&seq=369",
+      "title": "성남시장학회(2025) 외부회계감사인보고서",
+      "year": 2025,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snjh-2025-audit.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "f83ddc5702274573514e8fd545e90e504fed8e415390f760e23507cab85dde2f"
+    },
+    {
+      "institution_id": "snjh",
+      "url": "https://snjh.or.kr/EH2017/_include/file_download.asp?fp=notice&fn=2024%B3%E2%B5%B5%20%C0%E7%B4%DC%B9%FD%C0%CE%20%BC%BA%B3%B2%BD%C3%C0%E5%C7%D0%C8%B8%20%BF%DC%BA%CE%20%C8%B8%B0%E8%20%B0%A8%BB%E7%C0%CE%20%BA%B8%B0%ED%BC%AD.pdf",
+      "source_page": "https://snjh.or.kr/EH2024n3/C05-bulletin_view.asp?key=subject&kword=&page=1&seq=337",
+      "title": "2024년도 재단법인 성남시장학회 외부 회계 감사인 보고서",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snjh-2024-audit.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "c1c646caf365412edfb4399ecb0a8fafc3751cc4c726e9dbd5202ffd674bd341"
+    },
+    {
+      "institution_id": "smr",
+      "url": "https://www.smr.or.kr/download/BASIC_ATTACH?storageNo=3899",
+      "source_page": "https://www.smr.or.kr/base/board/read?boardManagementNo=14&menuLevel=3&menuNo=19&boardNo=2088",
+      "title": "2026년 1차 추가경정 예산 총괄표",
+      "year": 2026,
+      "budget_type": "추경",
+      "revision": 1,
+      "detail_level": "budget_summary",
+      "document_stage": "proposal",
+      "filename": "smr-2026-supp1-summary.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "f3aff897ff288bbc7cde4a854826aed183fb39cc4d7ad136e65b7bef4a798c0c"
+    },
+    {
+      "institution_id": "smr",
+      "url": "https://www.smr.or.kr/download/BASIC_ATTACH?storageNo=3900",
+      "source_page": "https://www.smr.or.kr/base/board/read?boardManagementNo=14&menuLevel=3&menuNo=19&boardNo=2089",
+      "title": "2026년 제2회 추가경정 예산안 총괄표",
+      "year": 2026,
+      "budget_type": "추경",
+      "revision": 2,
+      "detail_level": "budget_summary",
+      "document_stage": "proposal",
+      "filename": "smr-2026-supp2-summary.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "e7b86ca870bec8430272a1ae3ad20f84cf99278dce0995b4615effceea6747fc"
+    },
+    {
+      "institution_id": "smr",
+      "url": "https://www.smr.or.kr/download/BASIC_ATTACH?storageNo=3647",
+      "source_page": "https://www.smr.or.kr/base/board/read?boardManagementNo=14&menuLevel=3&menuNo=19&boardNo=1581",
+      "title": "2025년 세입,세출 예산안 총괄표",
+      "year": 2025,
+      "budget_type": "본예산",
+      "detail_level": "budget_summary",
+      "document_stage": "proposal",
+      "filename": "smr-2025-budget-summary.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호",
+      "expected_sha256": "d8ee0ede496782a5bc3635768573b3237a01154da82d85ecf6d3b88c9e600021"
+    },
+    {
+      "institution_id": "smr",
+      "url": "https://www.smr.or.kr/download/BASIC_ATTACH?storageNo=2546",
+      "source_page": "https://www.smr.or.kr/base/board/read?boardManagementNo=14&menuLevel=3&menuNo=19&boardNo=1628",
+      "title": "2024년 재무상태표",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "financial_statement",
+      "document_stage": "published",
+      "filename": "smr-2024-balance.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "49bf8bc0546788feecc0ee76577a1af069b05533f548cd1f0d795bb5ac261ce0"
+    },
+    {
+      "institution_id": "smr",
+      "url": "https://www.smr.or.kr/download/BASIC_ATTACH?storageNo=2545",
+      "source_page": "https://www.smr.or.kr/base/board/read?boardManagementNo=14&menuLevel=3&menuNo=19&boardNo=1627",
+      "title": "2024년 운영성과표",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "financial_statement",
+      "document_stage": "published",
+      "filename": "smr-2024-operating.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "f53f41d99087d8c8c2263e5335c907381d20d5b5541a2fb47df6bcc1a7ba9d79"
+    },
+    {
+      "institution_id": "snyouth",
+      "url": "https://www.snyouth.or.kr/File/Download/99a67e08c878b8b65e46d76116a7f8be",
+      "source_page": "https://www.snyouth.or.kr/fmcs/286?action=read&action-value=deda80aa8947fef8788257f2bfc05aa5",
+      "title": "2024년 세입세출결산서(세입결산서)",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snyouth-2024-settlement-a.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "c4a8efd29f4aeb08a6d2a68a8d9f723e5fee7893a92daf470ede04a87f955851"
+    },
+    {
+      "institution_id": "snyouth",
+      "url": "https://www.snyouth.or.kr/File/Download/e3ed7536751a3b04efda08de972fa660",
+      "source_page": "https://www.snyouth.or.kr/fmcs/286?action=read&action-value=deda80aa8947fef8788257f2bfc05aa5",
+      "title": "2024년 세출결산서",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "settlement_detail",
+      "document_stage": "published",
+      "filename": "snyouth-2024-settlement-b.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "3247341c8d2790fe7fec04ff7e07047352ca8e15b7bfd5e7554a7fc1a39f4a7d"
+    },
+    {
+      "institution_id": "scmc",
+      "url": "https://www.scmc.kr/useguide/Public/download/?seq=481&idx=1",
+      "source_page": "https://www.scmc.kr/useguide/PublicView/?seq=481",
+      "title": "2024년 세입세출결산서",
+      "year": 2024,
+      "budget_type": "결산",
+      "detail_level": "settlement_summary",
+      "document_stage": "published",
+      "filename": "scmc-2024-settlement.pdf",
+      "legal_basis": "지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제2호",
+      "expected_sha256": "744d4ab3e319440313351a72d983b5f5481fb75f25ef87e66c295e2949138ec0"
     }
   ]
 }

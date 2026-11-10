@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 import pymupdf
 import collect_affiliates as collector
-from collect_affiliates import checked_url, robots_allowed, parse_pdf
+from collect_affiliates import checked_url, robots_allowed, parse_pdf, disclosure_basis, collection_permission
 
 
 class AffiliateIngestionTests(unittest.TestCase):
@@ -101,6 +101,44 @@ class AffiliateIngestionTests(unittest.TestCase):
                 self.assertEqual(refreshed['summary']['ocr_required_pdf_pages'], 2)
                 self.assertEqual(refreshed['summary']['failed_documents'], 2)
                 network.assert_not_called()
+
+    def test_disclosure_basis_accepts_only_listed_legal_grounds(self):
+        self.assertIsNone(disclosure_basis({}))
+        basis = '지방자치단체 출자ㆍ출연 기관의 운영에 관한 법률 제32조제1항제1호'
+        self.assertEqual(disclosure_basis({'legal_basis': basis}), basis)
+        self.assertEqual(disclosure_basis({'legal_basis': '지방재정법 제60조제1항'}), '지방재정법 제60조제1항')
+        with self.assertRaises(ValueError):
+            disclosure_basis({'legal_basis': '그냥 공개자료'})
+        with self.assertRaises(ValueError):
+            disclosure_basis({'legal_basis': True})
+
+    def test_robots_disallow_requires_legal_basis(self):
+        robots = {'status': 200, 'text': 'User-agent: *\nDisallow: /'}
+        url = 'https://www.snip.or.kr/a.pdf'
+        with self.assertRaisesRegex(ValueError, 'disallows'):
+            collection_permission(robots, url, None)
+        self.assertTrue(collection_permission(
+            robots, url, '지방재정법 제60조제1항'))
+
+    def test_robots_allowed_path_is_not_restricted_by_basis(self):
+        robots = {'status': 200, 'text': 'User-agent: *\nDisallow: /admin/'}
+        url = 'https://www.snip.or.kr/a.pdf'
+        self.assertFalse(collection_permission(robots, url, None))
+        self.assertFalse(collection_permission(
+            robots, url, '지방재정법 제60조제1항'))
+
+    def test_unavailable_robots_needs_basis_for_server_error(self):
+        robots = {'status': 500, 'text': ''}
+        url = 'https://www.snip.or.kr/a.pdf'
+        with self.assertRaisesRegex(ValueError, 'not available'):
+            collection_permission(robots, url, None)
+        self.assertTrue(collection_permission(
+            robots, url, '지방재정법 제60조제1항'))
+
+    def test_missing_robots_file_permits_collection(self):
+        robots = {'status': 404, 'text': ''}
+        self.assertFalse(collection_permission(
+            robots, 'https://www.snip.or.kr/a.pdf', None))
 
 
 if __name__ == '__main__':

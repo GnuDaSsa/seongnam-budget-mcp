@@ -3,7 +3,10 @@ const boilerplate=new Set(['성남','성남시','예산','예산은','본예산'
 for(const word of ['본예산과','추경과','결산과','성과계획서와','비교','및','세부사업과','통계목도','통계목은','편성목은','최종','최신','마지막','최종예산','최신예산','마지막예산'])boilerplate.add(word);
 export function withoutQueryYears(query){return query.replace(/(?<![\p{L}\p{N}])(?:19|20)\d{2}(?:\s*(?:년도|년)(?:과|와|의|에서|에는|에|은|는|도|부터|까지|보다|대비)?)?(?![\p{L}\p{N}])/gu,' ');}
 function compact(text){return text.toLowerCase().replace(/\s/gu,'');}
-export function retrievalWords(query){return(withoutQueryYears(query).toLowerCase().match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[]).filter(w=>w.length>=2&&!boilerplate.has(w));}
+// 분석 요청어는 원문 사업 행에 없는 경우가 많다. 필수 검색어로 두면 키워드 검색이 0건이 되므로 조사만 떼고 제외한다.
+const analytic=new Set(['지출','지출액','비율','비중','시도비','국도비','현황','추이','증감','변화','분담','구성','얼마나','가장','제일','비싼','비싼거','비싼것','큰','큰거','큰것','많은','적은','최대','최고','최소','상위','하위','순위','포함']);
+const isAnalytic=w=>analytic.has(w)||analytic.has(w.replace(/(?:과|와|의|은|는|이|가|을|를|도|으로|로)$/,''));
+export function retrievalWords(query){return(withoutQueryYears(query).toLowerCase().match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[]).filter(w=>w.length>=2&&!boilerplate.has(w)&&!isAnalytic(w));}
 
 // Topic requests are not department requests. Keep control language out of both
 // embeddings and postings, and require the topic in a business line, not a header.

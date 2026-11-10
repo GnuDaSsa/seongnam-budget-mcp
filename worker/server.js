@@ -6,7 +6,8 @@ import {retrievalWords,exactPhraseHit,businessTermsHit,topicIntent,topicBusiness
 import {institutionScope,createAffiliateReader,eligibleAffiliateDocuments,mergeCityFirst,affiliateWords} from './affiliates.js';
 import {createCouncilReader,mergeCouncilLast,councilAllowed,COUNCIL_CATEGORY} from './council.js';
 import {requestedDepartments,canonicalDepartmentQuery,departmentMatches} from './departments.js';
-import {matchQuality,weakestQuality,trimSemanticEvidence,bridgeBusinessNames,asBridgedEvidence,comparisonBudgetBasis,totalTableDocument,hasReplacementCharacter} from './quality.js';
+import {departmentOverview} from './department-overview.js';
+import {matchQuality,weakestQuality,trimSemanticEvidence,bridgeBusinessNames,asBridgedEvidence,comparisonBudgetBasis,totalTableDocument,hasReplacementCharacter,rollupBusinessName,businessRollup,compactEvidence} from './quality.js';
 const CATALOG=/*__CATALOG__*/null, HTML=/*__HTML__*/null, SEMANTIC=/*__SEMANTIC__*/null;
 const AFFILIATES=/*__AFFILIATES__*/null;
 const COUNCIL=/*__COUNCIL__*/null;
@@ -74,6 +75,7 @@ function shardFor(globalPage){let lo=0,hi=CATALOG.shards.length-1;while(lo<=hi){
 const rank=(a,b)=>b.score-a.score||((DOCS.get(b.p[0]).year||0)-(DOCS.get(a.p[0]).year||0));
 async function lexicalSearch(env,input){let a=args(input),q=(a.query||'').trim();if(q.length<2)fail('검색어를 두 글자 이상 입력하세요.');
  if(a.topic_intent&&input.topic_candidate_limit===64)a.limit=64;
+ if(input.rollup_candidate_limit===ROLLUP_CANDIDATES)a.limit=ROLLUP_CANDIDATES;
  let gs=groups(q);if(!gs.length)gs=[{word:q,grams:[q]}];let posts=[],weight=0;
  for(let term of new Set(gs.flatMap(g=>g.grams))){let values=await asset(env,'terms-'+termBucket(term)),post=values[term]||[];if(!post.length)return{query:q,filters:{year:a.year??null,budget_type:a.budget_type??null,category:a.category??null},results:[],scanned_pages:0,matched_pages_before_dedup:0,coverage:CATALOG.summary,instructions:RULES};posts.push(post);weight+=Math.log(1+CATALOG.summary.snapshot_units/(1+post.length));}
  posts.sort((x,y)=>x.length-y.length);let eligible=new Set(posts[0]);for(let post of posts.slice(1)){let other=new Set(post);eligible=new Set([...eligible].filter(x=>other.has(x)));if(!eligible.size)break;}posts=null;
@@ -192,7 +194,9 @@ async function compareYears(env,input,a,started){
  const basis=comparisonBudgetBasis(a.policy,a.budget_type),aligned=basis==='main_budget_default';
  a.policy.comparison_budget_basis=basis;
  if(aligned)a.policy.notices.push('연도 비교: 편성 구분을 지정하지 않아 연도별 본예산 기준으로 맞췄습니다. 추경·결산 비교는 질문에 명시하세요.');
- const yearly=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,limit:2,...(aligned?{budget_type:'본예산'}:{})})));
+ const compact=a.policy.years.length>POLICY.max_comparison_years;
+ if(compact)a.policy.notices.push('4개 이상 연도 조회: 연도별 사업 행 주변만 간추려 반환했습니다. 전문은 get_budget_page로 확인하세요.');
+ const yearly=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,limit:2,compact,...(aligned?{budget_type:'본예산'}:{})})));
  const per_year=yearly.map(({evidence,...rest})=>({...rest,evidence_ids:evidence.map(e=>e.id)}));
  return{question:a.query,query_interpretation:a.policy,per_year,evidence:yearly.flatMap(r=>r.evidence),match_quality:weakestQuality(yearly.map(r=>r.match_quality)),generation_performed:false,answer_policy:RULES,next_action:nextAction(YEAR_COMPARISON_NOTE),elapsed_ms:Date.now()-started};
 }
@@ -219,6 +223,39 @@ async function bridgeToStatements(env,a,found){
  }
  return bridged;
 }
+const OVERVIEW_PAGE_LIMIT=80;
+// 부서를 하나 명시한 질문: 그 연도의 본예산과 수록된 추경 회차에서 부서 머리말이 확인된 쪽을 모두 읽어 총액·세부사업 금액을 정리한다.
+async function departmentOverviewFor(env,a){
+ if(a.departments?.length!==1||!a.year)return null;
+ const editions=new Map();
+ for(const [gid,docIndex] of a.department_rows){
+  const d=CATALOG.documents[docIndex];if(d.year!==a.year||!['본예산','추경'].includes(d.budget_type)||!match(d,a))continue;
+  const key=(d.budget_type==='본예산'?0:1)+':'+String(d.revision||0).padStart(2,'0');
+  if(!editions.has(key))editions.set(key,new Map());
+  const docs=editions.get(key);if(!docs.has(docIndex))docs.set(docIndex,[]);docs.get(docIndex).push(gid);
+ }
+ // 같은 편성이 전체본과 부서별 PDF로 중복 수록된 경우 쪽이 가장 많은 문서 하나만 읽는다.
+ const selected=[...editions.keys()].sort().map(key=>[...editions.get(key).entries()].sort((x,y)=>y[1].length-x[1].length||x[0]-y[0])[0]);
+ let remaining=OVERVIEW_PAGE_LIMIT,truncated=false;const result=[];
+ for(const [docIndex,gids] of selected){
+  const d=CATALOG.documents[docIndex],pages=[];
+  for(const gid of gids.sort((x,y)=>x-y)){
+   if(remaining<=0){truncated=true;break;}remaining--;
+   const sh=shardFor(gid);if(!sh)continue;const [index,texts]=await Promise.all([asset(env,'pages-'+sh.id),asset(env,'text-'+sh.id)]);
+   const p=index.pages[gid-sh.offset],c=cite(d,p);pages.push({page:c.page,page_url:c.page_url,unit:c.unit,text:texts[gid-sh.offset]});
+  }
+  result.push({budget_type:d.budget_type,revision:d.revision,document_id:d.id,title:d.title,pages});
+ }
+ return departmentOverview(a.departments[0].name,a.year,result,truncated);
+}
+const ROLLUP_CANDIDATES=40;
+// 같은 세부사업이 여러 부서에 편성됐는지 같은 편성(기본 본예산) 안에서 키워드로 다시 모은다.
+async function rollupAcrossDepartments(env,a,evidence){
+ const name=rollupBusinessName(evidence);if(!name)return null;
+ const edition=a.budget_type||'본예산',query=a.policy.institution_scope.city_retrieval_query;
+ const hits=(await lexicalSearch(env,{...a,query,budget_type:edition,limit:20,rollup_candidate_limit:ROLLUP_CANDIDATES,mode:undefined})).results;
+ return businessRollup(await evidenceFor(env,hits,false,query),name,edition,hits.length>=ROLLUP_CANDIDATES);
+}
 async function research(env,input){
  const started=Date.now(),a=await departmentScoped(env,resolved(args(input)));
  if(a.policy.years.length>1)return compareYears(env,input,a,started);
@@ -238,8 +275,14 @@ async function research(env,input){
   evidence=[...bridged,...found.filter(e=>sources.has(e.id)),...found.filter(e=>!sources.has(e.id))].slice(0,6).map(e=>e.bridge?e:trimSemanticEvidence(e));
   match_quality=matchQuality(evidence,r.retrieval?.mode);
  }
- return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,match_quality,retrieval:r.retrieval,coverage,department_availability:r.department_availability,topic_coverage:a.topic_intent?{complete:false,annual_final_budget_reconstructed:false,selection:"relevant_business_lines_with_edition_diversity",returned_locations:evidence.length,requested_limit:a.limit}:null,generation_performed:false,
-  next_action:nextAction(NEXT_BY_QUALITY[match_quality.level]||NEXT_BY_QUALITY.found),answer_policy:RULES,elapsed_ms:Date.now()-started};
+ const rollupEligible=match_quality.level==='verified'&&!a.departments?.length&&!a.topic_intent&&a.policy.institution_scope.mode==='municipal'&&a.policy.source_preference==='expenditure';
+ const business_rollup=rollupEligible?await rollupAcrossDepartments(env,a,evidence):null;
+ if(input.compact)evidence=evidence.map(compactEvidence);
+ const department_overview=a.policy.institution_scope.mode==='municipal'&&a.policy.source_preference==='expenditure'&&!a.topic_intent?await departmentOverviewFor(env,a):null;
+ const overviewNote=department_overview?'department_overview에 이 부서의 편성별 총액과 세부사업 금액이 있습니다. 가장 큰 사업·순위·부서 총액 질문은 이 값으로 답하고 편성 회차(as_of)를 밝히세요. latest_amounts는 계산값입니다. ':'';
+ const rollupNote=business_rollup?.departments.length>1?'같은 세부사업이 '+business_rollup.departments.length+'개 부서에 편성되어 있습니다. business_rollup.rows의 부서별 금액을 모두 제시하고 합계는 계산값임을 밝히세요. ':'';
+ return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,match_quality,business_rollup,department_overview,retrieval:r.retrieval,coverage,department_availability:r.department_availability,topic_coverage:a.topic_intent?{complete:false,annual_final_budget_reconstructed:false,selection:"relevant_business_lines_with_edition_diversity",returned_locations:evidence.length,requested_limit:a.limit}:null,generation_performed:false,
+  next_action:nextAction(overviewNote+rollupNote+(NEXT_BY_QUALITY[match_quality.level]||NEXT_BY_QUALITY.found)),answer_policy:RULES,elapsed_ms:Date.now()-started};
 }
 
 async function page(env,input){let a=args(input);if(typeof a.document_id!=='string'||(!DOCS.has(a.document_id)&&!affiliateReader.has(a.document_id)&&!councilReader.has(a.document_id)))fail('문서를 찾을 수 없습니다.');let n=num(a.page,'page',1,100000);if(!n)fail('검색 결과의 page 값이 필요합니다.');if(councilReader.has(a.document_id))return{...await councilReader.page(env,a.document_id,n),instructions:RULES};if(affiliateReader.has(a.document_id))return{...await affiliateReader.page(env,a.document_id,n),instructions:RULES};let d=DOCS.get(a.document_id);
@@ -252,7 +295,7 @@ const TOOLS=[{name:'search_budget',description:'상세 검색용: 성남시 예�
  {name:'list_budget_documents',description:'문서와 실패·미처리 상태를 연도·예산종류별로 확인할 때 사용.',inputSchema:schema({...properties,offset:{type:'integer',minimum:0}}),annotations},
  {name:'get_collection_status',description:'검색 가능 범위, 수집 누락, 스캔·이미지 제외 상태, 마지막 스냅샷 시각을 확인. 전체 수집 완료라고 추정하지 말 것. ocr_required 표시는 검색 제외 상태이며 OCR 실행 계획이 아닙니다.',inputSchema:schema({}),annotations},
  {name:'build_rag_context',description:'기존 연동 호환용: 상위 4개 원문 페이지/본문 블록 전문과 인용 규칙을 반환. 일반 예산 질문은 budget_research를 우선 사용. 생성 모델을 호출하지 않음.',inputSchema:schema(properties,['query']),annotations}];
-TOOLS.unshift({name:'budget_research',description:'성남시 본예산·추경·결산·사업비·부서별 예산·연도별 비교 질문에 먼저 사용. 법령 해석이나 다른 지자체 예산 조회에는 사용하지 않음. 사업비는 세출예산사업명세서를 우선하며 성과계획·지표 질문은 계획서를 조회. 원문 근거·단위·인용 URL과 부서·세부사업·편성목·통계목 및 해당 행을 한 번에 반환. 미지정 연도는 2026년, 비교는 최대 3개 연도. 근거가 충분하면 바로 답변. 생성 모델 없음.',inputSchema:schema(properties,['query']),annotations},
+TOOLS.unshift({name:'budget_research',description:'성남시 본예산·추경·결산·사업비·부서별 예산·연도별 비교 질문에 먼저 사용. 법령 해석이나 다른 지자체 예산 조회에는 사용하지 않음. 사업비는 세출예산사업명세서를 우선하며 성과계획·지표 질문은 계획서를 조회. 원문 근거·단위·인용 URL과 부서·세부사업·편성목·통계목 및 해당 행을 한 번에 반환. 미지정 연도는 2026년. 3개 연도까지는 근거 본문을, 4~8개 연도는 연도별 사업 행을 간추려 반환. 같은 세부사업이 여러 부서에 있으면 business_rollup으로 부서별 행을, 부서를 하나 명시하면 department_overview로 그 부서의 편성별 총액과 세부사업 금액순 목록을 함께 반환. 근거가 충분하면 바로 답변. 생성 모델 없음.',inputSchema:schema(properties,['query']),annotations},
  {name:'search',description:'ChatGPT 호환 검색. 인용 가능한 id/title/url 반환. 질문에 연도가 없으면 2026년, 전체 연도는 질문에 명시.',inputSchema:schema({query:properties.query},['query']),annotations},
  {name:'fetch',description:'search 결과 id로 원문 페이지/본문 블록 전문과 인용 URL 조회. id는 search 결과 값을 그대로 사용.',inputSchema:schema({id:{type:'string',maxLength:100}},['id']),annotations});
 const TITLES={budget_research:'성남 예산 근거 조회',search:'성남 예산 검색',fetch:'예산 원문 읽기',search_budget:'예산 상세 검색',get_budget_page:'원문 페이지 조회',list_budget_documents:'예산 문서 목록',get_collection_status:'수집 범위 확인',build_rag_context:'예산 근거 묶음'};for(const t of TOOLS){t.title=TITLES[t.name];t.annotations={...t.annotations,title:t.title};}

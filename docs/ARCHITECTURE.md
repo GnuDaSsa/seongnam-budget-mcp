@@ -68,3 +68,7 @@ ChatGPT 리서치 호환 search(query) → fetch(id)를 추가했다. id/title/u
 - 의미 질의의 세출명세서 연결: 질의어가 원문에 없고 의미 유사 후보가 설명형 자료(성인지예산서 등)일 때 그 자료의 사업명 머리를 읽어 같은 연도 세출명세서를 키워드로 다시 찾는다. 유사도 기준은 경험적이며 질문과 사업의 대응은 추정으로 표시한다.
 - 요청 처리: UTF-8이 아닌 본문과 대체 문자가 든 검색어는 거부한다. 드문 토큰 가중치는 요청 사이에 재사용하며 상한은 8,192개다.
 - 검증: 정답셋 평가기(`scripts/evaluate-golden.mjs`)가 로컬 빌드 또는 `--base`로 지정한 서버를 같은 조건으로 판정한다. 버전 문자열은 `worker/policy.js`의 `VERSION`이 단일 출처다.
+- 여러 연도: `compareYears`가 연도별로 조회한다. 한 번에 최대 8개 연도이며 4개 이상이면 `compactEvidence`로 사업 행 주변만 남긴다. 편성 구분이 없으면 본예산으로 맞춘다.
+- 부서 묶음: 검증된 세출 사업 근거에서 세부사업명을 정하고(`rollupBusinessName`), `rollupAcrossDepartments`가 같은 편성 안에서 키워드로 후보(상한 40쪽)를 다시 모은다. `businessRow`가 사업명과 같은 행의 예산액·비교액·증감을 읽고 `businessRollup`이 전체본·부서별 PDF의 같은 행을 한 번만 세어 `rows[]`와 조건부 `calculated_total`을 만든다.
+- 분석 요청어(`isAnalytic`)는 키워드 검색어에서 제외한다.
+- 부서 개요: `departmentOverviewFor`가 부서 하나·연도 하나의 세출 질문에서 본예산과 수록된 추경 회차의 부서 머리말 쪽(상한 80쪽)을 읽고, `worker/department-overview.js`의 `departmentPageRows`가 들여쓰기 구조로 부서 합계 행과 세부사업 행을 읽는다. 편성별 합계와 상위 15개 사업, 추경 회차를 순서대로 반영한 계산값 `latest_amounts`를 만든다. "추경 포함" 표현은 `worker/policy.js`에서 본예산과 추경을 함께 조회하는 것으로 해석한다.

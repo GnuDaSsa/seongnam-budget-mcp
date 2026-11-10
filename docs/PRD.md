@@ -18,7 +18,7 @@
 | 중기지방재정 | https://www.seongnam.go.kr/cn03050202 | 메뉴가 연결한 공개 PDF |
 | 투자심사 | https://www.seongnam.go.kr/bbs03050203 | 전체 페이지·공개 첨부 |
 | 결산현황 | https://www.seongnam.go.kr/bbs030503 | 비교용 보조 자료 |
-| 재정공시 | https://www.seongnam.go.kr/pm03050101 | 다운로드 경로 /fnct/가 robots.txt 제외 대상. 자동수집 제외 사유 표시 |
+| 재정공시 | https://www.seongnam.go.kr/pm03050101 | 다운로드 경로 /fnct/가 robots.txt 제외 대상. 공시 근거(지방재정법 제60조)는 있으나 이번 범위에서 미수집. 사유 표시 |
 
 페이지 소스에 남은 /contents/down 경로는 실제 다운로드 주소가 아니다. 공식 portal-common.js가 지정하는 /humanframe/file/sncity/bgt/{year}/{filename} 변환을 적용한다. 게시판 첨부는 공식 atchFileDetail/getFile 인터페이스를 사용한다. 인증이 필요한 항목은 우회하지 않는다.
 
