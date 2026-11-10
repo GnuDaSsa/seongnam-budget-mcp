@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createEncoder,vectorSearch,rerank} from '../worker/semantic.js';
 const root=path.resolve('snapshot');
-const env={ASSETS:{async fetch(req){let p=path.resolve(root,'.'+new URL(req.url).pathname);if(!p.startsWith(root+path.sep))return new Response('',{status:403});try{return new Response(await readFile(p));}catch{return new Response('',{status:404});}}}};
+const env={ASSETS:{async fetch(req){let p=path.resolve(root,'.'+new URL(req.url).pathname);if(!p.startsWith(root+path.sep))return new Response('',{status:403});try{return new Response(await readFile(p));}catch{if(/^\/semantic\/tokens-\d+\.bin\.gz$/.test(new URL(req.url).pathname)){try{return new Response(await readFile(path.resolve('snapshot','.'+new URL(req.url).pathname)));}catch{}}return new Response('',{status:404});}}}};
 test('Korean tokenizer and quantized embedding match offline Python output',async()=>{
  const enc=await createEncoder(env),fixtures=JSON.parse(await readFile('tests/embedding-fixtures.json','utf8'));
  for(let f of fixtures){let ids=enc.tokenize(f.text);assert.deepEqual(ids,f.ids,f.text);await enc.ensure(ids);let v=enc.embed(ids),error=Math.max(...v.map((x,i)=>Math.abs(x-f.vector[i])));assert(error<1e-5,f.text+': '+error);}

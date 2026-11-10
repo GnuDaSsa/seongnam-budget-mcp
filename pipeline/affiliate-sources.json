@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "roster_source": "https://www.seongnam.go.kr/contents/down/financial_disclosure/2025/2025_1.pdf",
+  "roster_note": "2025년 성남시 재정공시 명부 기준 공사 1개 및 출연기관 7개. 현행 명부 완전성은 별도 확인 필요.",
+  "institutions": [
+    {"id":"isdc","name":"성남도시개발공사","aliases":["도시개발공사"],"source_page":"https://www.isdc.co.kr/gov/board/govBoardList.asp?HiddenBbsNo=75&GovId=33","hosts":["www.isdc.co.kr"],"status":"robots_disallowed","notes":"2026 본예산 XLSX 공개 확인. 다운로드가 robots.txt 제한 경로 /board/에 있어 자동수집 제외."},
+    {"id":"snip","name":"성남산업진흥원","aliases":["산업진흥원"],"source_page":"https://www.snip.or.kr/","hosts":["www.snip.or.kr"],"status":"robots_disallowed","notes":"robots.txt의 User-agent:* Disallow:/ 확인. 자동수집 제외."},
+    {"id":"snart","name":"성남문화재단","aliases":["문화재단"],"source_page":"https://www.snart.or.kr/","hosts":["www.snart.or.kr"],"status":"access_blocked","notes":"조회 시 웹 방화벽 제한. 접근 제한을 우회하지 않습니다."},
+    {"id":"snyouth","name":"성남시청소년청년재단","aliases":["성남시청소년재단","성남청소년재단","청소년청년재단","청소년재단"],"source_page":"https://www.snyouth.or.kr/fmcs/284","hosts":["www.snyouth.or.kr"],"status":"partial","notes":"2025·2026 본예산 총괄표, 2025 세입·세출 결산 상세. 연도별 완전 수집은 아님."},
+    {"id":"smr","name":"성남시상권활성화재단","aliases":["성남시 상권활성화재단","상권활성화재단"],"source_page":"https://smr.or.kr/base/main/view","hosts":["smr.or.kr","www.smr.or.kr"],"status":"connection_failed","notes":"2025·2026 예산 공시 게시글 확인, HTTPS 연결 실패로 첨부 자동수집 보류."},
+    {"id":"scmc","name":"성남시의료원","aliases":["성남의료원","의료원"],"source_page":"https://www.scmc.kr/useguide/PublicView/?seq=541","hosts":["www.scmc.kr"],"status":"partial","notes":"2026 예산(안) 및 2025 결산서(안)의 총괄 자료. 확정 세부 명세 전체 수집은 아님."},
+    {"id":"snri","name":"성남시정연구원","aliases":["시정연구원"],"source_page":"https://www.snri.re.kr/web/contents/SNRI10501000.do","hosts":["www.snri.re.kr"],"status":"connection_failed","notes":"경영공시 게시판 확인. HTTPS 연결 실패로 예산 첨부 자동수집 보류."},
+    {"id":"snjh","name":"성남시장학회","aliases":["성남시 장학회","장학회"],"source_page":"https://snjh.or.kr/EH2024n3/C05-bulletin.asp","hosts":["snjh.or.kr","www.snjh.or.kr"],"status":"robots_unavailable","notes":"2026 예산계획 1쪽 스캔 PDF 및 2025 외부회계감사보고서 공개 확인. robots.txt HTTP500으로 자동수집 보류, 예산계획은 OCR 필요."}
+  ],
+  "sources": [
+    {"institution_id":"snyouth","url":"https://www.snyouth.or.kr/File/Download/10ec5a08f3a4f3452b6f688dd558d60b","source_page":"https://www.snyouth.or.kr/fmcs/284","title":"2026년도 본예산 총괄표","year":2026,"budget_type":"본예산","detail_level":"budget_summary","document_stage":"published","filename":"snyouth-2026-budget-summary.pdf"},
+    {"institution_id":"snyouth","url":"https://www.snyouth.or.kr/File/Download/bcafa7c8a01ca8dd852070648a7c9e47","source_page":"https://www.snyouth.or.kr/fmcs/284","title":"2025년도 본예산 총괄표","year":2025,"budget_type":"본예산","detail_level":"budget_summary","document_stage":"published","filename":"snyouth-2025-budget-summary.pdf"},
+    {"institution_id":"snyouth","url":"https://www.snyouth.or.kr/File/Download/aa204484f891397cae9be6e8762b68a5","source_page":"https://www.snyouth.or.kr/fmcs/286","title":"2025년 세입예산결산서","year":2025,"budget_type":"결산","detail_level":"settlement_detail","document_stage":"published","filename":"snyouth-2025-revenue-settlement.pdf"},
+    {"institution_id":"snyouth","url":"https://www.snyouth.or.kr/File/Download/76ef5758388d83283075dc2dda1deea7","source_page":"https://www.snyouth.or.kr/fmcs/286","title":"2025년 세출예산결산서","year":2025,"budget_type":"결산","detail_level":"settlement_detail","document_stage":"published","filename":"snyouth-2025-expenditure-settlement.pdf"},
+    {"institution_id":"scmc","url":"https://www.scmc.kr/useguide/Public/download/?idx=1&seq=541","source_page":"https://www.scmc.kr/useguide/PublicView/?seq=541","title":"2026년 예산(안) 설명자료","year":2026,"budget_type":"본예산","detail_level":"budget_summary","document_stage":"proposal","filename":"scmc-2026-budget-proposal.pdf"},
+    {"institution_id":"scmc","url":"https://www.scmc.kr/useguide/Public/download/?seq=561&idx=1","source_page":"https://www.scmc.kr/useguide/PublicView/?seq=561","title":"2025회계연도 결산서(안) 총괄","year":2025,"budget_type":"결산","detail_level":"settlement_summary","document_stage":"proposal","filename":"scmc-2025-settlement-proposal.pdf","expected_sha256":"7c88845e6bd53f32a89c3529c2503728b1b10f2b2ae815be2347af89b3cf4256"}
+  ]
+}

@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import worker from '../dist/server/index.js';
 import {exactPhraseHit} from '../worker/retrieval-phrases.js';
 const root=path.resolve('dist/client');
-const env={ASSETS:{async fetch(req){let p=path.resolve(root,'.'+new URL(req.url).pathname);if(!p.startsWith(root+path.sep))return new Response('',{status:403});try{return new Response(await readFile(p));}catch{return new Response('',{status:404});}}}};
+const env={ASSETS:{async fetch(req){let p=path.resolve(root,'.'+new URL(req.url).pathname);if(!p.startsWith(root+path.sep))return new Response('',{status:403});try{return new Response(await readFile(p));}catch{if(/^\/semantic\/tokens-\d+\.bin\.gz$/.test(new URL(req.url).pathname)){try{return new Response(await readFile(path.resolve('snapshot','.'+new URL(req.url).pathname)));}catch{}}return new Response('',{status:404});}}}};
 test('unqualified public queries are 2026 and total table bypasses vector work',async()=>{
  const {data:r,status}=await get('/api/research?query='+encodeURIComponent('성남시 예산 얼마야?'));
  assert.equal(status,200);assert.equal(r.filters.year,2026);assert.equal(r.query_interpretation.year_basis,'default');
@@ -25,6 +25,33 @@ test('unqualified public queries are 2026 and total table bypasses vector work',
 });
 async function get(route){let r=await worker.fetch(new Request('https://test.local'+route),env);return{status:r.status,data:await r.json()};}
 async function rpc(method,params){let r=await worker.fetch(new Request('https://test.local/mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})}),env);return r.json();}
+
+test('affiliate search requires explicit question scope across modes and wrappers',async()=>{
+ const catalog=JSON.parse(await readFile('snapshot/affiliates/catalog.json','utf8')),doc=catalog.documents.find(d=>d.year===2026);
+ assert(doc,'published sidecar has verified 2026 evidence');
+ const query=doc.institution_name+' 예산';
+ for(const mode of ['lexical','hybrid','vector']){
+  const expanded=await get('/api/search?'+new URLSearchParams({query,mode,limit:4}));assert.equal(expanded.status,200);
+  const hits=expanded.data.results;assert(hits.some(h=>h.source_scope==='affiliate'));
+  assert(hits.filter(h=>h.source_scope==='affiliate').every(h=>h.institution_id===doc.institution_id));
+  const firstAffiliate=hits.findIndex(h=>h.source_scope==='affiliate');assert(hits.slice(firstAffiliate).every(h=>h.source_scope==='affiliate'));
+  assert.equal(expanded.data.retrieval.affiliate_search.vectorized,false);
+ }
+ let affiliateReads=0;const observed={ASSETS:{fetch:async req=>{if(new URL(req.url).pathname.startsWith('/affiliates/'))affiliateReads++;return env.ASSETS.fetch(req);}}};
+ const plain=await worker.fetch(new Request('https://test.local/api/search?'+new URLSearchParams({query:'청소년 예산',mode:'lexical'})),observed);
+ const city=await plain.json();assert.equal(plain.status,200);assert(city.results.every(h=>h.source_scope==='municipal'));assert.equal(affiliateReads,0);
+ const excluded=await get('/api/search?'+new URLSearchParams({query:'산하기관 제외하고 청소년 예산',mode:'lexical'}));assert(excluded.data.results.every(h=>h.source_scope==='municipal'));
+ const list=await get('/api/documents?'+new URLSearchParams({query}));assert(list.data.documents.some(d=>d.source_scope==='affiliate'));assert(list.data.documents.filter(d=>d.source_scope==='affiliate').every(d=>d.institution_id===doc.institution_id));
+ for(const name of ['budget_research','build_rag_context']){
+  const r=(await rpc('tools/call',{name,arguments:{query}})).result;assert.equal(r.isError,false);assert(r.structuredContent.evidence.some(e=>e.source_scope==='affiliate'));
+ }
+ const found=(await rpc('tools/call',{name:'search',arguments:{query}})).result.structuredContent.results;
+ const affiliateHit=found.find(h=>catalog.documents.some(d=>h.id.startsWith(d.id+':')));assert(affiliateHit);
+ const fetched=(await rpc('tools/call',{name:'fetch',arguments:{id:affiliateHit.id}})).result.structuredContent;assert.equal(fetched.metadata.source_scope,'affiliate');assert(fetched.metadata.institution_name);
+ const total=await get('/api/research?'+new URLSearchParams({query:'산하기관 포함한 전체 예산 합계'}));assert.equal(total.status,200);assert.equal(total.data.answer_card,undefined);assert.match(total.data.answer_policy,/합산하지/);
+ const unavailable=catalog.institutions.find(i=>!catalog.documents.some(d=>d.institution_id===i.id));
+ if(unavailable){const r=await get('/api/research?'+new URLSearchParams({query:unavailable.name+' 예산',mode:'lexical'}));assert.equal(r.status,200);const coverage=r.data.coverage.requested_affiliates.institutions.find(i=>i.id===unavailable.id);assert.equal(coverage.matching_documents,0);assert.match(coverage.notice,/기관 자체 자료가 색인에 없습니다/);const legacy=(await rpc('tools/call',{name:'build_rag_context',arguments:{query:unavailable.name+' 예산',mode:'lexical'}})).result.structuredContent;assert.equal(legacy.coverage.requested_affiliates.institutions.find(i=>i.id===unavailable.id).matching_documents,0);}
+});
 test('collection totals expose incomplete coverage',async()=>{let {data:s}=await get('/api/status');assert.equal(s.whole_city_coverage_complete,false);assert.equal(s.documents,Object.values(s.status_counts).reduce((a,b)=>a+b,0));assert(s.snapshot_pages>0);});
 test('document inventory does not inherit the default expenditure search preference',async()=>{
  const catalog=JSON.parse(await readFile('snapshot/catalog.json','utf8')),{data:r}=await get('/api/documents?year=2026&limit=20');

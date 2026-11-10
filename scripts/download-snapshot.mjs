@@ -6,7 +6,7 @@ const digest=b=>createHash('sha256').update(b).digest('hex');
 const checkOnly=process.argv.includes('--check');
 let cursor=0,downloaded=0,verified=0;
 async function run(){while(cursor<manifest.files.length){const f=manifest.files[cursor++];
- if(!/^(corpus|semantic)\/[a-zA-Z0-9_.-]+$/.test(f.path))throw Error('Invalid asset path');
+ if(!/^(?:(?:corpus|semantic)\/[a-zA-Z0-9_.-]+|affiliates\/[a-f0-9]{20}\.json\.gz)$/.test(f.path))throw Error('Invalid asset path');
  const target=path.resolve('snapshot',f.path);let current;try{current=await readFile(target);}catch{}
  if(current&&current.length===f.bytes&&digest(current)===f.sha256){verified++;continue;}
  if(checkOnly)throw Error('Missing or mismatched asset: '+f.path);

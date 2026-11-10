@@ -1,6 +1,7 @@
 // Versioned, deterministic query policy. No model, network, or wall-clock defaults.
-export const POLICY={version:'2026-11-09.2',default_year:2026,max_comparison_years:3};
+export const POLICY={version:'2026-11-10.1',default_year:2026,max_comparison_years:3};
 export const SERVER_RULES=[
+ '기본 검색은 성남시청 공개자료만 대상으로 합니다. 산하기관·출자출연기관 포함을 명시하거나 기관명을 질문한 경우에만 해당 기관 자체 자료를 함께 검색하고 성남시 자료를 먼저 보여줍니다. 제외·시청 자료만 요청은 우선합니다. 각 근거의 source_scope·institution_name·detail_level·document_stage를 확인하세요. 총괄표만 있는 기관의 사업별 세부 예산을 추정하지 않습니다. 예산안(proposal)은 확정 예산으로 표현하지 않습니다. 시 출연금·위탁사업비와 기관 수입·지출은 중복될 수 있으므로 합산하지 않습니다.',
  '성남시 공개 예산 검색 서버. 연도를 말하지 않으면 2026년 기준이며 답변 첫머리에 적용 연도를 명시합니다. 명시한 연도·범위는 우선합니다. 전체/역대 연도 요청은 year_scope=all입니다.',
  '일반 질문은 budget_research 한 번으로 시작합니다. 총예산은 원문 표 직접 조회, 사업 질문은 키워드·벡터 검색과 리랭킹을 수행합니다. 여러 연도 비교는 최대 3개 연도를 서버 안에서 각각 검색합니다.',
  'answer_card 또는 evidence에 필요한 근거가 있으면 바로 답합니다. 동일 의미로 반복 검색하거나 수집현황부터 조회하지 않습니다. 근거가 부족한 경우에만 명칭을 좁혀 한 번 재검색하거나 원문 전문을 확인합니다.',

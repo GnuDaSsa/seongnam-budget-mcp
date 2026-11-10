@@ -5042,6 +5042,36 @@
       "path": "semantic/vocab.bin.gz",
       "bytes": 4685154,
       "sha256": "e02db794c8fba747f7067652c596e6972f07b19ea092c3386af0df719de95e07"
+    },
+    {
+      "path": "affiliates/a5207b24db639bf1c074.json.gz",
+      "bytes": 1088,
+      "sha256": "a6caa49048a31706051249ca2ffd24dfe1261fe984363acc871b722a4454dc4c"
+    },
+    {
+      "path": "affiliates/126904c8a9e5a9bf3e68.json.gz",
+      "bytes": 1048,
+      "sha256": "b4c29881f34438183bc754a5575ae14343074b72c07600b46095e1911a46c8a6"
+    },
+    {
+      "path": "affiliates/78751bb7e20f20d6816d.json.gz",
+      "bytes": 6617,
+      "sha256": "d0a4d01a48b4875f3eacfed93ae4387fec786e9e00c946960168f89a0fbc1672"
+    },
+    {
+      "path": "affiliates/404233334b024bdf3b51.json.gz",
+      "bytes": 58466,
+      "sha256": "1c04dd65dd9e654218f35718dead1a5a688541fb530c6482466bd65ddf5e5f96"
+    },
+    {
+      "path": "affiliates/16121b0b792188c035f6.json.gz",
+      "bytes": 1428,
+      "sha256": "330e5b5548194c77410f447ca70ab2f1618547b891428d874dfbcd092bf01a77"
+    },
+    {
+      "path": "affiliates/409635de5e9c3d9c2221.json.gz",
+      "bytes": 1673,
+      "sha256": "4037af49240e1eb1199c27dbf33639218e02e600c622fc75a58ecf67f42cf894"
     }
   ]
 }
