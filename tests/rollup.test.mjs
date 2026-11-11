@@ -278,3 +278,100 @@ test('빌드 worker: 수정구보다 분당구가 얼마나 많은지 묻는 반
     ['분당구사회복지과', 83191907],
   ]);
 });
+
+// 세목 묶음 회귀: 빌드 worker 기준. 이름이 정확히 같은 사업만 묶고, 합계는 요청된 경우에만 계산한다.
+// 금액 필드(amount 또는 amounts.budget)와 쪽 번호(page 또는 source_page)를 분석 결과 안에서 찾는다.
+const amountOf = o => (typeof o.amount === 'number' ? o.amount : typeof o.amounts?.budget === 'number' ? o.amounts.budget : null);
+const pageOf = o => o.page ?? o.source_page ?? null;
+function findAmountRows(node, out = []) {
+  if (Array.isArray(node)) node.forEach(x => findAmountRows(x, out));
+  else if (node && typeof node === 'object') {
+    if (amountOf(node) !== null) out.push(node);
+    Object.values(node).forEach(v => findAmountRows(v, out));
+  }
+  return out;
+}
+function findNamedRows(node, name) {
+  const seen = new Set();
+  return findAmountRows(node).filter(o => Object.values(o).includes(name) && !seen.has(o) && seen.add(o));
+}
+const INCOMPLETE_RE = /확인되지|확인할 수 없|불완전|누락|미확인|일부만|부분/;
+const COMPLETE_CLAIM_RE = /모두 확인|전부 확인|완전한 합계|누락 없이|빠짐없이/;
+const SUM_JSON_FORMS = ['30682621', '30,682,621'];
+
+test('세목 회귀 1: 아동수당지급과 아동수당지급(자체)는 각각 따로 보거나, 불완전하다고 명시하고 합산하지 않는다', async () => {
+  const r = await research('2026년 분당구 가정복지과 일반회계 본예산에서 아동수당지급과 아동수당지급(자체)의 예산을 각각 알려줘.');
+  const a = r.analysis;
+  const serialized = JSON.stringify(a);
+  for (const form of SUM_JSON_FORMS) assert.equal(serialized.includes(form), false, '합산값 미노출: ' + form);
+  assert.ok(!a?.calculated_total || a.calculated_total.amount !== 30682621, '합계 계산 금지');
+
+  const plain = findNamedRows(a, '아동수당지급').filter(o => amountOf(o) === 25154525);
+  const self = findNamedRows(a, '아동수당지급(자체)').filter(o => amountOf(o) === 5528096);
+  assert.ok(plain.length > 0 && self.length > 0, '두 사업의 원문 행을 각각 반환');
+  assert.equal(pageOf(plain[0]), 1309);
+  assert.equal(pageOf(self[0]), 1310);
+  assert.equal(a.calculated_total ?? null, null, '요청되지 않은 합계 없음');
+});
+
+test('세목 회귀 2: 스마트그린 안전쉼터 구별 금액은 8,000,000 천원 합계 또는 불완전 명시이며 구는 부서가 아니다', async () => {
+  const r = await research('2026년 스마트도시과 일반회계 본예산 스마트그린 안전쉼터 조성사업의 수정구 중원구 분당구별 금액과 합계는?');
+  const a = r.analysis;
+  const districts = ['수정구', '중원구', '분당구'];
+
+  // 구 이름이 부서로 분류되지 않는다.
+  const deptScope = r.query_interpretation?.department_scope?.names ?? [];
+  for (const d of districts) assert.equal(deptScope.some(n => n === d || n === d + '사회복지과' || n === d + '청'), false, '구가 부서 범위로 쓰임: ' + d);
+  for (const row of findAmountRows(a)) {
+    if (typeof row.department === 'string') assert.equal(districts.includes(row.department), false, '구가 department 필드로 쓰임');
+  }
+
+  // 유지관리 행은 구축 금액으로 쓰지 않는다.
+  const expected = [[1800000, '수정구'], [1600000, '중원구'], [2300000, '분당']];
+  for (const [amount, label] of expected) {
+    for (const row of findAmountRows(a).filter(o => amountOf(o) === amount)) {
+      assert.equal(JSON.stringify(row).includes('유지관리'), false, amount + ' 행이 유지관리 행으로 섞임');
+      if (label !== '분당') assert.ok(JSON.stringify(row).includes(label), label + ' 행 식별');
+    }
+  }
+
+  if (a?.calculated_total) {
+    assert.equal(a.calculated_total.amount, 8000000, '합계는 8,000,000 천원');
+    const north = findAmountRows(a).filter(o => amountOf(o) === 2300000);
+    assert.ok(north.length >= 2, '분당 2개 행(2,300,000 두 개)이 별도로 있어야 함');
+    for (const amount of [1800000, 1600000]) assert.ok(findAmountRows(a).some(o => amountOf(o) === amount), amount + ' 행 존재');
+    for (const row of findAmountRows(a).filter(o => [1800000, 1600000, 2300000].includes(amountOf(o)))) {
+      assert.notEqual(pageOf(row), null, '행마다 원문 쪽 번호');
+    }
+  } else {
+    // 합계를 주지 않는 경우: 불완전 명시, 후보 행 제시, 완전성 주장 금지
+    assert.match(r.next_action ?? '', INCOMPLETE_RE, '합계 불완전 명시');
+    assert.equal(COMPLETE_CLAIM_RE.test(r.next_action ?? ''), false, '완전성 주장 금지');
+    assert.ok(findAmountRows(a).length > 0, '후보 행 제시');
+  }
+  assert.equal(JSON.stringify(a).includes('유지관리'), false, '유지관리 행이 분석 결과에 섞이지 않음');
+});
+
+test('세목 음성 1: 자료에 없는 사업명은 어떤 사업과도 매칭되지 않고 검증되지 않는다', async () => {
+  const r = await research('2026년 스마트도시과 일반회계 본예산 달나라 우주정거장 조성사업 예산은?');
+  assert.notEqual(r.match_quality?.level, 'verified');
+  assert.equal(r.verification_status?.business, 'not_verified');
+  assert.equal(r.analysis?.calculated_total ?? null, null, '계산 합계 없음');
+  assert.equal(JSON.stringify(r.analysis ?? {}).includes('스마트그린'), false, '무관한 스마트그린 사업으로 대체되지 않음');
+});
+
+test('세목 음성 2: 정확한 이름이 아닌 부분 문자열로 다른 세목 행을 가져오지 않는다', async () => {
+  const r = await research('2026년 분당구 가정복지과 일반회계 본예산에서 아동수당지급(자체) 예산만 알려줘.');
+  const a = r.analysis;
+  const self = findNamedRows(a, '아동수당지급(자체)');
+  // '(자체)' 요청에 정확한 이름이 다른 '아동수당지급' 금액(25,154,525)이 답으로 붙으면 안 된다.
+  assert.equal(self.some(o => amountOf(o) === 25154525), false, '(자체) 요청에 아동수당지급 금액이 붙음');
+  const serialized = JSON.stringify(a ?? {});
+  for (const form of SUM_JSON_FORMS) assert.equal(serialized.includes(form), false, '합계 미요청: ' + form);
+});
+
+test('세목 음성 3: 합계를 요청하지 않은 구별 질문은 합계를 계산하지 않는다', async () => {
+  const r = await research('2026년 스마트도시과 일반회계 본예산 스마트그린 안전쉼터 조성사업의 수정구 금액만 알려줘.');
+  assert.equal(r.analysis?.calculated_total ?? null, null, '요청하지 않은 합계 계산 금지');
+  assert.equal(JSON.stringify(r.analysis ?? {}).includes('8000000') || JSON.stringify(r.analysis ?? {}).includes('8,000,000'), false, '8,000,000 합계 미노출');
+});

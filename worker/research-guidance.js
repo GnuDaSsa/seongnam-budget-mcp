@@ -34,6 +34,8 @@ export function researchGuidance(query, overview, quality, analysis = null) {
       note += 'analysis가 완료되지 않았습니다(status: ' + analysis.status + '). analysis.reason과 누락 범위를 밝히고 미확인 값이나 합계를 확정하지 마세요. ';
     }
     if (analysis.kind === 'department_difference') note += analysed ? 'analysis.difference는 차액입니다. 합계가 아니므로 두 부서 금액을 더하지 말고 피연산자·단위·방향(signed_difference 또는 absolute_difference)을 라벨과 함께 제시하세요. ' : '차액이 계산되지 않았습니다. 합계나 임의 금액으로 대체하지 마세요. ';
+    if (analysis.match_kind === 'district_groups') note += 'analysis.rows의 구 구분은 부서가 아니라 원문 세부사업명에 적힌 지역 구분이며 담당 부서는 analysis.department입니다. 같은 구의 행이 여러 개면 행별 금액과 원문 쪽을 따로 제시하고, 합계는 analysis.calculated_total이 있을 때만 계산값으로 표시하세요. ';
+    if (analysis.match_kind === 'named_items') note += 'analysis.items는 질문에 적힌 정확한 사업명별 행입니다. 사업별 금액과 원문 쪽을 따로 제시하고 요청하지 않은 합계를 만들지 마세요. 이름이 비슷한 다른 행(괄호 표기 포함)으로 대체하지 마세요. ';
     if (analysis.notices?.length) note += analysis.notices.join(' ') + ' ';
   }
   if (ranking && analysis?.kind === 'ranking' && analysis.status === 'partial_scope') {

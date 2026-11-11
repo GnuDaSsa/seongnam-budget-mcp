@@ -197,8 +197,26 @@ function contentWords(question, departmentNames) {
     .filter(t => t.length >= 2 && !STOP_WORDS.has(t));
 }
 
-// question 안에서 세부사업 이름을 찾는다. 이름이 질문에 들어 있으면(가장 긴 이름 우선) 또는 질문의 내용어가 모두 이름에 들어 있으면 일치.
-export function matchBusiness(rows = [], question = '', departments = null) {
+// 질문에서 이름이 "단독으로" 나온 세부사업만 고른다. 정확한 이름 비교이며 괄호 표기도 이름의 일부다.
+// - 더 긴 이름의 일부로만 나온 짧은 이름은 제외한다("아동수당지급(자체)" 안의 "아동수당지급").
+// - 이름 바로 뒤에 괄호가 이어지면 그 괄호까지가 이름이므로 괄호 없는 이름으로 보지 않는다.
+function standaloneNames(q, keys) {
+  const occurrences = [];
+  for (const key of keys) {
+    if (key.length < 2) continue;
+    for (let at = q.indexOf(key); at >= 0; at = q.indexOf(key, at + 1)) occurrences.push({ key, start: at, end: at + key.length });
+  }
+  const free = occurrences.filter(o => !/[(（]/.test(q[o.end] ?? '')
+    && !occurrences.some(p => p.key !== o.key && p.start <= o.start && p.end >= o.end && p.end - p.start > o.end - o.start));
+  return [...new Set(free.map(o => o.key))];
+}
+
+const EACH_WORDS = /각각|따로|개별|하나씩/;
+export const eachRequested = question => EACH_WORDS.test(String(question ?? ''));
+
+// question 안에서 세부사업 이름을 찾는다. 이름이 질문에 단독으로 들어 있으면(가장 긴 이름 우선) 또는 질문의 내용어가 모두 이름에 들어 있으면 일치.
+// allowMulti이고 질문이 "각각"을 요청하며 서로 다른 정확한 이름이 둘 이상이면 status 'multi_matched'와 이름별 groups를 낸다(합산하지 않음).
+export function matchBusiness(rows = [], question = '', departments = null, { allowMulti = false } = {}) {
   const wanted = departments?.length ? new Set(departments.map(norm)) : null;
   const businessRows = rows.filter(r => r.level === 'business' && r.business && (!wanted || wanted.has(norm(r.department))));
   const byName = new Map();
@@ -214,8 +232,17 @@ export function matchBusiness(rows = [], question = '', departments = null) {
     return { status: 'ambiguous', rows: [], candidates: candidatesOf(names), basis };
   };
   // 1) 정규화한 이름이 질문의 부분 문자열인 경우(가장 긴 이름 우선).
-  const contained = [...byName.keys()].filter(k => k.length >= 2 && q.includes(k));
+  const contained = standaloneNames(q, [...byName.keys()]);
   if (contained.length) {
+    if (allowMulti && contained.length > 1 && eachRequested(question)) {
+      const ordered = [...contained].sort((x, y) => q.indexOf(x) - q.indexOf(y));
+      return {
+        status: 'multi_matched', basis: 'question_contains_names', candidates: candidatesOf(ordered),
+        groups: ordered.map(k => ({ name: byName.get(k)[0].business, rows: byName.get(k) })),
+        rows: ordered.flatMap(k => byName.get(k)),
+      };
+    }
+    if (contained.length > 1) return decide(contained, 'multiple_explicit_names');
     const longest = Math.max(...contained.map(k => k.length));
     return decide(contained.filter(k => k.length === longest), 'question_contains_name');
   }
@@ -227,6 +254,121 @@ export function matchBusiness(rows = [], question = '', departments = null) {
     if (hits.length) return decide(hits, 'all_content_words');
   }
   return { status: 'no_name_match', rows: [], candidates: [], basis: null, note: '질문과 일치하는 세부사업 이름이 수록 행에 없습니다. 0원이 아니라 일치하는 행을 찾지 못한 것입니다.' };
+}
+
+// ── 질문 낱말 보조(부서명 제거, 이름에 쓰인 낱말 분리) ─────────────
+
+const EXTRA_STOP = new Set(['일반회계', '기타특별회계', '구별', '별', '지역별', '알려주세요', '알려줘요', '보여주세요', '얼마인가요', '얼마야', '얼마예요', '확인해줘', '부탁해', '계산해줘', '얼마입니까']);
+const DISTRICT_NAMES = ['수정구', '중원구', '분당구'];
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const isGeneric = w => STOP_WORDS.has(w) || EXTRA_STOP.has(w);
+const baseWord = t => (t.length > 2 ? t.replace(PARTICLE, '') : t);
+const tokenize = text => String(text ?? '').normalize('NFKC').split(/[\s,·、/]+/).map(t => t.replace(/[?.!"'“”‘’]/g, '')).filter(Boolean);
+const yearLike = t => /^\d+(?:년도|년|회)?$/.test(t);
+
+// 질문에서 부서명(공백 무시)을 지운다. "분당구 가정복지과"의 구는 부서명의 일부이므로 지역 구분으로 읽지 않기 위해서다.
+export function stripDepartments(text, departments = []) {
+  let t = String(text ?? '').normalize('NFKC');
+  for (const d of departments ?? []) {
+    const chars = Array.from(String(d ?? '').normalize('NFKC').replace(/\s+/g, ''));
+    if (chars.length) t = t.replace(new RegExp(chars.map(escapeRe).join('\\s*'), 'g'), ' ');
+  }
+  return t;
+}
+
+// 사업명 후보 낱말: 연도·부서·구 이름·일반어·회계 표기를 뺀 나머지. 낱말은 줄이거나 바꾸지 않는다(조사만 제거).
+function coreWords(question, departments) {
+  const stripped = stripDepartments(question, departments);
+  return [...new Set(tokenize(stripped)
+    .map(t => t.replace(/(?:수정구|중원구|분당구)(?:별|의|는|은|가|이|를|을|와|과|도|만)?/g, ''))
+    .filter(t => t && !yearLike(t))
+    .map(baseWord)
+    .filter(t => t.length >= 2 && !isGeneric(t)))];
+}
+
+// 사업명에 원문 그대로 적힌 구. 전체 이름(수정구·중원구·분당구)이나 괄호가 수정·중원·분당으로 시작하는 표기만 인정한다.
+export function districtsOfName(name) {
+  const text = String(name ?? '').normalize('NFKC');
+  const found = new Set(DISTRICT_NAMES.filter(d => text.includes(d)));
+  for (const m of text.matchAll(/\(\s*(수정|중원|분당)/g)) found.add(m[1] + '구');
+  return DISTRICT_NAMES.filter(d => found.has(d));
+}
+
+// 질문의 사업명 낱말 중 정확한 이름(names)으로 설명되지 않는 나머지. "각각" 질문에서 일부 사업만 찾았는데 완료로 보이는 것을 막는다.
+export function unmatchedTerms(question, departments = [], names = []) {
+  const keys = names.map(n => norm(String(n ?? '').normalize('NFKC'))).filter(Boolean).sort((x, y) => y.length - x.length);
+  const left = [];
+  for (const token of tokenize(stripDepartments(question, departments))) {
+    let rest = norm(token);
+    for (const key of keys) rest = rest.split(key).join('');
+    if (!rest || yearLike(rest)) continue;
+    rest = baseWord(rest);
+    if (rest.length >= 2 && !isGeneric(rest)) left.push(rest);
+  }
+  return [...new Set(left)];
+}
+
+// ── 구별(지역 구분) 묶음 ───────────────────────────────────
+// 부서가 하나로 정해진 질문에서 "수정구 중원구 분당구별"은 부서가 아니라 사업명에 명시된 지역 구분이다.
+// 같은 부서의 세부사업 중 질문의 사업명 낱말을 모두 포함하는 행만 후보로 삼고, 이름에 구가 적힌 행만 그 구에 넣는다.
+// 합계는 sumRequested이고 아래가 모두 확인될 때만 낸다: 모든 요청 구에 행 존재, 구 미표기·다중 구 후보 없음, 이름 낱말 전부 일치,
+// 열·단위·범위 검증, 해당 부서의 세부사업 합계가 부서 인쇄 총액과 일치.
+const ACTIVITY_TERMS = ['유지보수', '유지관리', '운영', '관리', '보수'];
+
+export function matchDistrictGroups(rows = [], question = '', departments = [], { sumRequested = false } = {}) {
+  const deps = departments ?? [];
+  const requested = [...new Set(stripDepartments(question, deps).match(/수정구|중원구|분당구/g) ?? [])];
+  if (!requested.length || deps.length !== 1) return null;
+  const core = coreWords(question, deps);
+  if (!core.length) return null;
+  const dept = norm(deps[0]);
+  const pool = rows.filter(r => r.level === 'business' && r.business && norm(r.department) === dept);
+  const hasAll = (name, words) => words.every(w => name.includes(norm(w)));
+  let basis = 'all_core_words';
+  let candidates = pool.filter(r => hasAll(norm(r.business), core));
+  if (!candidates.length) {
+    const relaxed = core.map(w => (w.length > 3 && w.endsWith('사업') ? w.slice(0, -2) : w));
+    if (relaxed.some((w, i) => w !== core[i])) {
+      candidates = pool.filter(r => hasAll(norm(r.business), relaxed));
+      basis = 'core_words_without_generic_suffix';
+    }
+  }
+  if (!candidates.some(r => districtsOfName(r.business).length)) return null;
+
+  // 질문에 없는 활동(운영·보수 등)이 이름에 붙은 행은 질문한 사업과 다른 사업이다.
+  const qn = norm(question);
+  const kept = candidates.filter(r => !ACTIVITY_TERMS.some(t => norm(r.business).includes(t) && !qn.includes(t)));
+  const excluded_other_activity_rows = candidates.length - kept.length;
+  const order = (a, b) => (a.page - b.page) || (a.source_line - b.source_line);
+  const groups = requested.map(group => ({ group, rows: kept.filter(r => { const ds = districtsOfName(r.business); return ds.length === 1 && ds[0] === group; }).sort(order) }));
+  const unassigned = kept.filter(r => districtsOfName(r.business).length !== 1).sort(order);
+  const listed = groups.flatMap(g => g.rows);
+
+  const reasons = [];
+  if (excluded_other_activity_rows) reasons.push('질문과 활동명이 다른 후보 행을 제외해 범위가 완전한지 확정하지 않았습니다.');
+  const missing = groups.filter(g => !g.rows.length).map(g => g.group);
+  if (missing.length) reasons.push(missing.join('·') + ' 구분이 이름에 적힌 행을 찾지 못했습니다.');
+  if (unassigned.length) reasons.push('이름에 구가 적히지 않았거나 여러 구가 섞인 후보 행 ' + unassigned.length + '개가 있어 구별 귀속을 확정하지 않았습니다.');
+  if (basis !== 'all_core_words') reasons.push('질문의 사업명 낱말과 이름이 일부만 일치해(조성사업 ↔ 조성 등) 같은 사업으로 확정하지 않았습니다.');
+  if (listed.length) {
+    if (!listed.every(r => r.columns_verified === true && Number.isSafeInteger(r.amounts?.budget))) reasons.push('열이 검증되지 않았거나 금액을 읽지 못한 행이 있습니다.');
+    if (new Set(listed.map(r => r.amount_unit ?? UNIT)).size > 1) reasons.push('행의 금액 단위가 서로 달라 합치지 않았습니다.');
+    if (new Set(listed.map(r => JSON.stringify([scopeKey(r), r.document_id ?? null]))).size > 1) reasons.push('연도·편성·회계 또는 문서가 섞여 있습니다.');
+    const same = listed[0];
+    const rec = reconcileStatement(rows.filter(r => scopeKey(r) === scopeKey(same))).departments.find(d => norm(d.department) === dept && d.account === same.account);
+    if (!rec?.reconciled) reasons.push('해당 부서의 세부사업 합계와 부서 인쇄 총액이 맞지 않아 후보 행이 빠짐없이 수록됐는지 확정하지 않았습니다.');
+  }
+  const complete = reasons.length === 0 && listed.length > 0;
+  let calculated_total = null;
+  const subtotals = {};
+  if (sumRequested && complete) {
+    for (const g of groups) subtotals[g.group] = g.rows.reduce((n, r) => n + r.amounts.budget, 0);
+    calculated_total = { amount: listed.reduce((n, r) => n + r.amounts.budget, 0), unit: listed[0].amount_unit ?? UNIT, calculated: true };
+  }
+  return {
+    basis, core_words: core, requested_groups: requested, groups, unassigned_rows: unassigned,
+    excluded_other_activity_rows, reasons, complete, sum_requested: !!sumRequested, subtotals, calculated_total,
+  };
 }
 
 // ── 부서별 합계 ─────────────────────────────────────────────

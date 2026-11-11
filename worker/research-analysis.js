@@ -2,7 +2,7 @@
 // 순위·부서 합계·편성 비교·재원·사업 확인을 계산한다. 입출력(loadRows)은 호출자가 주입한다.
 // 검증되지 않은 범위는 complete로 표시하지 않고 미확인을 0원으로 바꾸지 않는다.
 import { detectAnalyticIntent, detectDifferenceIntent, differenceOperands } from './analytic-intent.js';
-import { rankRows, matchBusiness, sumAcrossDepartments, differenceAcrossDepartments, compareEditionRows, fundingBreakdown } from './analysis.js';
+import { rankRows, matchBusiness, matchDistrictGroups, unmatchedTerms, eachRequested, sumAcrossDepartments, differenceAcrossDepartments, compareEditionRows, fundingBreakdown } from './analysis.js';
 import { reconcileStatement } from './statement-rows.js';
 import { retrievalWords } from './retrieval-phrases.js';
 
@@ -235,7 +235,60 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
     return finish('department_not_in_statement', { reason: department + ' 행을 ' + (revisionOnly ? a.revision + '회 추경' : a.year + '년 본예산') + ' 세출명세서에서 찾지 못했습니다. 부서명 변경을 추정하지 않으며 사업 부재나 0원으로 해석하지 마세요.' });
   }
   const deptRows = found.rows.filter(r => norm(r.department) === norm(department));
-  const match = matchBusiness(found.rows, a.query, [department]);
+  // 구별 묶음: "수정구 중원구 분당구별"은 부서가 아니라 사업명에 적힌 지역 구분이다(부서명에 든 구는 제외). 차액 질문은 이 경로를 쓰지 않는다.
+  if (kind === 'business_lookup' && !diffWords.difference) {
+    const g = matchDistrictGroups(found.rows, a.query, [department], { sumRequested: diffWords.sum });
+    if (g) {
+      const listed = [...g.groups.flatMap(x => x.rows.map(r => ({ r, group: x.group }))), ...g.unassigned_rows.map(r => ({ r, group: null }))];
+      const status = !g.complete ? 'incomplete' : g.calculated_total ? 'calculated' : 'matched';
+      return finish(status, {
+        reason: g.complete ? null : g.reasons.join(' ') + ' 확인된 후보 행만 나열하며 합계나 누락 구분의 금액을 만들지 않았습니다.',
+        match_kind: 'district_groups', business: null, department,
+        geographic_groups_are_not_departments: true,
+        requested_groups: g.requested_groups, business_query_words: g.core_words, name_match_basis: g.basis,
+        groups: g.groups.map(x => ({ group: x.group, row_count: x.rows.length, status: x.rows.length ? 'rows_listed' : 'not_found', subtotal: g.calculated_total ? { amount: g.subtotals[x.group], unit: g.calculated_total.unit, calculated: true } : null })),
+        rows: listed.map(({ r, group }) => ({ ...view(r), group })),
+        unassigned_row_count: g.unassigned_rows.length,
+        excluded_other_activity_rows: g.excluded_other_activity_rows,
+        calculated_total: g.calculated_total, total: null,
+        scope: { year: a.year, edition: editionLabel(found.doc), account_group: found.doc.account_group, document_id: found.doc.document_id, unit: listed[0]?.r.amount_unit ?? '천원' },
+        note: '구 이름은 부서가 아니라 원문 세부사업명에 적힌 지역 구분이며 담당 부서는 ' + department + '입니다. 같은 구의 행이 여러 개면 별도 행으로 나열합니다. '
+          + (g.calculated_total ? '합계는 구 이름이 명시된 모든 행과 부서 총액 대조를 확인한 계산값입니다.' : g.sum_requested ? '합계는 확인되지 않아 계산하지 않았습니다.' : '합계를 요청하지 않아 계산하지 않았습니다.'),
+      }, listed.map(x => x.r));
+    }
+  }
+
+  const match = matchBusiness(found.rows, a.query, [department], { allowMulti: kind === 'business_lookup' });
+
+  // 각각: 서로 다른 정확한 이름의 사업을 따로 보여 준다. 이름이 비슷한 다른 행으로 대체하거나 합산하지 않는다.
+  if (kind === 'business_lookup' && eachRequested(a.query) && (match.status === 'multi_matched' || match.status === 'matched')) {
+    const named = match.status === 'multi_matched' ? match.groups : [{ name: match.rows[0].business, rows: match.rows }];
+    const unmatched = unmatchedTerms(a.query, [department], named.map(x => x.name));
+    if (named.length > 1 || unmatched.length) {
+      const items = named.map(x => {
+        const one = x.rows.length === 1 ? x.rows[0] : null;
+        return {
+          business: x.name, row_count: x.rows.length,
+          status: !one ? 'ambiguous_rows' : one.columns_verified === true && Number.isSafeInteger(one.amounts?.budget) ? 'matched' : 'columns_not_verified',
+          amount: one?.amounts?.budget ?? null, unit: one?.amount_unit ?? '천원',
+          document_id: one?.document_id ?? null, page: one?.page ?? null, source_line: one?.source_line ?? null,
+          page_url: one && urlFor ? urlFor(one.document_id, one.page) : null,
+        };
+      });
+      const problems = [];
+      if (items.some(i => i.status !== 'matched')) problems.push('일부 사업의 행이 하나로 검증되지 않았습니다(' + items.filter(i => i.status !== 'matched').map(i => i.business + ': ' + i.status).join(', ') + ').');
+      if (unmatched.length) problems.push('질문의 다음 표현에 해당하는 정확한 이름의 행을 ' + department + ' ' + editionLabel(found.doc) + ' 세출명세서에서 확인되지 않았습니다: ' + unmatched.join(', ') + '. 이름이 비슷한 다른 행으로 대체하지 않았습니다.');
+      return finish(problems.length ? 'incomplete' : 'matched', {
+        reason: problems.length ? problems.join(' ') : null,
+        match_kind: 'named_items', business: null, department,
+        requested_items: named.map(x => x.name), unmatched_terms: unmatched, items,
+        rows: named.flatMap(x => x.rows).map(view),
+        calculated_total: null, total: null,
+        scope: { year: a.year, edition: editionLabel(found.doc), account_group: found.doc.account_group, document_id: found.doc.document_id, unit: named[0].rows[0]?.amount_unit ?? '천원' },
+        note: '정확히 같은 이름의 행만 사업별로 따로 제시했고 괄호 표기(예: (자체))는 이름의 일부입니다. 요청하지 않은 합계는 계산하지 않았으며 사업 금액을 서로 더하지 마세요.',
+      }, named.flatMap(x => x.rows));
+    }
+  }
 
   if (kind === 'edition_compare') {
     if (match.status !== 'matched' || match.rows.length !== 1) return finish(match.status === 'matched' ? 'ambiguous' : match.status, { reason: match.note ?? '본예산에서 질문한 사업 행을 하나로 특정하지 못해 비교하지 않았습니다.', candidates: match.candidates });
@@ -265,7 +318,7 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
         ? '미확인: ' + department + '의 ' + editionLabel(found.doc) + ' 세출명세서 세부사업 ' + businesses.length + '개 행에서 질문한 사업명을 찾지 못했습니다. 0원이나 사업 부재로 확정하지 마세요.'
         : '질문과 일치하는 세부사업이 여러 개라 하나로 특정하지 않았습니다. 사업명을 정확히 지정하세요.',
       candidates: match.candidates,
-      department_rows_checked: { department, edition: editionLabel(found.doc), business_rows: businesses.length, printed_total: rec[0]?.printed_total ?? null, business_sum: rec[0]?.business_sum ?? null, reconciled: rec.length ? rec.every(d => d.reconciled) : null },
+      department_rows_checked: { department, edition: editionLabel(found.doc), business_rows: businesses.length, reconciled: rec.length ? rec.every(d => d.reconciled) : null },
       editions_not_checked: revisionOnly ? [] : revisionDocs.map(editionLabel),
     });
   }
