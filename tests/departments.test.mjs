@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {statementDepartment,normalizeDepartment,requestedDepartments,canonicalDepartmentQuery,departmentMatches} from '../worker/departments.js';
 import {resolveQuery} from '../worker/policy.js';
 const index={departments:['AI반도체과','미래산업과','도시계획과','예산과'].map(name=>({name,key:normalizeDepartment(name),locations:[]}))};
+test('explicit district lists expand the shared department only to named indexed districts',()=>{
+ const idx={departments:['수정구사회복지과','중원구사회복지과','분당구사회복지과','사회복지과','수정구건설과'].map(name=>({name,key:normalizeDepartment(name),locations:[]}))};
+ for(const query of ['수정구·중원구·분당구 사회복지과별 기초연금','수정구, 중원구 및 분당구 사회복지과 기초연금'])assert.deepEqual(requestedDepartments(query,idx).map(d=>d.name),['수정구사회복지과','중원구사회복지과','분당구사회복지과']);
+ assert.deepEqual(requestedDepartments('수정구와 분당구 사회복지과 비교',idx).map(d=>d.name),['수정구사회복지과','분당구사회복지과']);
+ assert.deepEqual(requestedDepartments('사회복지과 기초연금',idx).map(d=>d.name),['사회복지과']);
+ assert.deepEqual(requestedDepartments('수정구 건설과와 분당구 사회복지과',idx).map(d=>d.name),['분당구사회복지과','수정구건설과']);
+});
 test('department names match explicit headings across case and spaces without organizational aliases',()=>{
  for(const q of ['AI반도체과 2025년도 예산','ai 반도체과의 2025년 예산','A I 반 도 체 과 본예산']){
   const found=requestedDepartments(q,index);assert.deepEqual(found.map(d=>d.name),['AI반도체과']);assert(canonicalDepartmentQuery(q,found).includes('AI반도체과'));assert(departmentMatches('부서: AI반도체과\n정책: 산업',found));assert(!departmentMatches('부서: 미래산업과\n행정운영경비(AI반도체과)',found));

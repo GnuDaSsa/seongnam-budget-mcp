@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed} from '../worker/policy.js';
+import {resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,matchesRevision} from '../worker/policy.js';
+test('main budget and supplementary comparison preserve both editions and scope the revision',()=>{
+ const q=resolveQuery({query:'2026년 중원구 사회복지과 기초연금 본예산과 1회 추경에서 기정액 경정액 증감액을 각각 비교해줘.'});
+ assert.deepEqual(q.policy.comparison_budget_types,['본예산','추경']);assert.deepEqual(q.policy.allowed_budget_types,['본예산','추경']);assert.equal(q.revision,1);
+ assert.equal(q.policy.source_preference,'expenditure');assert.equal(q.budget_type,undefined);
+ assert(matchesRevision({budget_type:'본예산',revision:0},q));assert(matchesRevision({budget_type:'추경',revision:1},q));assert(!matchesRevision({budget_type:'추경',revision:2},q));
+ const only=resolveQuery({query:'기초연금 1회 추경'});assert(!matchesRevision({budget_type:'본예산',revision:0},only));
+ assert.throws(()=>resolveQuery({query:'1회 추경과 2회 추경 비교'}),/여러 추경 회차/);
+});
 test('omitted year is fixed at 2026, explicit old and relative years survive',()=>{
  assert.equal(resolveQuery({query:'노인일자리 얼마야'}).year,2026);
  assert.equal(resolveQuery({query:'2007년 도서관'}).year,2007);

@@ -1,5 +1,5 @@
 import {budgetClassification} from './classification.js';
-import {POLICY,VERSION,SERVER_RULES,EVIDENCE_BOUNDARY,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePriority} from './policy.js';
+import {POLICY,VERSION,SERVER_RULES,EVIDENCE_BOUNDARY,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePriority,matchesRevision} from './policy.js';
 import {vectorSearch,rerank} from './semantic.js';
 import {openapi} from './openapi.js';
 import {retrievalWords,exactPhraseHit,businessTermsHit,topicIntent,topicBusinessMatches} from './retrieval-phrases.js';
@@ -7,6 +7,7 @@ import {institutionScope,createAffiliateReader,eligibleAffiliateDocuments,mergeC
 import {createCouncilReader,mergeCouncilLast,councilAllowed,COUNCIL_CATEGORY} from './council.js';
 import {requestedDepartments,canonicalDepartmentQuery,departmentMatches} from './departments.js';
 import {departmentOverview} from './department-overview.js';
+import {researchGuidance} from './research-guidance.js';
 import {matchQuality,weakestQuality,trimSemanticEvidence,bridgeBusinessNames,asBridgedEvidence,comparisonBudgetBasis,totalTableDocument,hasReplacementCharacter,rollupBusinessName,businessRollup,compactEvidence} from './quality.js';
 const CATALOG=/*__CATALOG__*/null, HTML=/*__HTML__*/null, SEMANTIC=/*__SEMANTIC__*/null;
 const AFFILIATES=/*__AFFILIATES__*/null;
@@ -32,7 +33,7 @@ function args(a={}){if(!a||typeof a!=='object'||Array.isArray(a))fail('객체 �
  if(a.query!==undefined&&(typeof a.query!=='string'||a.query.length>160))fail('검색어는 160자 이하 문자열이어야 합니다.');
  if(hasReplacementCharacter(a.query))fail('검색어 인코딩이 올바르지 않습니다. UTF-8로 보내세요.');
  if(a.budget_type&&!['본예산','추경','결산','관련계획'].includes(a.budget_type))fail('지원하지 않는 예산 종류입니다.');return b;}
-function match(d,a){return !!d&&d.source_scope!=='affiliate'&&/^https:\/\/www\.seongnam\.go\.kr\//.test(d.url)&&(!a.department_doc_ids||a.department_doc_ids.has(d.id))&&(!a.year||d.year===a.year)&&(!a.budget_type||d.budget_type===a.budget_type||(a.budget_type==='관련계획'&&sourceFamily(d)==='performance'))&&(!a.revision||d.revision===a.revision)&&(!a.latest_city_revisions||d.revision===a.latest_city_revisions[d.year])&&(!a.category||d.category===a.category)&&(!a.document_id||d.id===a.document_id)&&sourceAllowed(d,a);}
+function match(d,a){return !!d&&d.source_scope!=='affiliate'&&/^https:\/\/www\.seongnam\.go\.kr\//.test(d.url)&&(!a.department_doc_ids||a.department_doc_ids.has(d.id))&&(!a.year||d.year===a.year)&&(!a.budget_type||d.budget_type===a.budget_type||(a.budget_type==='관련계획'&&sourceFamily(d)==='performance'))&&matchesRevision(d,a)&&(!a.latest_city_revisions||d.revision===a.latest_city_revisions[d.year])&&(!a.category||d.category===a.category)&&(!a.document_id||d.id===a.document_id)&&sourceAllowed(d,a);}
 async function asset(env,name){if(cache.has(name)){let x=cache.get(name);cache.delete(name);cache.set(name,x);return x;}
  if(!env.ASSETS)fail('검색 파일 저장소가 연결되지 않았습니다.');let r=await env.ASSETS.fetch(new Request('https://assets.local/corpus/'+name+'.json.gz'));if(!r.ok)fail('검색 파일 조회 실패: '+name);
  let x=await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();if(cache.size>=2)cache.delete(cache.keys().next().value);cache.set(name,x);return x;}
@@ -279,10 +280,12 @@ async function research(env,input){
  const business_rollup=rollupEligible?await rollupAcrossDepartments(env,a,evidence):null;
  if(input.compact)evidence=evidence.map(compactEvidence);
  const department_overview=a.policy.institution_scope.mode==='municipal'&&a.policy.source_preference==='expenditure'&&!a.topic_intent?await departmentOverviewFor(env,a):null;
- const overviewNote=department_overview?'department_overview에 이 부서의 편성별 총액과 세부사업 금액이 있습니다. 가장 큰 사업·순위·부서 총액 질문은 이 값으로 답하고 편성 회차(as_of)를 밝히세요. latest_amounts는 계산값입니다. ':'';
+ const guidance=researchGuidance(a.query,department_overview,match_quality);
+ if(a.departments?.length>1)guidance.note='여러 부서가 요청됐지만 모든 부서의 같은 사업과 금액을 검증해 합산한 결과는 아닙니다. 누락된 부서를 확인하고 전체 합계를 확정하지 마세요. '+guidance.note;
+ if(a.policy.comparison_budget_types?.length>1)guidance.note='본예산과 추경의 같은 사업 및 기정액·경정액·증감액을 각각 원문에서 확인하기 전에는 비교를 완료한 것으로 표시하지 마세요. '+guidance.note;
  const rollupNote=business_rollup?.departments.length>1?'같은 세부사업이 '+business_rollup.departments.length+'개 부서에 편성되어 있습니다. business_rollup.rows의 부서별 금액을 모두 제시하고 합계는 계산값임을 밝히세요. ':'';
  return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,match_quality,business_rollup,department_overview,retrieval:r.retrieval,coverage,department_availability:r.department_availability,topic_coverage:a.topic_intent?{complete:false,annual_final_budget_reconstructed:false,selection:"relevant_business_lines_with_edition_diversity",returned_locations:evidence.length,requested_limit:a.limit}:null,generation_performed:false,
-  next_action:nextAction(overviewNote+rollupNote+(NEXT_BY_QUALITY[match_quality.level]||NEXT_BY_QUALITY.found)),answer_policy:RULES,elapsed_ms:Date.now()-started};
+  verification_status:guidance.status,next_action:nextAction(guidance.note+rollupNote+(NEXT_BY_QUALITY[match_quality.level]||NEXT_BY_QUALITY.found)),answer_policy:RULES,elapsed_ms:Date.now()-started};
 }
 
 async function page(env,input){let a=args(input);if(typeof a.document_id!=='string'||(!DOCS.has(a.document_id)&&!affiliateReader.has(a.document_id)&&!councilReader.has(a.document_id)))fail('문서를 찾을 수 없습니다.');let n=num(a.page,'page',1,100000);if(!n)fail('검색 결과의 page 값이 필요합니다.');if(councilReader.has(a.document_id))return{...await councilReader.page(env,a.document_id,n),instructions:RULES};if(affiliateReader.has(a.document_id))return{...await affiliateReader.page(env,a.document_id,n),instructions:RULES};let d=DOCS.get(a.document_id);

@@ -22,7 +22,16 @@ export function budgetDivisionRequested(query){
 export function requestedDepartments(query,index){
  const normalized=normalizeDepartment(query),ambiguous=new Set(['예산과']);
  const namedBudgetDepartment=budgetDivisionRequested(query);
- const found=index.departments.filter(d=>normalized.includes(d.key)&&(!ambiguous.has(d.key)||namedBudgetDepartment));
+ // 구를 병렬로 열거하고 부서명을 마지막에 한 번만 쓴 경우, 실제 색인에 있는 이름만 확장한다.
+ // 구 단독 언급이나 명칭이 다른 부서까지 추정해서 추가하지 않는다.
+ const districts=['수정구','중원구','분당구'], expanded=new Set();
+ const suffixes=new Set(index.departments.flatMap(d=>districts.filter(prefix=>d.key.startsWith(prefix)&&d.key.length>prefix.length).map(prefix=>d.key.slice(prefix.length))));
+ for(const suffix of suffixes){
+  const escaped=suffix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const pattern=new RegExp('((?:수정구|중원구|분당구)(?:(?:[·ㆍ,/]|와|과|및)+(?:수정구|중원구|분당구))+)' + escaped,'g');
+  for(const match of normalized.matchAll(pattern))for(const district of match[1].match(/수정구|중원구|분당구/g)||[])expanded.add(district+suffix);
+ }
+ const found=index.departments.filter(d=>(normalized.includes(d.key)||expanded.has(d.key))&&(!ambiguous.has(d.key)||namedBudgetDepartment));
  // Prefer a qualified 보건소/구 department name over its shorter suffix.
  return found.filter(d=>!found.some(other=>other.key!==d.key&&other.key.includes(d.key)));
 }

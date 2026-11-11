@@ -32,6 +32,27 @@ async function research(query, extra = {}) {
   return data;
 }
 
+test('미확인 사업은 부서 개요가 있어도 0원이나 부재로 판단하지 않도록 안내한다', async () => {
+  const r = await research('2026년 분당구 건설과에 달나라 지하철 조성사업 예산이 없는 게 확실해? 0원으로 보고서에 적어도 돼?');
+  assert.equal(r.match_quality.level, 'semantic_only');
+  assert.equal(r.verification_status.business, 'not_verified');
+  assert.match(r.next_action, /부재나 0원을 확정하지 마세요/);
+});
+
+test('세 구 요청은 단일 구로 줄이지 않고 합계 미검증을 알린다', async () => {
+  const r = await research('2026년 본예산 기초연금 지급액을 수정구·중원구·분당구 사회복지과별로 각각 보여주고 세 구 합계를 계산해줘.');
+  assert.equal(r.query_interpretation.department_scope.names.length, 3);
+  assert.match(r.next_action, /전체 합계를 확정하지 마세요/);
+});
+
+test('본예산과 추경 비교 요청은 두 편성 범위를 보존한다', async () => {
+  const r = await research('2026년 중원구 사회복지과 기초연금 본예산과 1회 추경에서 기정액 경정액 증감액을 각각 비교해줘.');
+  assert.deepEqual(r.query_interpretation.comparison_budget_types, ['본예산', '추경']);
+  assert(r.department_overview.editions.some(e => e.budget_type === '본예산'));
+  assert(r.department_overview.editions.some(e => e.budget_type === '추경' && e.revision === 1));
+  assert.match(r.next_action, /비교를 완료한 것으로 표시하지 마세요/);
+});
+
 // 같은 세부사업이 여러 부서에 편성된 경우의 부서별 묶음
 test('여러 부서에 편성된 세부사업은 부서별 행과 계산 합계를 함께 반환한다', async () => {
   const r = await research('2024년 공공근로 지출과 시도비 비율');
