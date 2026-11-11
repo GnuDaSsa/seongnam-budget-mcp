@@ -33,6 +33,7 @@ export function researchGuidance(query, overview, quality, analysis = null) {
       if (analysis.status === 'no_name_match') note += '미확인: 질문한 사업명이 읽은 세출명세서 행에서 확인되지 않았습니다. 이는 0원이나 사업 부재의 확정이 아니며 보고서에 0원으로 적지 마세요. ';
       note += 'analysis가 완료되지 않았습니다(status: ' + analysis.status + '). analysis.reason과 누락 범위를 밝히고 미확인 값이나 합계를 확정하지 마세요. ';
     }
+    if (analysis.kind === 'department_difference') note += analysed ? 'analysis.difference는 차액입니다. 합계가 아니므로 두 부서 금액을 더하지 말고 피연산자·단위·방향(signed_difference 또는 absolute_difference)을 라벨과 함께 제시하세요. ' : '차액이 계산되지 않았습니다. 합계나 임의 금액으로 대체하지 마세요. ';
     if (analysis.notices?.length) note += analysis.notices.join(' ') + ' ';
   }
   if (ranking && analysis?.kind === 'ranking' && analysis.status === 'partial_scope') {

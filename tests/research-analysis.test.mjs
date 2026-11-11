@@ -201,3 +201,114 @@ test('#5 양성 대조: 본예산과 1회 추경 비교는 두 편성을 모두 
   assert.equal(r.revisions[0].revision, 1);
   assert.equal(r.revisions[0].revised_amount, 130);
 });
+
+// ── #4 차액 질문은 합계가 아니라 minuend - subtrahend를 낸다(합성 문서·행, 스냅샷 불필요) ──
+const D_SUJEONG = '수정구사회복지과', D_JUNGWON = '중원구사회복지과', D_BUNDANG = '분당구사회복지과';
+const diffRow = (department, budget, extra = {}) => synthRow({ document_id: 'main', budget_type: '본예산', revision: null, department, amounts: { budget, previous: null, change: null }, ...extra });
+const DIFF_DOCS = [{ document_id: 'main', title: 'm', year: 2026, budget_type: '본예산', revision: null, account_group: '일반회계' }];
+const DIFF_ROWS = [diffRow(D_SUJEONG, 114003724, { page: 883 }), diffRow(D_JUNGWON, 110922543, { page: 1110 }), diffRow(D_BUNDANG, 83191907, { page: 1291 })];
+async function runDiff(query, departments, rows = DIFF_ROWS) {
+  return buildAnalysis(scoped(query, departments), { documents: DIFF_DOCS, loadRows: async () => rows, urlFor: (id, p) => id + '#page=' + p });
+}
+const ISSUE_QUERY = '2026년 기초연금 일반회계 본예산 중 수정구와 분당구 사회복지과의 차액은? 중원구는 제외해줘.';
+
+test('#4 차액: 방향이 없는 두 구의 절대 차이와 피연산자·단위를 낸다(합계 아님)', async () => {
+  const r = await runDiff(ISSUE_QUERY, [D_BUNDANG, D_SUJEONG]);
+  assert.equal(r.kind, 'department_difference');
+  assert.equal(r.status, 'calculated');
+  assert.ok(r.intent.kinds.includes('department_difference'));
+  assert.ok(!r.intent.kinds.includes('department_sum'));
+  assert.equal(r.calculated_total, null);
+  assert.equal(r.total, null);
+  assert.equal(r.difference.direction_known, false);
+  assert.equal(r.difference.signed_difference, null);
+  assert.equal(r.difference.absolute_difference, 30811817);
+  assert.equal(r.difference.unit, '천원');
+  assert.equal(r.difference.operation, 'absolute_difference');
+  assert.equal(r.difference.operands[0].department, D_SUJEONG);
+  assert.equal(r.difference.operands[0].amount, 114003724);
+  assert.equal(r.difference.operands[1].department, D_BUNDANG);
+  assert.equal(r.difference.operands[1].amount, 83191907);
+  assert.deepEqual(r.excluded_departments, [D_JUNGWON]);
+  assert.ok(!r.difference.operands.some(o => o.department === D_JUNGWON));
+  assert.notEqual(r.difference.signed_difference, 197195631);
+  assert.equal(r.scope.edition, '본예산');
+  assert.equal(r.scope.account_group, '일반회계');
+  assert.equal(r.scope.year, 2026);
+  assert.deepEqual(r.source_pages.map(p => p.page).sort((x, y) => x - y), [883, 1291]);
+});
+
+test('#4 차액: 질문 순서가 반대여도 방향을 임의로 확정하지 않는다', async () => {
+  const r = await runDiff('2026년 기초연금 일반회계 본예산 분당구와 수정구 사회복지과의 차액은?', [D_SUJEONG, D_BUNDANG]);
+  assert.equal(r.status, 'calculated');
+  assert.equal(r.difference.operands[0].department, D_BUNDANG);
+  assert.equal(r.difference.operands[1].department, D_SUJEONG);
+  assert.equal(r.difference.signed_difference, null);
+  assert.equal(r.difference.absolute_difference, 30811817);
+});
+
+test('#4 차액: 중원구를 포함해 나열해도 제외 표현이 있으면 피연산자에서 뺀다', async () => {
+  const r = await runDiff('2026년 기초연금 일반회계 본예산 수정구 중원구 분당구 사회복지과 중 중원구는 제외하고 차이를 알려줘', [D_SUJEONG, D_JUNGWON, D_BUNDANG]);
+  assert.equal(r.status, 'calculated');
+  assert.deepEqual(r.excluded_departments, [D_JUNGWON]);
+  assert.deepEqual(r.difference.operands.map(o => o.department), [D_SUJEONG, D_BUNDANG]);
+  assert.equal(r.difference.absolute_difference, 30811817);
+});
+
+test('#4 차액: 방향을 뒤집을 수 있는 표현은 방향을 확정하지 않고 절대값만 낸다', async () => {
+  const r = await runDiff('2026년 기초연금 일반회계 본예산 수정구와 분당구 사회복지과 중 분당구가 수정구보다 얼마나 덜 편성됐어? 차이는?', [D_SUJEONG, D_BUNDANG]);
+  assert.equal(r.status, 'calculated');
+  assert.equal(r.difference.direction_ambiguous, true);
+  assert.equal(r.difference.signed_difference, null);
+  assert.equal(r.difference.minuend, null);
+  assert.equal(r.difference.absolute_difference, 30811817);
+  assert.equal(r.difference.operands.length, 2);
+  assert.equal(r.difference.expression, null);
+});
+
+test('#4 차액: 요청 부서 행이 없으면 숫자 없이 incomplete로 중단한다', async () => {
+  const rows = DIFF_ROWS.filter(x => x.department !== D_BUNDANG);
+  const r = await runDiff(ISSUE_QUERY, [D_SUJEONG, D_BUNDANG], rows);
+  assert.equal(r.kind, 'department_difference');
+  assert.notEqual(r.status, 'calculated');
+  assert.equal(r.difference, undefined);
+  assert.equal(r.calculated_total, null);
+  assert.deepEqual(r.missing_departments, [D_BUNDANG]);
+});
+
+test('#4 차액: 제외하지 않은 부서가 둘을 넘으면 합계로 대체하지 않고 중단한다', async () => {
+  const r = await runDiff('2026년 기초연금 일반회계 본예산 수정구 중원구 분당구 사회복지과의 차액은?', [D_SUJEONG, D_JUNGWON, D_BUNDANG]);
+  assert.equal(r.kind, 'department_difference');
+  assert.equal(r.status, 'too_many_departments');
+  assert.equal(r.difference, undefined);
+  assert.equal(r.calculated_total, null);
+  assert.ok(!/197195631|308118174/.test(JSON.stringify(r)));
+});
+
+test('#4 차액: 한 부서만 확인되고 다른 구가 질문에 있으면 단일 행 답으로 넘기지 않는다', async () => {
+  const r = await runDiff('2026년 기초연금 일반회계 본예산 수정구와 분당구 사회복지과의 차액은?', [D_SUJEONG]);
+  assert.equal(r.kind, 'department_difference');
+  assert.equal(r.status, 'insufficient_departments');
+  assert.equal(r.difference, undefined);
+});
+
+test('#4 차액과 합계를 함께 묻거나 편성이 모호하면 계산하지 않는다', async () => {
+  const both = await runDiff('2026년 기초연금 일반회계 본예산 수정구와 분당구 사회복지과의 차액과 합계', [D_SUJEONG, D_BUNDANG]);
+  assert.equal(both.status, 'ambiguous_operation');
+  assert.equal(both.difference, undefined);
+  const edition = await runDiff('2026년 기초연금 일반회계 수정구와 분당구 사회복지과의 본예산과 추경 차액', [D_SUJEONG, D_BUNDANG]);
+  assert.notEqual(edition.status, 'calculated');
+  assert.equal(edition.difference, undefined);
+  const none = await runDiff('2026년 기초연금 일반회계 수정구와 분당구 사회복지과의 차액은?', [D_SUJEONG, D_BUNDANG]);
+  assert.equal(none.status, 'edition_required');
+});
+
+test('#4 일반 합계 질문은 차액 변경 후에도 합산한다', async () => {
+  const r = await runDiff('2026년 기초연금 일반회계 본예산 수정구와 분당구 사회복지과의 합계는?', [D_SUJEONG, D_BUNDANG]);
+  assert.equal(r.kind, 'department_sum');
+  assert.equal(r.status, 'calculated');
+  assert.equal(r.calculated_total.amount, 197195631);
+  assert.equal(r.difference, undefined);
+  const three = await runDiff('2026년 기초연금 일반회계 본예산 수정구 중원구 분당구 사회복지과 합계', [D_SUJEONG, D_JUNGWON, D_BUNDANG]);
+  assert.equal(three.calculated_total.amount, 308118174);
+});

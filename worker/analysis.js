@@ -253,6 +253,32 @@ export function sumAcrossDepartments(rowsByDept = {}, requestedDepartments = [])
   };
 }
 
+// 두 부서의 같은 사업 예산액 차액. 합계가 아니라 minuend - subtrahend이며, 검증 규칙은 sumAcrossDepartments와 같다.
+// ordered: 질문 순서의 부서 둘. directionKnown=true일 때만 부호 있는 방향 차액(첫째 - 둘째)을 낸다.
+export function differenceAcrossDepartments(rowsByDept = {}, ordered = [], { directionKnown = false } = {}) {
+  const names = [...new Set(ordered.map(norm).filter(Boolean))].map(n => ordered.find(d => norm(d) === n));
+  const fail = (note, extra = {}) => ({ complete: false, operation: 'difference', operands: [], signed_difference: null, absolute_difference: null, unit: null, missing_departments: [], ambiguous_departments: [], warnings: [], note, ...extra });
+  if (names.length !== 2) return fail('차액은 정확히 두 부서가 있을 때만 계산합니다. 부서 수: ' + names.length);
+  const sum = sumAcrossDepartments(rowsByDept, names);
+  const operands = names.map(n => sum.rows.find(r => norm(r.department) === norm(n))).filter(Boolean);
+  if (!sum.complete || operands.length !== 2 || !operands.every(o => Number.isSafeInteger(o.amount)) || operands[0].unit !== operands[1].unit) {
+    return fail('요청한 두 부서의 단일·검증 행이 확인되지 않아 차액을 내지 않았습니다.', { missing_departments: sum.missing_departments, ambiguous_departments: sum.ambiguous_departments, warnings: sum.warnings });
+  }
+  const [first, second] = operands;
+  const signed = first.amount - second.amount;
+  return {
+    complete: true, operation: 'difference', operands, unit: sum.unit ?? first.unit ?? UNIT,
+    direction_known: !!directionKnown,
+    minuend: directionKnown ? first : null, subtrahend: directionKnown ? second : null,
+    signed_difference: directionKnown ? signed : null, absolute_difference: Math.abs(signed),
+    larger_department: signed === 0 ? null : (signed > 0 ? first.department : second.department),
+    missing_departments: [], ambiguous_departments: [], warnings: sum.warnings,
+    note: directionKnown
+      ? '질문 순서의 첫째 부서 금액에서 둘째 부서 금액을 뺀 계산값입니다. 합계가 아닙니다.'
+      : '빼는 방향이 질문에서 확정되지 않아 부호 있는 차액은 내지 않고 절대값 차이만 계산했습니다. 합계가 아닙니다.',
+  };
+}
+
 // ── 편성 비교 ───────────────────────────────────────────────
 
 // initialRow: 본예산 business 행. revisionRows: 추경 business 행 배열(또는 {revision, row} 배열).

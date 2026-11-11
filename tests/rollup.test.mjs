@@ -207,3 +207,37 @@ test('한 부서에만 편성된 사업은 묶음이 있어도 합계를 내지 
   assert.equal(r.business_rollup.departments.length, 1);
   assert.equal(r.business_rollup.calculated_total, null);
 });
+
+// GitHub issue #4: 두 부서 차액 질문이 제외한 구를 피연산자로 넣거나 합계로 바뀌지 않아야 한다.
+test('이슈 #4: 제외 표현이 붙은 구를 뺀 두 부서 차액을 계산하고 합계로 대체하지 않는다', async () => {
+  const r = await research('2026년 기초연금 일반회계 본예산 중 수정구와 분당구 사회복지과의 차액은? 중원구는 제외해줘.');
+  const a = r.analysis;
+  assert.equal(a.kind, 'department_difference');
+  assert.equal(a.status, 'calculated');
+  // 합계(197,195,631)가 아니라 차액이므로 calculated_total은 null이어야 한다.
+  assert.equal(a.calculated_total, null);
+  assert.notEqual(a.calculated_total?.amount, 197195631);
+  assert.equal(a.difference.signed_difference, null);
+  assert.equal(a.difference.absolute_difference, 30811817);
+  assert.equal(a.difference.unit, '천원');
+  assert.equal(a.difference.direction_basis, 'ambiguous');
+  assert.equal(a.difference.operands[0].department, '수정구사회복지과');
+  assert.equal(a.difference.operands[0].amount, 114003724);
+  assert.equal(a.difference.operands[1].department, '분당구사회복지과');
+  assert.equal(a.difference.operands[1].amount, 83191907);
+  assert.equal(a.difference.operands.length, 2);
+  assert.ok(a.excluded_departments.includes('중원구사회복지과'), '제외 부서 중원구사회복지과');
+  assert.ok(!a.difference.operands.some(o => o.department === '중원구사회복지과'), '제외 부서는 피연산자가 아님');
+  assert.equal(a.scope.edition, '본예산');
+  assert.equal(a.scope.account_group, '일반회계');
+  assert.equal(a.scope.year, 2026);
+  assert.ok(!a.intent.kinds.includes('department_sum'), '합계 의도가 없어야 함');
+  assert.ok(a.intent.kinds.includes('department_difference'));
+});
+
+test('이슈 #4 대조: 같은 부서 조합을 합계로 물으면 department_sum으로 처리한다', async () => {
+  const r = await research('2026년 기초연금 일반회계 본예산 중 수정구와 분당구 사회복지과의 합계는? 중원구는 제외해줘.');
+  assert.equal(r.analysis.kind, 'department_sum');
+  assert.ok(r.analysis.intent.kinds.includes('department_sum'));
+  assert.ok(!r.analysis.intent.kinds.includes('department_difference'));
+});

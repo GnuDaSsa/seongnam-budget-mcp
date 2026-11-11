@@ -1,8 +1,8 @@
 // budget_research의 `analysis` 블록. 원문 세출명세서 행(statement-rows.js)을 문서 단위로 순서대로 읽어
 // 순위·부서 합계·편성 비교·재원·사업 확인을 계산한다. 입출력(loadRows)은 호출자가 주입한다.
 // 검증되지 않은 범위는 complete로 표시하지 않고 미확인을 0원으로 바꾸지 않는다.
-import { detectAnalyticIntent } from './analytic-intent.js';
-import { rankRows, matchBusiness, sumAcrossDepartments, compareEditionRows, fundingBreakdown } from './analysis.js';
+import { detectAnalyticIntent, detectDifferenceIntent, differenceOperands } from './analytic-intent.js';
+import { rankRows, matchBusiness, sumAcrossDepartments, differenceAcrossDepartments, compareEditionRows, fundingBreakdown } from './analysis.js';
 import { reconcileStatement } from './statement-rows.js';
 import { retrievalWords } from './retrieval-phrases.js';
 
@@ -62,8 +62,14 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   const residue = businessResidue(a.query, departments);
   const editionExcluded = excluded.includes('본예산') || excluded.includes('추경');
   const compareRequested = !editionExcluded && (intent.edition_compare || (a.policy?.allowed_budget_types?.includes('본예산') && a.policy.allowed_budget_types.includes('추경')));
+  // 차액은 합계와 별도 종류다. 제외한 부서는 피연산자가 아니다.
+  const diffWords = detectDifferenceIntent(a.query);
+  const diff = diffWords.difference ? differenceOperands(a.query, departments) : null;
+  const differenceRequested = !!diff && !intent.edition_compare && (departments.length >= 2 || diff.mentioned_districts >= 2);
+  const operationConflict = !!diff && (diffWords.sum || intent.edition_compare);
   let kind = null;
   if (intent.ranking) kind = 'ranking';
+  else if (diff && (departments.length >= 2 || diff.mentioned_districts >= 2) && (differenceRequested || operationConflict)) kind = 'department_difference';
   else if (departments.length >= 2 && (intent.department_sum || residue.length)) kind = 'department_sum';
   else if (departments.length === 1 && compareRequested && residue.length) kind = 'edition_compare';
   else if (departments.length === 1 && intent.funding && residue.length) kind = 'funding';
@@ -111,6 +117,58 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   const view = r => rowView(r, urlFor);
   const finish = (status, extra = {}, rows = []) => ({ ...base, status, notices, ...extra, source_pages: pickSources(rows),
     documents_read: loaded.map(x => ({ document_id: x.doc.document_id, title: x.doc.title, edition: editionLabel(x.doc), account_group: x.doc.account_group, rows: x.rows.length })) });
+
+  if (kind === 'department_difference') {
+    const operandNames = diff.operands, excludedNames = diff.excluded;
+    const scopeInfo = { excluded_departments: excludedNames, requested_operands: operandNames, calculated_total: null, total: null };
+    if (operationConflict) return stop('ambiguous_operation', '질문이 차액과 ' + (diffWords.sum ? '합계' : '편성 비교') + '를 함께 요청해 하나의 계산으로 정할 수 없습니다. 합계나 차액을 임의로 선택하지 않았습니다. 요청을 나누어 다시 질문하세요.', scopeInfo);
+    if (compareRequested) return stop('edition_required', '본예산과 추경이 함께 요청되어 어느 편성의 부서 금액으로 차액을 낼지 정할 수 없습니다. 편성을 하나로 지정하세요.', scopeInfo);
+    if (operandNames.length < 2) return stop('insufficient_departments', '비교할 부서가 두 곳 확인되지 않아 차액을 계산하지 않았습니다(확인된 부서: ' + (operandNames.join(', ') || '없음') + '). 부서명을 정확히 지정하세요.', scopeInfo);
+    if (operandNames.length > 2) return stop('too_many_departments', '차액은 두 부서에만 정의되는데 제외하지 않은 부서가 ' + operandNames.length + '곳(' + operandNames.join(', ') + ')입니다. 비교할 두 부서를 지정하거나 나머지를 제외하세요. 합계로 대신하지 않았습니다.', scopeInfo);
+    // 회계를 지정하지 않았는데 두 부서가 여러 회계 문서에 있으면 어느 회계인지 정할 수 없다.
+    if (!intent.explicit_account && primaryDocs.length > 1) {
+      const holders = [];
+      for (const doc of primaryDocs) { const rows = await rowsOf(doc); if (operandNames.every(n => rows.some(r => norm(r.department) === norm(n)))) holders.push(doc); }
+      if (holders.length > 1) return stop('account_required', '두 부서가 ' + holders.map(d => d.account_group).join('·') + ' 명세서에 모두 있어 회계 구분이 필요합니다. 회계를 지정하세요.', scopeInfo);
+    }
+    const found = await docWithDepartments(primaryDocs, operandNames);
+    const doc = found?.doc ?? primaryDocs[0];
+    const rows = found?.rows ?? await rowsOf(doc);
+    const present = operandNames.filter(n => rows.some(r => norm(r.department) === norm(n)));
+    const missing = operandNames.filter(n => !present.includes(n));
+    if (missing.length) return finish('incomplete', { reason: '요청한 부서 ' + missing.join(', ') + ' 행을 ' + editionLabel(doc) + ' ' + doc.account_group + ' 세출명세서에서 찾지 못해 차액을 내지 않았습니다. 0원으로 처리하지 않았습니다.', missing_departments: missing, ambiguous_departments: [], ...scopeInfo, scope: { year: a.year, edition: editionLabel(doc), account_group: doc.account_group, document_id: doc.document_id } });
+    const m = matchBusiness(rows, a.query, operandNames);
+    if (m.status !== 'matched') return finish(m.status, { reason: m.note ?? '요청한 부서들에서 질문한 세부사업을 하나로 특정하지 못해 차액을 내지 않았습니다.', candidates: m.candidates, missing_departments: [], ...scopeInfo });
+    const byDept = new Map();
+    for (const row of m.rows.filter(r => operandNames.some(n => norm(n) === norm(r.department)))) { const k = row.department; if (!byDept.has(k)) byDept.set(k, []); byDept.get(k).push(row); }
+    // 단순 나열 순서는 뺄셈 방향을 뜻하지 않는다. 명시적인 방향 파서가 검증되기 전에는 절대 차이만 반환한다.
+    const directionKnown = false;
+    const d = differenceAcrossDepartments(byDept, operandNames, { directionKnown });
+    const scope = { year: a.year, edition: editionLabel(doc), account_group: doc.account_group, document_id: doc.document_id, unit: d.unit ?? '천원' };
+    if (!d.complete) return finish('incomplete', { reason: d.note, missing_departments: d.missing_departments, ambiguous_departments: d.ambiguous_departments, warnings: d.warnings, business: m.rows[0]?.business ?? null, rows: m.rows.map(view), ...scopeInfo, scope }, m.rows);
+    const label = o => o.department + ' ' + o.amount.toLocaleString('en-US') + ' ' + d.unit;
+    const [first, second] = d.operands;
+    return finish('calculated', {
+      reason: null,
+      business: m.rows[0]?.business ?? null,
+      rows: m.rows.filter(r => operandNames.some(n => norm(n) === norm(r.department))).map(view),
+      ...scopeInfo,
+      difference: {
+        operation: d.direction_known ? 'minuend - subtrahend' : 'absolute_difference',
+        operands: d.operands, unit: d.unit,
+        direction_known: d.direction_known, direction_ambiguous: !d.direction_known,
+        direction_basis: d.direction_known ? 'question_order' : 'ambiguous',
+        minuend: d.minuend, subtrahend: d.subtrahend,
+        signed_difference: d.signed_difference, absolute_difference: d.absolute_difference,
+        larger_department: d.larger_department,
+        expression: d.direction_known ? label(first) + ' - ' + label(second) + ' = ' + d.signed_difference.toLocaleString('en-US') + ' ' + d.unit : null,
+        labels: { signed_difference: '부호 있는 차액(앞 부서 - 뒤 부서)', absolute_difference: '절대값 차이' },
+        calculated: true,
+      },
+      warnings: d.warnings, scope,
+      note: d.note + (d.direction_known ? '' : ' 두 부서의 금액과 절대값 차이를 함께 제시하고 방향은 질문에서 확정되지 않았다고 밝히세요.') + ' 이 값은 합계가 아니므로 두 금액을 더한 값을 답으로 제시하지 마세요.',
+    }, m.rows);
+  }
 
   if (kind === 'ranking') {
     const r = intent.ranking;
