@@ -1,5 +1,5 @@
 // Per-request, opt-in measurements. Never accept question text, URLs or errors as data.
-const STAGES = new Set(['scope', 'search', 'vector', 'lexical', 'hydrate', 'rerank', 'evidence', 'bridge', 'rollup', 'overview', 'asset_local', 'asset_remote', 'serialize']);
+const STAGES = new Set(['scope', 'search', 'vector', 'lexical', 'hydrate', 'rerank', 'evidence', 'bridge', 'rollup', 'overview', 'analysis', 'asset_local', 'asset_remote', 'serialize']);
 const SIZES = new Set(['response_bytes', 'asset_bytes']);
 
 export function createTelemetry(now = () => performance.now()) {

@@ -42,7 +42,13 @@ test('미확인 사업은 부서 개요가 있어도 0원이나 부재로 판단
 test('세 구 요청은 단일 구로 줄이지 않고 합계 미검증을 알린다', async () => {
   const r = await research('2026년 본예산 기초연금 지급액을 수정구·중원구·분당구 사회복지과별로 각각 보여주고 세 구 합계를 계산해줘.');
   assert.equal(r.query_interpretation.department_scope.names.length, 3);
-  assert.match(r.next_action, /전체 합계를 확정하지 마세요/);
+  // 세출명세서 행 계산이 가능하므로 합계 미검증 안내 대신 검증된 세 행의 계산 합계를 낸다.
+  assert.equal(r.analysis.kind, 'department_sum');
+  assert.equal(r.analysis.status, 'calculated');
+  assert.equal(r.analysis.calculated_total.amount, 308118174);
+  assert.deepEqual(r.analysis.rows.map(x => [x.department, x.amount, x.page]),
+    [['수정구사회복지과', 114003724, 883], ['중원구사회복지과', 110922543, 1110], ['분당구사회복지과', 83191907, 1291]]);
+  assert.match(r.next_action, /계산값/);
 });
 
 test('본예산과 추경 비교 요청은 두 편성 범위를 보존한다', async () => {
@@ -50,7 +56,13 @@ test('본예산과 추경 비교 요청은 두 편성 범위를 보존한다', a
   assert.deepEqual(r.query_interpretation.comparison_budget_types, ['본예산', '추경']);
   assert(r.department_overview.editions.some(e => e.budget_type === '본예산'));
   assert(r.department_overview.editions.some(e => e.budget_type === '추경' && e.revision === 1));
-  assert.match(r.next_action, /비교를 완료한 것으로 표시하지 마세요/);
+  // 본예산과 1회 추경 행이 모두 읽히므로 비교 완료 여부는 analysis가 말한다.
+  assert.equal(r.analysis.kind, 'edition_compare');
+  assert.equal(r.analysis.status, 'compared');
+  assert.equal(r.analysis.initial.amount, 110922543);
+  const [rev] = r.analysis.revisions;
+  assert.deepEqual([rev.revision, rev.revised_amount, rev.previous_amount, rev.amendment_change, rev.page, rev.previous_matches_initial],
+    [1, 116417588, 110922543, 5495045, 351, true]);
 });
 
 // 같은 세부사업이 여러 부서에 편성된 경우의 부서별 묶음
@@ -151,9 +163,18 @@ test('추경을 포함한 부서 질문은 본예산과 추경의 부서 개요�
   assert.equal(overview.largest_business.name, '판교시스템반도체연구센터조성');
   assert.equal(overview.largest_business.amount, 26299000);
   assert.equal(overview.largest_business.as_of, '1회 추경');
-  assert.match(r.next_action, /department_overview/);
-  const budgetTypes = new Set(r.evidence.map(e => e.budget_type));
-  assert(budgetTypes.has('본예산') && budgetTypes.has('추경'), '근거에 본예산과 추경 모두 포함');
+  // 순위 계산은 본예산 명세서 기준이며 추경 포함 순위는 만들지 않는다는 점을 analysis가 알린다. 추경 반영 최대액은 overview 계산값.
+  assert.equal(r.analysis.kind, 'ranking');
+  assert.equal(r.analysis.scope.budget_type, '본예산');
+  assert.ok(r.analysis.notices.some(n => /추경을 포함한 전체 순위는 계산하지 않았습니다/.test(n)));
+  // 추경을 함께 요청했으므로 본예산만의 순위를 complete로 표시하지 않는다.
+  assert.equal(r.analysis.status, 'partial_scope');
+  assert.match(r.next_action, /추경 반영\)의 순위는 계산되지 않았습니다/);
+  assert.equal(overview.base_reconciled, true);
+  // 근거(evidence)는 analysis가 계산에 쓴 본예산 명세서 쪽을 앞에 둔다. 추경 쪽 값은 department_overview의 편성별 행으로 제공된다.
+  assert.ok(r.evidence.length > 0);
+  assert.equal(r.evidence[0].budget_type, '본예산');
+  assert.ok(r.analysis.items.every(i => r.evidence.some(e => e.page === i.page)), '순위 행의 쪽이 근거에 포함');
 });
 
 test('본예산만 묻는 부서 질문은 본예산 편성 하나와 가장 큰 사업을 반환한다', async () => {

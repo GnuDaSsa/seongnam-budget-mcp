@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "unit": "천원",
+  "labelling": "설계 문서 6절의 기대값을 옮긴 것이다. 모든 항목은 status가 hypothesis이며, 수록 원문과 대조해 verified로 바꾸기 전까지 정답으로 쓰지 않는다.",
+  "items": [
+    {
+      "id": "acc-2-top5-business",
+      "issue": 2,
+      "query": "2026년 본예산 세출 중 예산액이 가장 큰 세부사업 5개와 각각의 금액을 알려줘.",
+      "year": 2026,
+      "budget_type": "본예산",
+      "account": "일반회계",
+      "status": "hypothesis",
+      "expect": {
+        "scope": "verified_inventory",
+        "reconciled_departments": "160/160",
+        "uncovered_accounts_listed": true,
+        "rows": [
+          {"rank": 1, "business": "인력운영비", "department": "회계과", "amount": 247882961},
+          {"rank": 2, "business": "기초연금", "department": "수정구사회복지과", "amount": 114003724},
+          {"rank": 3, "business": "보전지출(장기미집행공원지방채원리금상환)(자체)", "department": "공원과", "amount": 112000000},
+          {"rank": 4, "business": "기초연금", "department": "중원구사회복지과", "amount": 110922543},
+          {"rank": 5, "business": "기초연금", "department": "분당구사회복지과", "amount": 83191907}
+        ]
+      }
+    },
+    {
+      "id": "acc-2-top3-department",
+      "issue": 2,
+      "query": "2026년 본예산 중 일반회계 부서별 총액 상위 3개 부서와 금액을 알려줘",
+      "year": 2026,
+      "budget_type": "본예산",
+      "account": "일반회계",
+      "status": "hypothesis",
+      "expect": {
+        "rows": [
+          {"rank": 1, "department": "회계과", "amount": 286474241},
+          {"rank": 2, "department": "대중교통과", "amount": 200418594},
+          {"rank": 3, "department": "수정구사회복지과", "amount": 185986330}
+        ]
+      }
+    },
+    {
+      "id": "acc-2-stat-401-01",
+      "issue": 2,
+      "query": "2026년 분당구 구조물관리과에서 세부사업 총액이 아니라 401-01 시설비 금액이 가장 큰 사업은?",
+      "year": 2026,
+      "status": "hypothesis",
+      "expect": {
+        "level": "stat",
+        "code": "401-01",
+        "line_count": 21,
+        "rows": [
+          {"rank": 1, "business": "지하차도(터널) 시설물유지관리보수공사", "page": 1342, "amount": 5347500, "amount_conflict": "설계 문서 1절(현행 진단)은 5,547,500, 6절(기대값)은 5,347,500으로 불일치. 원문 p1342에서 확인 필요"},
+          {"rank": 2, "business": "공동구시설물유지관리보수공사", "amount": 4426000},
+          {"rank": 3, "business": "교량유지관리보수공사", "amount": 3739223}
+        ],
+        "forbidden": "세부사업 합계 기준의 도로시설물유지관리운영(4,757,200)을 답으로 제시하지 않는다."
+      }
+    },
+    {
+      "id": "acc-4-three-district-sum",
+      "issue": 4,
+      "query": "2026년 본예산 기초연금 지급액을 수정구·중원구·분당구 사회복지과별로 각각 보여주고 세 구 합계를 계산해줘.",
+      "year": 2026,
+      "budget_type": "본예산",
+      "status": "hypothesis",
+      "expect": {
+        "rows_pages": [883, 1110, 1291],
+        "calculated_total": 308118174,
+        "missing_department_case": {"remove_one_department": true, "total": null, "reports_missing": true}
+      }
+    },
+    {
+      "id": "acc-5-edition-compare",
+      "issue": 5,
+      "query": "2026년 중원구 사회복지과 기초연금 본예산과 1회 추경에서 기정액 경정액 증감액을 각각 비교해줘.",
+      "year": 2026,
+      "status": "hypothesis",
+      "expect": {
+        "initial_thousand_won": 110922543,
+        "revision_1_thousand_won": 116417588,
+        "previous_amount": 110922543,
+        "increase": 5495045,
+        "revision_page": 351,
+        "previous_matches_initial": true,
+        "summed": false
+      }
+    },
+    {
+      "id": "acc-6a-no-name-match",
+      "issue": 6,
+      "query": "2026년 분당구 건설과에 달나라 지하철 조성사업 예산이 없는 게 확실해? 0원으로 보고서에 적어도 돼?",
+      "year": 2026,
+      "status": "hypothesis",
+      "expect": {
+        "result": "no_name_match",
+        "reconciled_rows_checked": 32,
+        "reconciled_sum": 26313567,
+        "next_action_leads_with": "미확인",
+        "forbidden": "0원"
+      }
+    },
+    {
+      "id": "acc-6b-funding-breakdown",
+      "issue": 6,
+      "query": "2026년 수정구 사회복지과 기초연금 본예산의 국비 도비 시비와 합계를 원문 근거로 알려줘.",
+      "year": 2026,
+      "budget_type": "본예산",
+      "status": "hypothesis",
+      "expect": {
+        "page_hint": "사회복지과 기초연금 원문",
+        "national_thousand_won": 91203571,
+        "provincial_thousand_won": 4560031,
+        "city_thousand_won": 18240122,
+        "total_thousand_won": 114003724,
+        "evidence_page": null,
+        "note": "페이지 번호는 설계 문서에 없음. 원문에서 확인해 채울 것."
+      }
+    },
+    {
+      "id": "acc-regression-tool-count",
+      "issue": "regression",
+      "status": "hypothesis",
+      "expect": {
+        "largest_business_fixed_department": "분당구구조물관리과",
+        "golden_set_min_pass": "58/64",
+        "tool_count": 8
+      }
+    }
+  ]
+}

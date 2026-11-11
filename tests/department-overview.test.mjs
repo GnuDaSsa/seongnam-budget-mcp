@@ -26,6 +26,8 @@ const MAIN_TEXT = [
   '   미래모빌리티기반도시시설물데이터구축    2,265,924    2,000,000    265,924',
   '  스마트공장확산    1,140,000    0    1,140,000',
   '   스마트공장지원    1,140,000    0    1,140,000',
+  '  기타운영    5,431,548    5,000,000    431,548',
+  '   기타운영사업    5,431,548    5,000,000    431,548',
 ].join('\n');
 
 const UNRELATED_TEXT = [
@@ -114,7 +116,7 @@ test('본예산과 1회 추경을 함께 주면 두 편성을 순서대로 라�
 test('각 편성의 세부사업은 금액 내림차순으로 정렬된다', () => {
   const overview = departmentOverview('AI반도체과', 2026, [MAIN, SUPPLEMENTARY]);
   const [main, sup] = overview.editions;
-  assert.deepEqual(main.businesses.map(b => b.amount), [2265924, 1140000]);
+  assert.deepEqual(main.businesses.map(b => b.amount), [5431548, 2265924, 1140000]);
   assert.deepEqual(sup.businesses.map(b => b.amount), [26299000, 2075924]);
 });
 
@@ -162,4 +164,40 @@ test('읽을 행이 전혀 없으면 null을 반환한다', () => {
 test('쪽이 잘렸다고 표시하면 pages_truncated가 true다', () => {
   assert.equal(departmentOverview('AI반도체과', 2026, [MAIN, SUPPLEMENTARY], true).pages_truncated, true);
   assert.equal(departmentOverview('AI반도체과', 2026, [MAIN, SUPPLEMENTARY]).pages_truncated, false);
+});
+
+// 공백이 있는 세부사업 이름은 들여쓰기 3이 아닌 4, 6, 2에서 읽힌다. 다음 구조 행이 편성목이면 세부사업이다.
+const INDENT_TEXT = [
+  '부서: 구조물과',
+  '구조물과    10,000    8,000    2,000',
+  ' 도로시설관리    10,000    8,000    2,000',
+  '  도로시설물유지관리    10,000    8,000    2,000',
+  '   정자지하차도성능개선공사    4,000    3,000    1,000',
+  '         401 시설비및부대비    4,000    3,000    1,000',
+  '          01 시설비    4,000    3,000    1,000',
+  '    지하차도(터널) 시설물유지관리보수공사    5,000    4,000    1,000',
+  '         401 시설비및부대비    5,000    4,000    1,000',
+  '      공백이 있는 여섯칸 사업    700    600    100',
+  '         201 일반운영비    700    600    100',
+  '  두칸 들여쓴 사업 이름    300    400    △100',
+  '         201 일반운영비    300    400    △100',
+].join('\n');
+
+test('들여쓰기 4, 6, 2로 읽히는 공백 이름의 세부사업도 편성목 구조로 읽고 합계를 맞춘다', () => {
+  const rows = departmentPageRows(INDENT_TEXT, '구조물과');
+  assert.deepEqual(rows.businesses.map(b => b.name),
+    ['정자지하차도성능개선공사', '지하차도(터널) 시설물유지관리보수공사', '공백이 있는 여섯칸 사업', '두칸 들여쓴 사업 이름']);
+  const overview = departmentOverview('구조물과', 2026, [edition('본예산', undefined, 'doc-i', INDENT_TEXT)]);
+  assert.equal(overview.editions[0].reconciliation.reconciled, true);
+  assert.equal(overview.base_reconciled, true);
+  assert.equal(overview.largest_business.name, '지하차도(터널) 시설물유지관리보수공사');
+});
+
+test('본예산 세부사업 합계가 부서 합계와 다르면 largest_business를 내지 않는다', () => {
+  const broken = INDENT_TEXT.replace('구조물과    10,000    8,000    2,000', '구조물과    99,000    8,000    91,000');
+  const overview = departmentOverview('구조물과', 2026, [edition('본예산', undefined, 'doc-b', broken)]);
+  assert.equal(overview.editions[0].reconciliation.reconciled, false);
+  assert.equal(overview.base_reconciled, false);
+  assert.equal(overview.largest_business, null);
+  assert.match(overview.largest_business_suppressed_reason, /부서 합계/);
 });
