@@ -35,7 +35,8 @@ function detectDepartments(query, departments) {
  return requestedDepartments(query, {departments: index}).map(d => d.name);
 }
 
-export function detectAnalyticIntent(query, {departments = []} = {}) {
+// excluded_budget_types: resolveQuery가 "추경 제외"·"추경 빼고" 같은 표현에서 해석한 편성. 제외한 편성은 비교 대상이 될 수 없다.
+export function detectAnalyticIntent(query, {departments = [], excluded_budget_types = []} = {}) {
  const q = String(query || '').normalize('NFKC');
  const named = detectDepartments(q, departments);
  const districtCount = new Set(q.match(/수정구|중원구|분당구/g) || []).size;
@@ -62,7 +63,8 @@ export function detectAnalyticIntent(query, {departments = []} = {}) {
  }
 
  const department_sum = /합계|합산|더해|더하|합치/.test(q) && (named.length >= 2 || (!named.length && districtCount >= 2));
- const edition_compare = /기정액|경정액|증감/.test(q) || (/본예산/.test(q) && /추경|추가경정/.test(q));
+ const editionExcluded = (excluded_budget_types || []).some(t => t === '본예산' || t === '추경');
+ const edition_compare = !editionExcluded && (/기정액|경정액|증감/.test(q) || (/본예산/.test(q) && /추경|추가경정/.test(q)));
  const funding = /국비|도비|시비|재원|국도비/.test(q);
  const explicit_edition = /본예산|추경|추가경정|결산/.test(q);
  let explicit_account = null, best = Infinity;

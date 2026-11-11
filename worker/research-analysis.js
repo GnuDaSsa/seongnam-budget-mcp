@@ -56,9 +56,12 @@ function pickSources(rows) {
 export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null } = {}) {
   if (!analysisEligible(a) || typeof loadRows !== 'function') return null;
   const departments = (a.departments || []).map(d => d.name);
-  const intent = detectAnalyticIntent(a.query, { departments });
+  // 질문이 제외한 편성은 의도 판별·문서 선택·행 읽기 어디에도 쓰지 않는다.
+  const excluded = a.policy?.excluded_budget_types || [];
+  const intent = detectAnalyticIntent(a.query, { departments, excluded_budget_types: excluded });
   const residue = businessResidue(a.query, departments);
-  const compareRequested = intent.edition_compare || (a.policy?.allowed_budget_types?.includes('본예산') && a.policy.allowed_budget_types.includes('추경'));
+  const editionExcluded = excluded.includes('본예산') || excluded.includes('추경');
+  const compareRequested = !editionExcluded && (intent.edition_compare || (a.policy?.allowed_budget_types?.includes('본예산') && a.policy.allowed_budget_types.includes('추경')));
   let kind = null;
   if (intent.ranking) kind = 'ranking';
   else if (departments.length >= 2 && (intent.department_sum || residue.length)) kind = 'department_sum';
@@ -75,7 +78,7 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
 
   if (UNSUPPORTED_ACCOUNTS.includes(intent.explicit_account)) return stop('unsupported_account', intent.explicit_account + ' 명세서는 표 구조가 달라 행 단위 계산을 하지 않습니다. 원문 쪽을 직접 확인하세요.');
 
-  const yearDocs = documents.filter(d => d.year === a.year);
+  const yearDocs = documents.filter(d => d.year === a.year && !excluded.includes(d.budget_type));
   const mainDocs = yearDocs.filter(d => d.budget_type === '본예산');
   const revisionDocs = yearDocs.filter(d => d.budget_type === '추경');
   // 계산 기준 편성: 질문에 추경만 명시했으면 그 회차, 그 밖에는 본예산(미지정이면 그 사실을 알린다).

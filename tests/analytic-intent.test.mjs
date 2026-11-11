@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {detectAnalyticIntent} from '../worker/analytic-intent.js';
+import {resolveQuery} from '../worker/policy.js';
 
 const DEPARTMENTS = ['예산과', '회계과', '대중교통과', '공원과', '구조물관리과', '분당구구조물관리과', '수정구사회복지과', '중원구사회복지과', '분당구사회복지과', '분당구건설과'];
 
@@ -139,6 +140,29 @@ test('accepts departments given as strings or {key,name} objects', () => {
  const b = detectAnalyticIntent('2026년 분당구구조물관리과 가장 큰 사업', {departments: DEPARTMENTS});
  assert.deepEqual(a, b);
  assert.equal(a.ranking.department, '분당구구조물관리과');
+});
+
+test('issue #5 negative control: 정책이 제외한 편성은 편성 비교 의도가 되지 않는다', () => {
+ const q = '2026년 중원구 사회복지과 기초연금 본예산만 알려줘. 추경은 제외해줘.';
+ const policy = resolveQuery({query: q}).policy;
+ assert.ok(policy.excluded_budget_types.includes('추경'));
+ const r = detectAnalyticIntent(q, {departments: DEPARTMENTS, excluded_budget_types: policy.excluded_budget_types});
+ assert.equal(r.edition_compare, false);
+ assert.ok(!r.kinds.includes('edition_compare'));
+ // 제외 정보를 주지 않으면 기존 동작(문자열만 보고 비교로 오인)이 그대로여서, 호출자가 정책을 넘겨야 한다.
+ assert.equal(detectAnalyticIntent(q, {departments: DEPARTMENTS}).edition_compare, true);
+});
+
+test('issue #5: 다른 제외 표현도 비교 의도를 만들지 않고, 명시 비교는 유지된다', () => {
+ for (const q of ['2026년 중원구 사회복지과 기초연금 본예산 알려줘 추경 빼고', '2026년 본예산과 추경 중 추경 제외 기초연금', '2026년 기초연금 본예산 추경 말고 알려줘']) {
+  const p = resolveQuery({query: q}).policy;
+  assert.ok(p.excluded_budget_types.includes('추경'), q);
+  assert.equal(detectAnalyticIntent(q, {excluded_budget_types: p.excluded_budget_types}).edition_compare, false, q);
+ }
+ const cmp = '2026년 중원구 사회복지과 기초연금 본예산과 1회 추경 비교';
+ const p = resolveQuery({query: cmp}).policy;
+ assert.deepEqual(p.excluded_budget_types, []);
+ assert.equal(detectAnalyticIntent(cmp, {departments: DEPARTMENTS, excluded_budget_types: p.excluded_budget_types}).edition_compare, true);
 });
 
 test('acceptance fixture is well formed and every item is still a hypothesis', () => {

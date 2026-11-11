@@ -32,6 +32,16 @@ async function research(query, extra = {}) {
   return data;
 }
 
+test('본예산만 요청하고 추경을 제외하면 추경 문서와 비교를 반환하지 않는다', async () => {
+  const r = await research('2026년 중원구 사회복지과 기초연금 본예산만 알려줘. 추경은 제외해줘.');
+  assert.equal(r.analysis.kind, 'business_lookup');
+  assert.equal(r.analysis.status, 'matched');
+  assert.equal(r.analysis.rows[0].amount, 110922543);
+  assert.ok(r.analysis.documents_read.every(d => d.edition === '본예산'));
+  assert.ok(r.evidence.every(e => e.budget_type !== '추경'));
+  assert.ok((r.department_overview?.editions || []).every(e => e.budget_type !== '추경'));
+});
+
 test('미확인 사업은 부서 개요가 있어도 0원이나 부재로 판단하지 않도록 안내한다', async () => {
   const r = await research('2026년 분당구 건설과에 달나라 지하철 조성사업 예산이 없는 게 확실해? 0원으로 보고서에 적어도 돼?');
   assert.equal(r.match_quality.level, 'semantic_only');

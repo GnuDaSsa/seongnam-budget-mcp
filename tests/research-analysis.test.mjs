@@ -143,3 +143,61 @@ test('#6b 수정구 기초연금 재원은 국·도·시 합이 예산액과 맞
   assert.equal(r.funding.sum, 114003724);
   assert.equal(r.source_pages[0].page, 883);
 });
+
+// ── #5 제외한 편성은 비교 대상이 아니며 읽지도 반환하지도 않는다(합성 문서·행, 스냅샷 불필요) ──
+const DEPT = '중원구사회복지과';
+const synthRow = (extra) => ({
+  level: 'business', year: 2026, account: '일반회계', department: DEPT, policy: '노인복지', unit: '기초연금', business: '기초연금',
+  amount_unit: '천원', columns_verified: true, page: 1, source_line: 1, ...extra,
+});
+const SYNTH_DOCS = [
+  { document_id: 'main', title: 'm', year: 2026, budget_type: '본예산', revision: null, account_group: '일반회계' },
+  { document_id: 'rev1', title: 'r1', year: 2026, budget_type: '추경', revision: 1, account_group: '원문 확인' },
+];
+const SYNTH_ROWS = {
+  main: [synthRow({ document_id: 'main', budget_type: '본예산', revision: null, amounts: { budget: 100, previous: null, change: null } })],
+  rev1: [synthRow({ document_id: 'rev1', budget_type: '추경', revision: 1, amounts: { budget: 130, previous: 100, change: 30 } })],
+};
+async function runSynthetic(query) {
+  const read = [];
+  const a = scoped(query, [DEPT]);
+  const r = await buildAnalysis(a, { documents: SYNTH_DOCS, loadRows: async doc => { read.push(doc.document_id); return SYNTH_ROWS[doc.document_id]; }, urlFor: (id, p) => id + '#page=' + p });
+  return { a, r, read };
+}
+
+test('#5 음성 대조: 본예산만 요청하고 추경 제외면 비교·추경 문서 읽기·추경 행 반환이 없다', async () => {
+  for (const q of [
+    '2026년 중원구 사회복지과 기초연금 본예산만 알려줘. 추경은 제외해줘.',
+    '2026년 중원구 사회복지과 기초연금 본예산 알려줘 추경 빼고',
+    '2026년 중원구 사회복지과 기초연금 본예산 추경 제외',
+  ]) {
+    const { a, r, read } = await runSynthetic(q);
+    assert.ok(a.policy.excluded_budget_types.includes('추경'), q);
+    assert.equal(a.budget_type, '본예산', q);
+    assert.notEqual(r.kind, 'edition_compare', q);
+    assert.ok(!r.intent.kinds.includes('edition_compare'), q);
+    assert.deepEqual(read, ['main'], q);
+    assert.ok(!r.documents_read.some(d => d.edition !== '본예산'), q);
+    assert.ok(!JSON.stringify(r).includes('rev1'), q);
+    assert.ok(!(r.rows ?? []).some(x => x.budget_type === '추경'), q);
+    assert.equal(r.status, 'matched', q);
+    assert.equal(r.rows[0].amount, 100, q);
+  }
+});
+
+test('#5 추경 제외인데 편성이 지정되지 않으면 추경을 임의로 고르지 않고 중단한다', async () => {
+  const { r, read } = await runSynthetic('2026년 중원구 사회복지과 기초연금 추경 제외하고 알려줘');
+  assert.equal(r.status, 'edition_required');
+  assert.deepEqual(read, []);
+});
+
+test('#5 양성 대조: 본예산과 1회 추경 비교는 두 편성을 모두 읽어 edition_compare를 만든다', async () => {
+  const { a, r, read } = await runSynthetic('2026년 중원구 사회복지과 기초연금 본예산과 1회 추경 비교');
+  assert.deepEqual(a.policy.excluded_budget_types, []);
+  assert.equal(r.kind, 'edition_compare');
+  assert.equal(r.status, 'compared');
+  assert.deepEqual([...read].sort(), ['main', 'rev1']);
+  assert.equal(r.initial.amount, 100);
+  assert.equal(r.revisions[0].revision, 1);
+  assert.equal(r.revisions[0].revised_amount, 130);
+});
