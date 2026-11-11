@@ -241,3 +241,40 @@ test('이슈 #4 대조: 같은 부서 조합을 합계로 물으면 department_s
   assert.ok(r.analysis.intent.kinds.includes('department_sum'));
   assert.ok(!r.analysis.intent.kinds.includes('department_difference'));
 });
+
+// 빌드된 worker 기준: 방향을 묻는 차액 질문은 절대값 차이만 계산하고 합계를 답으로 내지 않는다.
+function assertDepartmentDifferenceBuiltWorker(a, operands) {
+  assert.equal(a.kind, 'department_difference');
+  assert.equal(a.status, 'calculated');
+  assert.equal(a.calculated_total, null);
+  assert.equal(a.total, null);
+  assert.notEqual(a.calculated_total?.amount, 197195631);
+  assert.ok(!a.rows.some(row => row.amount === 197195631), '합계 금액이 행으로 노출되지 않음');
+  assert.equal(a.difference.absolute_difference, 30811817);
+  assert.equal(a.difference.unit, '천원');
+  assert.equal(a.difference.direction_known, false);
+  assert.equal(a.difference.signed_difference, null);
+  assert.equal(a.difference.expression, null);
+  assert.deepEqual(a.difference.operands.map(o => [o.department, o.amount]), operands);
+  assert.equal(a.scope.year, 2026);
+  assert.equal(a.scope.edition, '본예산');
+  assert.equal(a.scope.account_group, '일반회계');
+  assert.ok(a.source_pages.length > 0, 'source_pages 비어 있지 않음');
+  assert.deepEqual(a.source_pages.map(p => p.page).sort((x, y) => x - y), [883, 1291]);
+}
+
+test('빌드 worker: 분당구가 수정구보다 얼마나 적은지 묻는 차액은 절대값 차이만 계산한다', async () => {
+  const r = await research('2026년 기초연금 일반회계 본예산에서 분당구 사회복지과 예산이 수정구 사회복지과보다 얼마나 적어?');
+  assertDepartmentDifferenceBuiltWorker(r.analysis, [
+    ['분당구사회복지과', 83191907],
+    ['수정구사회복지과', 114003724],
+  ]);
+});
+
+test('빌드 worker: 수정구보다 분당구가 얼마나 많은지 묻는 반대 순서도 같은 절대값 차이를 낸다', async () => {
+  const r = await research('2026년 기초연금 일반회계 본예산에서 수정구 사회복지과보다 분당구 사회복지과가 얼마나 많아?');
+  assertDepartmentDifferenceBuiltWorker(r.analysis, [
+    ['수정구사회복지과', 114003724],
+    ['분당구사회복지과', 83191907],
+  ]);
+});

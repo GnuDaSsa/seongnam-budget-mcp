@@ -6,6 +6,7 @@ import { resolveQuery } from '../worker/policy.js';
 import { buildAnalysis, analysisEligible, businessResidue } from '../worker/research-analysis.js';
 import { findStatementDocuments } from '../worker/analysis.js';
 import { parseStatementRows } from '../worker/statement-rows.js';
+import { detectDifferenceIntent } from '../worker/analytic-intent.js';
 import { researchGuidance } from '../worker/research-guidance.js';
 import { hasSnapshot, catalog, loadStatementPages } from './helpers/statement-snapshot.mjs';
 
@@ -43,6 +44,11 @@ test('부서명만 있는 질문은 사업 확인 대상으로 보지 않는다'
 test('주입한 행 로더가 없거나 의도가 없으면 analysis를 만들지 않는다', async () => {
   assert.equal(await buildAnalysis(scoped('2026년 본예산 세출 중 가장 큰 세부사업 5개'), { documents: [] }), null);
   assert.equal(await buildAnalysis(scoped('2026년 성남시 본예산 총예산'), { documents: [], loadRows: async () => [] }), null);
+});
+
+test('두 부서를 단순히 나열한 질문은 합계 의도를 추정하지 않는다', async () => {
+  const a = scoped('2026년 본예산 수정구와 분당구 사회복지과 기초연금을 각각 알려줘', ['수정구사회복지과', '분당구사회복지과']);
+  assert.equal(await buildAnalysis(a, { documents: [], loadRows: async () => [] }), null);
 });
 
 test('#2 회계 미지정 세부사업 상위 5개는 일반회계 범위로 한정해 표시한다', live, async () => {
@@ -311,4 +317,67 @@ test('#4 일반 합계 질문은 차액 변경 후에도 합산한다', async ()
   assert.equal(r.difference, undefined);
   const three = await runDiff('2026년 기초연금 일반회계 본예산 수정구 중원구 분당구 사회복지과 합계', [D_SUJEONG, D_JUNGWON, D_BUNDANG]);
   assert.equal(three.calculated_total.amount, 308118174);
+});
+
+// ── #4 최신 부정 사례: "A가 B보다 얼마나 적어/많아"는 합계가 아니라 차이다 ──
+const BASE_Q = '2026년 기초연금 일반회계 본예산에서 ';
+for (const [label, tail, depts] of [
+  ['A가 B보다 얼마나 적어', '분당구 사회복지과 예산이 수정구 사회복지과보다 얼마나 적어?', [D_BUNDANG, D_SUJEONG]],
+  ['B보다 A가 얼마나 많아(반대 순서)', '수정구 사회복지과보다 분당구 사회복지과 예산이 얼마나 많아?', [D_SUJEONG, D_BUNDANG]],
+  ['얼마나 커', '수정구 사회복지과 예산이 분당구 사회복지과보다 얼마나 커?', [D_SUJEONG, D_BUNDANG]],
+  ['얼마나 작은가', '분당구 사회복지과 예산은 수정구 사회복지과보다 얼마나 작은가?', [D_BUNDANG, D_SUJEONG]],
+  ['얼마나 많은지', '수정구 사회복지과가 분당구 사회복지과보다 얼마나 많은지 알려줘', [D_SUJEONG, D_BUNDANG]],
+]) {
+  test('#4 비교 표현 차이 질문: ' + label, async () => {
+    const r = await runDiff(BASE_Q + tail, depts);
+    assert.equal(r.kind, 'department_difference');
+    assert.equal(r.status, 'calculated');
+    assert.ok(!r.intent.kinds.includes('department_sum'));
+    assert.equal(r.calculated_total, null);
+    assert.equal(r.difference.absolute_difference, 30811817);
+    assert.equal(r.difference.unit, '천원');
+    assert.equal(r.difference.direction_known, false);
+    assert.equal(r.difference.signed_difference, null);
+    assert.equal(r.difference.expression, null);
+    assert.ok(!JSON.stringify(r).includes('197195631'));
+    assert.equal(r.scope.year, 2026);
+    assert.equal(r.scope.edition, '본예산');
+    assert.equal(r.scope.account_group, '일반회계');
+    assert.deepEqual(r.source_pages.map(p => p.page).sort((x, y) => x - y), [883, 1291]);
+  });
+}
+
+test('#4 명시적 차이 표현과 합계 표현은 그대로 구분한다', async () => {
+  const diff = await runDiff(BASE_Q + '수정구와 분당구 사회복지과의 차이는?', [D_SUJEONG, D_BUNDANG]);
+  assert.equal(diff.kind, 'department_difference');
+  assert.equal(diff.difference.absolute_difference, 30811817);
+  for (const q of ['수정구와 분당구 사회복지과의 합계는?', '수정구와 분당구 사회복지과를 합쳐서 얼마야?', '수정구와 분당구 사회복지과 예산을 모두 더하면 얼마야?']) {
+    const sum = await runDiff(BASE_Q + q, [D_SUJEONG, D_BUNDANG]);
+    assert.equal(sum.kind, 'department_sum', q);
+    assert.equal(sum.calculated_total.amount, 197195631, q);
+  }
+});
+
+test('#4 보다·많 낱말이 있어도 금액 비교가 아닌 문장은 차이로 분류하지 않는다', async () => {
+  const q = BASE_Q + '수정구와 분당구 사회복지과 합계는? 많은 사업 중 기초연금보다 정확한 쪽으로 알려줘.';
+  const r = await runDiff(q, [D_SUJEONG, D_BUNDANG]);
+  assert.equal(r.kind, 'department_sum');
+  assert.equal(r.calculated_total.amount, 197195631);
+  assert.equal(detectDifferenceIntent('기초연금 수정구 분당구 사회복지과 예산은 작년보다 많이 늘었는지, 얼마인지 알려줘').difference, false);
+});
+
+test('#4 비교 표현에서도 부서·편성 누락은 숫자 없이 불확실성을 보존한다', async () => {
+  const q = BASE_Q + '분당구 사회복지과 예산이 수정구 사회복지과보다 얼마나 적어?';
+  const rows = DIFF_ROWS.filter(x => x.department !== D_BUNDANG);
+  const missing = await runDiff(q, [D_BUNDANG, D_SUJEONG], rows);
+  assert.equal(missing.kind, 'department_difference');
+  assert.notEqual(missing.status, 'calculated');
+  assert.equal(missing.difference, undefined);
+  assert.deepEqual(missing.missing_departments, [D_BUNDANG]);
+  const noDocs = await buildAnalysis(scoped(q, [D_BUNDANG, D_SUJEONG]), { documents: [], loadRows: async () => DIFF_ROWS });
+  assert.notEqual(noDocs.status, 'calculated');
+  assert.equal(noDocs.difference, undefined);
+  const noEdition = await runDiff('2026년 기초연금 일반회계 분당구 사회복지과 예산이 수정구 사회복지과보다 얼마나 적어?', [D_BUNDANG, D_SUJEONG]);
+  assert.equal(noEdition.status, 'edition_required');
+  assert.equal(noEdition.difference, undefined);
 });

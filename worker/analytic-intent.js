@@ -36,8 +36,10 @@ function detectDepartments(query, departments) {
 }
 
 const DISTRICTS = ['수정구', '중원구', '분당구'];
-const SUM_WORDS = /합계|합산|더해|더하|합치/;
+const SUM_WORDS = /합계|합산|더해|더하|합치|합쳐/;
 const DIFFERENCE_WORDS = /차액|차이|격차|얼마나\s*(?:더|덜)|빼면|뺀\s*(?:값|금액|액수)|뺄\s*때|뺐을/;
+// "A가 B보다 얼마나 적어/많은가", "B보다 A가 얼마나 커". 같은 문장 안에서 보다와 얼마나+비교 서술어가 함께 있을 때만 금액 차이 질문으로 본다.
+const COMPARATIVE_AMOUNT = /(?:보다[^.?!\n]{0,40}얼마나\s*(?:더\s*|덜\s*)?(?:많|적|크|커|큰|작|높|낮)|얼마나\s*(?:더\s*|덜\s*)?(?:많|적|크|커|큰|작|높|낮)[^.?!\n]{0,40}보다)/;
 // 질문 순서(A와 B의 차액 = A-B)와 다른 방향을 만들 수 있는 표현. 있으면 방향을 확정하지 않는다.
 const DIRECTION_CUES = /보다|얼마나\s*(?:더|덜)|(?:더|덜)\s*(?:많|적|큰|작|높|낮)|빼|뺀|뺄|뺐/;
 // "중원구는 제외해줘", "분당구 빼고". "빼면"은 차액 표현("A에서 B를 빼면")이라 제외로 보지 않는다.
@@ -53,7 +55,7 @@ export function detectDifferenceIntent(query) {
  const q = String(query || '').normalize('NFKC');
  const withoutExclusion = q.replace(/\S*?(?:은|는|을|를|도|가|이)?\s*(?:제외|빼고|빼서|빼지|말고)\S*/g, ' ');
  return {
-  difference: DIFFERENCE_WORDS.test(withoutExclusion),
+  difference: DIFFERENCE_WORDS.test(withoutExclusion) || COMPARATIVE_AMOUNT.test(withoutExclusion),
   direction_cue: DIRECTION_CUES.test(withoutExclusion),
   sum: SUM_WORDS.test(q),
  };
@@ -129,7 +131,7 @@ export function detectAnalyticIntent(query, {departments = [], excluded_budget_t
   };
  }
 
- const department_sum = /합계|합산|더해|더하|합치/.test(q) && (named.length >= 2 || (!named.length && districtCount >= 2));
+ const department_sum = SUM_WORDS.test(q) && (named.length >= 2 || districtCount >= 2);
  const editionExcluded = (excluded_budget_types || []).some(t => t === '본예산' || t === '추경');
  const edition_compare = !editionExcluded && (/기정액|경정액|증감/.test(q) || (/본예산/.test(q) && /추경|추가경정/.test(q)));
  const diff = detectDifferenceIntent(q);

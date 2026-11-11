@@ -70,7 +70,7 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   let kind = null;
   if (intent.ranking) kind = 'ranking';
   else if (diff && (departments.length >= 2 || diff.mentioned_districts >= 2) && (differenceRequested || operationConflict)) kind = 'department_difference';
-  else if (departments.length >= 2 && (intent.department_sum || residue.length)) kind = 'department_sum';
+  else if (departments.length >= 2 && intent.department_sum) kind = 'department_sum';
   else if (departments.length === 1 && compareRequested && residue.length) kind = 'edition_compare';
   else if (departments.length === 1 && intent.funding && residue.length) kind = 'funding';
   else if (departments.length === 1 && residue.length && !DEPARTMENT_TOTAL.test(a.query)) kind = 'business_lookup';
