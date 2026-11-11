@@ -375,3 +375,118 @@ test('세목 음성 3: 합계를 요청하지 않은 구별 질문은 합계를 
   assert.equal(r.analysis?.calculated_total ?? null, null, '요청하지 않은 합계 계산 금지');
   assert.equal(JSON.stringify(r.analysis ?? {}).includes('8000000') || JSON.stringify(r.analysis ?? {}).includes('8,000,000'), false, '8,000,000 합계 미노출');
 });
+
+// ── 세목·구별 묶음 제외 회귀: 빌드 worker 기준 ─────────────────────
+// 기대 금액·쪽은 위 세목 회귀와 같은 수록 행(아동수당지급 25,154,525 p1309, 아동수당지급(자체) 5,528,096 p1310,
+// 스마트그린 안전쉼터 조성 구별 1,800,000·1,600,000·2,300,000×2 = 8,000,000 천원)에서 가져온다.
+// 제외 표현 자체는 reason·note 안내문에 나올 수 있으므로, 행·사업명·쪽·후보처럼 구조화된 값만 검사한다.
+function structuredValues(a) {
+  return JSON.stringify({
+    rows: a?.rows, items: a?.items, groups: a?.groups, candidates: a?.candidates,
+    requested_items: a?.requested_items, source_pages: a?.source_pages, calculated_total: a?.calculated_total ?? null,
+  });
+}
+// 같은 행이 rows와 groups 양쪽에 있을 수 있으므로 쪽·줄·사업명·금액으로 중복을 없앤다.
+function uniqueAmountRows(node) {
+  const key = o => [pageOf(o), o.source_line ?? null, o.business ?? o.name ?? null, amountOf(o)].join('|');
+  return [...new Map(findAmountRows(node).map(o => [key(o), o])).values()];
+}
+const DISTRICT_BUILD_AMOUNTS = [1800000, 1600000, 2300000];
+
+test('세목 제외 1: 아동수당지급(자체)를 빼면 status matched, 아동수당지급 행 하나와 1309쪽만 남는다', async () => {
+  const r = await research('2026년 분당구 가정복지과 일반회계 본예산에서 아동수당지급 예산만 알려줘. 아동수당지급(자체)는 제외해줘.');
+  const a = r.analysis;
+  assert.equal(a.status, 'matched');
+  assert.deepEqual(a.rows.map(x => [x.business, x.amount]), [['아동수당지급', 25154525]]);
+  assert.deepEqual(a.source_pages.map(p => p.page), [1309]);
+  assert.ok(a.exclusions?.terms.includes('아동수당지급(자체)'), '제외어 보고');
+  assert.equal(a.exclusions.unmatched_terms.length, 0, '제외어는 수록 행과 일치');
+  assert.equal(findAmountRows(a).some(o => amountOf(o) === 5528096), false, '(자체) 금액 5,528,096 미노출');
+  assert.equal(structuredValues(a).includes('(자체)'), false, '(자체)가 행·사업·쪽·후보 값에 남지 않음');
+  for (const form of SUM_JSON_FORMS) assert.equal(structuredValues(a).includes(form), false, '합산값 미노출: ' + form);
+  assert.equal(a.calculated_total ?? null, null, '요청하지 않은 합계 없음');
+});
+
+test('세목 제외 2: (자체)만 빼고 아동수당지급을 물으면 제외하지 않은 아동수당지급 행은 그대로 남는다', async () => {
+  const r = await research('2026년 분당구 가정복지과 일반회계 본예산에서 아동수당지급(자체)은 빼고 아동수당지급 금액만 알려줘.');
+  const a = r.analysis;
+  assert.equal(a.status, 'matched');
+  assert.deepEqual(a.rows.map(x => [x.business, x.amount]), [['아동수당지급', 25154525]], '제외하지 않은 아동수당지급 행이 남음');
+  assert.deepEqual(a.source_pages.map(p => p.page), [1309]);
+  assert.equal(findAmountRows(a).some(o => amountOf(o) === 5528096), false, '(자체) 금액 미노출');
+  assert.equal(a?.calculated_total ?? null, null, '요청하지 않은 합계 없음');
+});
+
+test('구별 묶음 제외 1: 유지관리는 제외하면 유지관리 행이 없고, 합계는 4개 조성 행이 완전할 때만 낸다', async () => {
+  const r = await research('2026년 스마트도시과 일반회계 본예산 스마트그린 안전쉼터 조성의 수정구 중원구 분당구별 금액과 합계는? 유지관리는 제외해줘.');
+  const a = r.analysis;
+  assert.equal(a.match_kind, 'district_groups');
+  assert.ok(a.exclusions?.terms.includes('유지관리'), '제외어 유지관리 보고');
+  const rows = uniqueAmountRows(a);
+  assert.equal(rows.some(o => String(o.business ?? '').includes('유지관리')), false, '유지관리 행이 결과에 없음');
+  assert.equal(structuredValues(a).includes('유지관리'), false, '유지관리가 구조화 값에 없음');
+  if (a.status === 'incomplete') {
+    assert.equal(a.calculated_total ?? null, null, '불완전하면 합계 없음');
+    assert.ok(typeof a.reason === 'string' && a.reason.length > 0, '불완전 사유');
+  } else {
+    assert.equal(a.status, 'calculated');
+  }
+  if (a?.calculated_total) {
+    // 완전 일치: 조성 4개 행(1,800,000 + 1,600,000 + 2,300,000 + 2,300,000)만으로 합계를 낸다.
+    assert.equal(a.calculated_total.amount, 8000000, '합계는 8,000,000 천원');
+    const built = (a.rows || []).filter(o => amountOf(o) !== null && DISTRICT_BUILD_AMOUNTS.includes(amountOf(o)));
+    assert.equal(built.length, 4, '조성 4개 행이 모두 있어야 함');
+    assert.equal(built.reduce((n, o) => n + amountOf(o), 0), a.calculated_total.amount, '합계는 나열된 행의 합');
+    assert.equal(built.every(o => pageOf(o) !== null), true, '행마다 원문 쪽 번호');
+  } else {
+    // 불완전: 합계를 내지 않고 불완전을 명시하며, 완전하다고 주장하지 않는다.
+    assert.equal(a?.calculated_total ?? null, null, '불완전하면 합계 없음');
+    assert.equal(SUM_JSON_FORMS.some(f => structuredValues(a).includes(f)), false, '8,000,000 합계 미노출');
+    assert.ok(a?.status === 'incomplete' || INCOMPLETE_RE.test(r.next_action ?? ''), '불완전 명시');
+    assert.equal(COMPLETE_CLAIM_RE.test(r.next_action ?? ''), false, '완전성 주장 금지');
+  }
+});
+
+test('구별 묶음 제외 2(반대): 조성은 제외하고 유지관리를 물으면 조성 행과 조성 합계는 나오지 않는다', async () => {
+  const r = await research('2026년 스마트도시과 일반회계 본예산 스마트그린 안전쉼터 유지관리의 수정구 중원구 분당구별 금액은? 조성은 제외해줘.');
+  const a = r.analysis;
+  const rows = uniqueAmountRows(a);
+  // 현재 원문에는 스마트그린 안전쉼터의 구별 유지관리 행이 확인되지 않는다.
+  // 존재하지 않는 행을 만들어 내지 않고 미확인으로 남기는 것도 정상이다.
+  if (a.match_kind !== 'district_groups') {
+    assert.ok(['no_name_match', 'incomplete'].includes(a.status));
+    assert.equal(a.calculated_total ?? null, null);
+    assert.equal(rows.some(o => String(o.business ?? '').includes('조성')), false);
+    return;
+  }
+  assert.ok(a.exclusions?.terms.includes('조성'), '제외어 조성 보고');
+  assert.equal(rows.every(o => String(o.business ?? '').includes('유지관리')), true, '남은 행은 모두 유지관리 행');
+  assert.equal(rows.some(o => String(o.business ?? '').includes('조성')), false, '조성 행이 결과에 없음');
+  for (const amount of DISTRICT_BUILD_AMOUNTS) {
+    assert.equal(rows.some(o => amountOf(o) === amount && String(o.business ?? '').includes('조성')), false, amount + ' 조성 행 미노출');
+  }
+  assert.notEqual(a?.calculated_total?.amount, 8000000, '조성 합계 8,000,000 미노출');
+  if (a?.calculated_total) {
+    // 합계를 낸다면 유지관리 행만의 합이어야 한다.
+    const maintenance = rows.filter(o => String(o.business ?? '').includes('유지관리'));
+    assert.equal(a.calculated_total.amount, maintenance.reduce((n, o) => n + amountOf(o), 0), '합계는 유지관리 행만의 합');
+  }
+});
+
+test('세목 제외 음성: 수록되지 않은 제외어는 status incomplete와 unmatched_terms로 드러나고 합계를 내지 않는다', async () => {
+  const r = await research('2026년 분당구 가정복지과 일반회계 본예산에서 아동수당지급 예산만 알려줘. 없는사업은 제외해줘.');
+  const a = r.analysis;
+  assert.equal(a.status, 'incomplete');
+  assert.ok(a.exclusions.unmatched_terms.includes('없는사업'), '미일치 제외어 보고');
+  assert.equal(a.calculated_total ?? null, null, '합계 없음');
+  for (const form of SUM_JSON_FORMS) assert.equal(structuredValues(a).includes(form), false, '합산값 미노출: ' + form);
+  assert.equal(COMPLETE_CLAIM_RE.test(r.next_action ?? ''), false, '완전성 주장 금지');
+});
+
+// 편성 제외의 대칭: 본예산을 제외하면 추경만 근거·편성 개요에 남는다.
+test('편성 제외 대칭: 본예산은 제외하고 추경만 보면 본예산 근거·편성·문서가 섞이지 않는다', async () => {
+  const r = await research('2026년 중원구 사회복지과 기초연금 추경만 보고 본예산은 제외해줘.');
+  assert.ok(r.evidence.every(e => e.budget_type !== '본예산'), '근거에 본예산 없음');
+  assert.ok((r.department_overview?.editions || []).every(e => e.budget_type !== '본예산'), '편성 개요에 본예산 없음');
+  assert.ok((r.analysis?.documents_read || []).every(d => d.edition !== '본예산'), '읽은 문서에 본예산 없음');
+});

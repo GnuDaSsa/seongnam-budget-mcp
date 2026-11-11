@@ -2,7 +2,7 @@
 // 순위·부서 합계·편성 비교·재원·사업 확인을 계산한다. 입출력(loadRows)은 호출자가 주입한다.
 // 검증되지 않은 범위는 complete로 표시하지 않고 미확인을 0원으로 바꾸지 않는다.
 import { detectAnalyticIntent, detectDifferenceIntent, differenceOperands } from './analytic-intent.js';
-import { rankRows, matchBusiness, matchDistrictGroups, unmatchedTerms, eachRequested, sumAcrossDepartments, differenceAcrossDepartments, compareEditionRows, fundingBreakdown } from './analysis.js';
+import { rankRows, matchBusiness, matchDistrictGroups, unmatchedTerms, eachRequested, parseExclusions, sumAcrossDepartments, differenceAcrossDepartments, compareEditionRows, fundingBreakdown } from './analysis.js';
 import { reconcileStatement } from './statement-rows.js';
 import { retrievalWords } from './retrieval-phrases.js';
 
@@ -79,6 +79,8 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   const notices = [];
   const base = { kind, method: 'statement_row_index', intent: { kinds: intent.kinds, ranking: intent.ranking, explicit_account: intent.explicit_account, explicit_edition: intent.explicit_edition } };
   const stop = (status, reason, extra = {}) => ({ ...base, status, reason, notices, ...extra });
+
+  if (kind !== 'business_lookup' && parseExclusions(a.query, departments).terms.length) return stop('exclusion_unverified', '사업명 제외 조건을 이 계산 유형에서 검증할 수 없어 순위·합계·비교를 확정하지 않았습니다.');
 
   if (a.year !== 2026) return stop('year_not_validated', '이 연도의 원문 행 분석은 아직 검증하지 않아 순위·합계·비교를 계산하지 않았습니다.');
 
@@ -250,6 +252,7 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
         rows: listed.map(({ r, group }) => ({ ...view(r), group })),
         unassigned_row_count: g.unassigned_rows.length,
         excluded_other_activity_rows: g.excluded_other_activity_rows,
+        exclusions: g.exclusions,
         calculated_total: g.calculated_total, total: null,
         scope: { year: a.year, edition: editionLabel(found.doc), account_group: found.doc.account_group, document_id: found.doc.document_id, unit: listed[0]?.r.amount_unit ?? '천원' },
         note: '구 이름은 부서가 아니라 원문 세부사업명에 적힌 지역 구분이며 담당 부서는 ' + department + '입니다. 같은 구의 행이 여러 개면 별도 행으로 나열합니다. '
@@ -276,6 +279,7 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
         };
       });
       const problems = [];
+      if (match.exclusions?.unmatched_terms?.length) problems.push('제외할 사업 범위를 확인하지 못했습니다: ' + match.exclusions.unmatched_terms.join(', ') + '.');
       if (items.some(i => i.status !== 'matched')) problems.push('일부 사업의 행이 하나로 검증되지 않았습니다(' + items.filter(i => i.status !== 'matched').map(i => i.business + ': ' + i.status).join(', ') + ').');
       if (unmatched.length) problems.push('질문의 다음 표현에 해당하는 정확한 이름의 행을 ' + department + ' ' + editionLabel(found.doc) + ' 세출명세서에서 확인되지 않았습니다: ' + unmatched.join(', ') + '. 이름이 비슷한 다른 행으로 대체하지 않았습니다.');
       return finish(problems.length ? 'incomplete' : 'matched', {
@@ -331,5 +335,12 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
       note: '국·도·시비 등은 원문 재원 줄이며 합계는 계산값으로 대조했습니다.',
     }, match.rows);
   }
-  return finish('matched', { business: match.rows[0].business, rows: match.rows.map(view), note: '원문 세출명세서 행입니다. 금액은 예산액 열이며 편성 회차를 함께 밝히세요.' }, match.rows);
+  // 제외 요청: 정확한 이름으로 제외한 행은 결과에 없다. 제외어에 해당하는 행이 없으면 요청 범위를 확정하지 않는다.
+  const exclusions = match.exclusions ?? null;
+  const exclusionUnresolved = exclusions?.unmatched_terms?.length > 0;
+  return finish(exclusionUnresolved ? 'incomplete' : 'matched', {
+    reason: exclusionUnresolved ? '제외 요청한 ' + exclusions.unmatched_terms.join('·') + '에 해당하는 행을 ' + department + ' 세출명세서에서 찾지 못해 제외 범위를 확정하지 않았습니다. 이름이 비슷한 다른 행을 제외하지 않았습니다.' : null,
+    business: match.rows[0].business, rows: match.rows.map(view), exclusions,
+    note: '원문 세출명세서 행입니다. 금액은 예산액 열이며 편성 회차를 함께 밝히세요.' + (exclusions ? ' 제외 요청어는 괄호 표기까지 같은 정확한 이름으로만 제외했습니다.' : ''),
+  }, match.rows);
 }

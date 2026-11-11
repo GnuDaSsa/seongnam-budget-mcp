@@ -214,9 +214,86 @@ function standaloneNames(q, keys) {
 const EACH_WORDS = /각각|따로|개별|하나씩/;
 export const eachRequested = question => EACH_WORDS.test(String(question ?? ''));
 
+// ── 제외 표현 해석 ──────────────────────────────────────────
+// "아동수당지급(자체)는 제외해줘", "유지관리는 제외해줘", "조성 빼고" 같은 제외 절을 명시적 제외어로 분리한다.
+// 편성·회계·구·부서·연도를 가리키는 제외 절은 기존 경로가 처리하므로 그대로 둔다. 제외어가 아닌 낱말은 지우지 않는다.
+const EXCLUSION_CLAUSE = /([^\s,.;!?]+?)(?:은|는|을|를|도|가|이|만)?\s*(?:제외|빼고|빼서|빼지|말고)(?:\s*(?:해\s*줘|해\s*주세요|하고|해서|해|하며))?/g;
+const NON_BUSINESS_TERM = /^(?:본예산|추경|추가경정(?:예산)?|\d+회추경|예산|일반회계|기타특별회계|수정구|중원구|분당구|\d{4}년(?:도)?|의회|산하기관|기관|자료)$/;
+// 이름 전체가 아니라 활동 낱말로 제외할 수 있는 말. 그 밖의 제외어는 괄호 표기까지 포함한 정확한 이름으로만 비교한다.
+const EXCLUDABLE_ACTIVITY = new Set(['유지보수', '유지관리', '운영', '관리', '보수', '조성']);
+
+// 제외 낱말 앞에 여러 낱말로 된 사업명이 올 수 있다("달나라 지하철 조성사업은 제외해줘"). 마지막 낱말만 쓰면 다른 사업을 지우므로,
+// 같은 절 안에서 앞쪽 낱말을 이어 붙인다. 문장부호, 조사·접속어로 끝나는 낱말, 요청어, 연도·편성·회계·구·부서 낱말에서 멈춘다.
+const MAX_PHRASE_TOKENS = 5;
+const PHRASE_STOP_TOKEN = /(?:에서|에서는|에는|에|의|와|과|으로|로|이며|이고|하고|랑|이랑|은|는|을|를|만|중|및|그리고|또는|한|해서)$|구$|과$|제외|빼고|말고|알려|보여|계산|합산|찾아|확인|비교|^(?:예산|금액|합계|총액|차액|사업|세부사업|각각|합쳐|그리고|및|또는|중|\d{4}년(?:도)?|본예산|추경|일반회계|기타특별회계)$/;
+
+export function parseExclusions(question, ignore = []) {
+  const src = String(question ?? '').normalize('NFKC');
+  const skip = (ignore ?? []).map(n => norm(String(n ?? '').normalize('NFKC'))).filter(Boolean);
+  const items = [];
+  let out = '';
+  let last = 0;
+  for (const m of src.matchAll(EXCLUSION_CLAUSE)) {
+    const lastToken = norm(m[1]);
+    if (!lastToken || NON_BUSINESS_TERM.test(lastToken) || skip.some(d => d === lastToken || d.includes(lastToken) || lastToken.includes(d))) continue;
+    const prefix = [...src.slice(last, m.index).matchAll(/\S+/g)];
+    const tokens = [m[1]];
+    let phraseStart = m.index;
+    for (let i = prefix.length - 1; i >= 0 && tokens.length < MAX_PHRASE_TOKENS; i--) {
+      const tk = prefix[i][0];
+      if (/[,.;!?。]/.test(tk) || PHRASE_STOP_TOKEN.test(tk) || NON_BUSINESS_TERM.test(norm(tk)) || skip.includes(norm(tk))) break;
+      tokens.unshift(tk);
+      phraseStart = last + prefix[i].index;
+    }
+    const term = norm(tokens.join(''));
+    if (/[,，]\s*$/.test(src.slice(last, phraseStart))) items.push({ term: '제외목록해석불가', phrase: '쉼표로 연결된 제외 목록', tokens: [], multiword: true, unresolved: true });
+    if (!items.some(x => x.term === term)) items.push({ term, phrase: tokens.join(' '), tokens, multiword: tokens.length > 1 });
+    out += src.slice(last, phraseStart) + ' ';
+    last = m.index + m[0].length;
+  }
+  out += src.slice(last);
+  return { text: items.length ? out : String(question ?? ''), terms: items.map(x => x.term), items };
+}
+
+// 제외어가 이 사업명을 가리키는가. 공백을 뺀 정확한 이름(괄호 포함)이 제외 구절 전체와 같거나,
+// 제외 구절이 단일 활동 낱말(조성·유지관리 등)일 때만 이름에 포함되는지 본다.
+// "아동수당지급(자체)"를 제외해도 "아동수당지급"은 제외하지 않고, 여러 낱말 구절은 마지막 낱말이나 활동 낱말로 다른 행을 지우지 않는다.
+// terms는 parseExclusions의 items(권장) 또는 단일 낱말 문자열이다.
+export function rowExcluded(businessName, terms = []) {
+  const name = norm(String(businessName ?? '').normalize('NFKC'));
+  return (terms ?? []).some(t => {
+    if (typeof t !== 'string' && t.unresolved) return false;
+    const term = typeof t === 'string' ? t : t.term;
+    const multiword = typeof t === 'string' ? false : !!t.multiword;
+    return name === term || (!multiword && EXCLUDABLE_ACTIVITY.has(term) && name.includes(term));
+  });
+}
+
+// 제외어별 일치 행 수를 보고한다. 일치하는 행이 없는 제외어(여러 낱말 구절이 정확한 이름과 맞지 않는 경우 포함)는
+// 모호하므로 아무 행도 지우지 않고 unmatched_terms에 구절 그대로 남겨 호출자가 완료로 보지 않는다.
+function exclusionReport(rows, items) {
+  const biz = rows.filter(r => r.level === 'business' && r.business);
+  const unmatched = items.filter(t => !biz.some(r => rowExcluded(r.business, [t])));
+  return {
+    terms: items.map(t => t.term),
+    phrases: items.map(t => ({ phrase: t.phrase, tokens: t.tokens, multiword: t.multiword })),
+    excluded_row_count: biz.filter(r => rowExcluded(r.business, items)).length,
+    unmatched_terms: unmatched.map(t => (t.multiword ? t.phrase : t.term)),
+  };
+}
+
 // question 안에서 세부사업 이름을 찾는다. 이름이 질문에 단독으로 들어 있으면(가장 긴 이름 우선) 또는 질문의 내용어가 모두 이름에 들어 있으면 일치.
 // allowMulti이고 질문이 "각각"을 요청하며 서로 다른 정확한 이름이 둘 이상이면 status 'multi_matched'와 이름별 groups를 낸다(합산하지 않음).
-export function matchBusiness(rows = [], question = '', departments = null, { allowMulti = false } = {}) {
+export function matchBusiness(rows = [], question = '', departments = null, options = {}) {
+  const ex = parseExclusions(question, departments ?? []);
+  if (!ex.items.length) return matchBusinessCore(rows, question, departments, options);
+  const scoped = departments?.length ? rows.filter(r => departments.map(norm).includes(norm(r.department))) : rows;
+  const exclusions = exclusionReport(scoped, ex.items);
+  const kept = rows.filter(r => !(r.level === 'business' && rowExcluded(r.business, ex.items)));
+  return { ...matchBusinessCore(kept, ex.text, departments, options), exclusions };
+}
+
+function matchBusinessCore(rows = [], question = '', departments = null, { allowMulti = false } = {}) {
   const wanted = departments?.length ? new Set(departments.map(norm)) : null;
   const businessRows = rows.filter(r => r.level === 'business' && r.business && (!wanted || wanted.has(norm(r.department))));
   const byName = new Map();
@@ -317,12 +394,17 @@ const ACTIVITY_TERMS = ['유지보수', '유지관리', '운영', '관리', '보
 
 export function matchDistrictGroups(rows = [], question = '', departments = [], { sumRequested = false } = {}) {
   const deps = departments ?? [];
+  const ex = parseExclusions(question, deps);
+  question = ex.text;
   const requested = [...new Set(stripDepartments(question, deps).match(/수정구|중원구|분당구/g) ?? [])];
   if (!requested.length || deps.length !== 1) return null;
   const core = coreWords(question, deps);
   if (!core.length) return null;
   const dept = norm(deps[0]);
-  const pool = rows.filter(r => r.level === 'business' && r.business && norm(r.department) === dept);
+  const fullPool = rows.filter(r => r.level === 'business' && r.business && norm(r.department) === dept);
+  const exclusions = exclusionReport(fullPool, ex.items);
+  // 명시적으로 제외한 행(예: 유지관리)은 후보에도 결과에도 넣지 않는다.
+  const pool = fullPool.filter(r => !rowExcluded(r.business, ex.items));
   const hasAll = (name, words) => words.every(w => name.includes(norm(w)));
   let basis = 'all_core_words';
   let candidates = pool.filter(r => hasAll(norm(r.business), core));
@@ -346,6 +428,7 @@ export function matchDistrictGroups(rows = [], question = '', departments = [], 
 
   const reasons = [];
   if (excluded_other_activity_rows) reasons.push('질문과 활동명이 다른 후보 행을 제외해 범위가 완전한지 확정하지 않았습니다.');
+  if (exclusions.unmatched_terms.length) reasons.push('제외 요청한 ' + exclusions.unmatched_terms.join('·') + '에 해당하는 행을 해당 부서에서 찾지 못해 제외 범위를 확정하지 않았습니다.');
   const missing = groups.filter(g => !g.rows.length).map(g => g.group);
   if (missing.length) reasons.push(missing.join('·') + ' 구분이 이름에 적힌 행을 찾지 못했습니다.');
   if (unassigned.length) reasons.push('이름에 구가 적히지 않았거나 여러 구가 섞인 후보 행 ' + unassigned.length + '개가 있어 구별 귀속을 확정하지 않았습니다.');
@@ -367,7 +450,7 @@ export function matchDistrictGroups(rows = [], question = '', departments = [], 
   }
   return {
     basis, core_words: core, requested_groups: requested, groups, unassigned_rows: unassigned,
-    excluded_other_activity_rows, reasons, complete, sum_requested: !!sumRequested, subtotals, calculated_total,
+    excluded_other_activity_rows, exclusions, reasons, complete, sum_requested: !!sumRequested, subtotals, calculated_total,
   };
 }
 

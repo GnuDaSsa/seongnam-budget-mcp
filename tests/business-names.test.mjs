@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveQuery } from '../worker/policy.js';
 import { buildAnalysis } from '../worker/research-analysis.js';
-import { matchBusiness, matchDistrictGroups, districtsOfName } from '../worker/analysis.js';
+import { matchBusiness, matchDistrictGroups, districtsOfName, parseExclusions, rowExcluded } from '../worker/analysis.js';
 
 const DOCS = [{ document_id: 'main', title: 'm', year: 2026, budget_type: '본예산', revision: null, account_group: '일반회계' }];
 const row = (department, business, budget, page, extra = {}) => ({
@@ -50,6 +50,13 @@ test('#7 (자체)만 요청하면 같은 접두 이름의 일반 행이 답에 �
   const none = await run(q, [D7], ROWS7.filter(x => x.business !== '아동수당지급(자체)'));
   assert.ok(!JSON.stringify(none).includes('25154525'));
   assert.equal(none.status, 'no_name_match');
+});
+
+test('쉼표로 연결된 제외 목록은 일부만 제외한 결과를 확정하지 않는다', async () => {
+  const q = '2026년 분당구 가정복지과 일반회계 본예산에서 아동수당지급을 알려줘. 아동수당지급, 아동수당지급(자체)는 제외해줘.';
+  const r = await run(q, [D7], ROWS7);
+  assert.notEqual(r.status, 'matched');
+  assert.ok(r.exclusions?.unmatched_terms?.includes('쉼표로 연결된 제외 목록'));
 });
 
 test('matchBusiness: 두 사업명을 요청했는데 다중 반환을 지원하지 않으면 하나로 축소하지 않는다', () => {
@@ -119,4 +126,70 @@ test('부서명에 든 구는 지역 구분으로 읽지 않는다', () => {
   assert.deepEqual(districtsOfName('조성 분당 북부'), []);
   assert.deepEqual(districtsOfName('조성(분당구 북부)'), ['분당구']);
   assert.deepEqual(districtsOfName('조성(분당북부)'), ['분당구']);
+});
+
+// ── 제외 구절: 마지막 낱말만으로 다른 사업을 지우지 않는다(합성 행, 스냅샷 불필요) ──
+const bizRow = (business, department = '가정복지과') => ({ level: 'business', business, department, page: 1, source_line: 1 });
+
+test('제외 구절: 여러 낱말 구절은 전체를 보존하고 마지막 낱말만 쓰지 않는다', () => {
+  const ex = parseExclusions('달나라 지하철 조성사업은 제외해줘');
+  assert.deepEqual(ex.items.map(x => [x.phrase, x.term, x.multiword]), [['달나라 지하철 조성사업', '달나라지하철조성사업', true]]);
+  assert.deepEqual(ex.items[0].tokens, ['달나라', '지하철', '조성사업']);
+});
+
+test('제외 구절: 앞 문장·조사·편성·부서 낱말은 구절에 넣지 않는다', () => {
+  assert.deepEqual(parseExclusions('2026년 분당구 가정복지과 일반회계 본예산에서 아동수당지급(자체)은 빼고 아동수당지급 금액만 알려줘.').terms, ['아동수당지급(자체)']);
+  assert.deepEqual(parseExclusions('아동수당지급 예산만 알려줘. 아동수당지급(자체)는 제외해줘.').terms, ['아동수당지급(자체)']);
+  assert.deepEqual(parseExclusions('스마트그린 안전쉼터 조성의 구별 금액과 합계는? 유지관리는 제외해줘.').terms, ['유지관리']);
+});
+
+test('제외 구절: 같은 이름 행 조성사업이 있어도 다른 구절은 그 행을 지우지 않고 미일치로 남긴다', () => {
+  const ex = parseExclusions('달나라 지하철 조성사업은 제외해줘');
+  assert.equal(rowExcluded('조성사업', ex.items), false);
+  assert.equal(rowExcluded('지하철 유지관리', ex.items), false);
+  const rows = [bizRow('조성사업'), bizRow('아동수당지급')];
+  const m = matchBusiness(rows, '달나라 지하철 조성사업은 제외해줘 조성사업 예산', ['가정복지과']);
+  assert.deepEqual(m.exclusions.unmatched_terms, ['달나라 지하철 조성사업']);
+  assert.equal(m.exclusions.excluded_row_count, 0);
+});
+
+test('제외 구절: 활동 낱말로 끝나는 여러 낱말 구절은 활동 낱말 포함으로 다른 행을 지우지 않는다', () => {
+  const ex = parseExclusions('달나라 시설 유지관리는 제외해줘');
+  assert.equal(ex.items[0].multiword, true);
+  assert.equal(rowExcluded('스마트그린 유지관리', ex.items), false);
+  assert.equal(rowExcluded('달나라시설유지관리', ex.items), true);
+});
+
+test('제외 구절: 공백만 다른 정확한 이름은 제외한다', () => {
+  const ex = parseExclusions('달나라 지하철 조성사업은 제외해줘');
+  assert.equal(rowExcluded('달나라지하철조성사업', ex.items), true);
+  assert.equal(rowExcluded('달나라 지하철 조성사업', ex.items), true);
+  const m = matchBusiness([bizRow('달나라지하철조성사업'), bizRow('아동수당지급')], '달나라 지하철 조성사업은 제외해줘', ['가정복지과']);
+  assert.deepEqual(m.exclusions.unmatched_terms, []);
+  assert.equal(m.exclusions.excluded_row_count, 1);
+});
+
+test('제외 구절: 아동수당지급(자체) 제외는 자기 자신만 지우고 아동수당지급은 남긴다', () => {
+  const ex = parseExclusions('아동수당지급(자체)는 제외해줘');
+  assert.equal(rowExcluded('아동수당지급(자체)', ex.items), true);
+  assert.equal(rowExcluded('아동수당지급', ex.items), false);
+  const m = matchBusiness([bizRow('아동수당지급'), bizRow('아동수당지급(자체)')], '아동수당지급 금액 알려줘. 아동수당지급(자체)는 제외해줘.', ['가정복지과']);
+  assert.deepEqual(m.exclusions.unmatched_terms, []);
+  assert.equal(m.exclusions.excluded_row_count, 1);
+});
+
+test('제외 구절: 단일 낱말 정확 제외와 없는 낱말의 미일치 보고', () => {
+  const ex = parseExclusions('기초연금은 제외해줘');
+  assert.equal(rowExcluded('기초연금', ex.items), true);
+  assert.equal(rowExcluded('기초연금지원', ex.items), false);
+  const m = matchBusiness([bizRow('아동수당지급')], '아동수당지급 예산. 없는사업은 제외해줘.', ['가정복지과']);
+  assert.deepEqual(m.exclusions.unmatched_terms, ['없는사업']);
+});
+
+test('제외 구절: 단일 활동 낱말(유지관리·조성)은 이름 포함으로 제외한다', () => {
+  const ex = parseExclusions('유지관리는 제외해줘');
+  assert.equal(ex.items[0].multiword, false);
+  assert.equal(rowExcluded('스마트그린 안전쉼터 유지관리(분당구)', ex.items), true);
+  assert.equal(rowExcluded('스마트그린 안전쉼터 조성(분당구)', ex.items), false);
+  assert.equal(rowExcluded('스마트그린 조성', parseExclusions('조성은 제외해줘').items), true);
 });
