@@ -20,3 +20,8 @@ test('latest budget means collected latest supplement unless kind or revision is
  assert.equal(resolveQuery({query:'AI반도체과 최신 예산',budget_type:'결산'}).budget_type,'결산');
  assert.equal(resolveQuery({query:'AI반도체과 최신 추경',revision:2}).revision,2);
 });
+// 이슈 #1 회귀: 총예산·총액·조사·어순이 달라도 예산과(부서)를 인식하고, "예산+과" 접속 표현은 부서로 보지 않는다.
+test('예산과 is a department with total wording but not as a budget-and conjunction',()=>{
+ for(const q of ['2026년 예산과 총예산이 얼마인가요?','2026년 예산과의 총예산','예산과 총액','성남시 예산과 2026년 총규모','2026년도 성남시 예산과 전체 예산','예산과 기본경비 예산','행정기획조정실 예산과 통계목','예산과에서 편성한 사업','2026년 예산과 예산','예산과 소관 예산'])assert.deepEqual(requestedDepartments(q,index).map(d=>d.name),['예산과'],q);
+ for(const q of ['2026년 본예산 공공와이파이 유지관리 예산과 통계목','청년월세 지원사업의 예산과 편성목, 통계목','청년월세 예산과 가장 큰 통계목','본예산과의 차이','세입예산과 세출예산 총액','2026년 본예산과 추경 비교','사업 예산과 총액'])assert.deepEqual(requestedDepartments(q,index),[],q);
+});

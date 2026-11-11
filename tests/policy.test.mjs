@@ -61,3 +61,51 @@ test('answer card requires source unit and a reconciled total',()=>{
  assert.equal(totalAnswerCard({...e,unit:'백만원'}),null);
  assert.equal(totalAnswerCard({...e,text:e.text.replace('100','99')}),null);
 });
+// 이슈 #1 회귀: 질문에 적힌 연도·범위를 year 인자가 조용히 덮어쓰지 않는다.
+test('explicit query years survive a different year parameter and the conflict is visible',()=>{
+ const single=resolveQuery({query:'2025년 본예산 청년월세 한시 특별지원 예산',year:2026});
+ assert.equal(single.year,2025);assert.deepEqual(single.policy.years,[2025]);
+ assert.deepEqual(single.policy.conflicts,[{field:'year',parameter:2026,query_years:[2025],resolution:'explicit_query_precedence'}]);
+ assert(single.policy.notices.some(n=>n.includes('year 인자')));
+ assert.equal(single.policy.budget_type_basis,'query');
+ const pair=resolveQuery({query:'2025년과 2026년 청년월세 예산 비교',year:2026});
+ assert.equal(pair.year,undefined);assert.deepEqual(pair.policy.years,[2025,2026]);assert.equal(pair.policy.conflicts[0].field,'year');
+ assert.deepEqual(resolveQuery({query:'2024~2026년 도서관 비교',year:2025}).policy.years,[2024,2025,2026]);
+ const same=resolveQuery({query:'2025년 청년월세',year:2025});assert.equal(same.year,2025);assert.deepEqual(same.policy.conflicts,[]);
+ const all=resolveQuery({query:'역대 도서관 예산',year:2026});
+ assert.equal(all.year_scope,'all');assert.equal(all.year,undefined);assert.equal(all.policy.conflicts[0].query_year_scope,'all');
+ assert.throws(()=>resolveQuery({query:'도서관',year:1800}),/year/);
+});
+test('relative years follow the fixed 2026 policy and a prior-year baseline is not the lookup year',()=>{
+ const last=resolveQuery({query:'작년 본예산 청년월세 지원사업 예산',year:2026});
+ assert.equal(last.year,2025);assert.deepEqual(last.policy.conflicts[0].query_years,[2025]);
+ const current=resolveQuery({query:'올해 본예산 청년월세 지원사업 예산',year:2025});
+ assert.equal(current.year,2026);assert.equal(current.policy.year_basis,'relative');assert.equal(current.policy.conflicts[0].parameter,2025);
+ const baseline=resolveQuery({query:'올해 청년월세 전년도 대비 증가액'});
+ assert.equal(baseline.year,2026);assert.equal(baseline.policy.year_basis,'relative');assert(baseline.policy.notices.some(n=>n.includes('비교 기준')));
+ assert.equal(resolveQuery({query:'청년월세 전년도 대비 증가액'}).policy.year_basis,'default');
+ assert.equal(resolveQuery({query:'청년월세 작년보다 얼마나 늘었나'}).year,2026);
+ assert.equal(resolveQuery({query:'작년 대비 올해 청년월세 증가액'}).year,2026);
+ assert.equal(resolveQuery({query:'2025년 청년월세 전년도 대비 증가액'}).year,2025);
+ assert.equal(resolveQuery({query:'전년도 청년월세 예산'}).year,2025);
+ assert.equal(resolveQuery({query:'금년 도서관 예산'}).year,2026);
+ assert.deepEqual(resolveQuery({query:'작년과 올해 청년월세 비교'}).policy.years,[2025,2026]);
+ assert.deepEqual(resolveQuery({query:'올해와 내년 도서관 비교'}).policy.years,[2026,2027]);
+});
+test('a resolved query re-enters with the same years and only an internal slice narrows a comparison',()=>{
+ for(const input of [{query:'2025년 본예산 청년월세',year:2026},{query:'작년 청년월세',year:2026},{query:'올해 청년월세 전년도 대비 증가액'},{query:'2025년과 2026년 청년월세 비교',year:2026},{query:'역대 도서관 예산',year:2026},{query:'도서관'},{query:'도서관',year:2024}]){
+  const first=resolveQuery(input),again=resolveQuery(first);
+  assert.equal(again.year,first.year,input.query);assert.deepEqual(again.policy.years,first.policy.years,input.query);
+  assert.equal(again.year_scope,first.year_scope,input.query);assert.deepEqual(again.policy.conflicts,first.policy.conflicts,input.query);
+ }
+ const slice=resolveQuery({query:'2025년과 2026년 청년월세 예산 비교',year:2025,year_slice:true});
+ assert.equal(slice.year,2025);assert.deepEqual(slice.policy.conflicts,[]);assert.equal(slice.policy.year_basis,'comparison_slice');
+ assert.equal(resolveQuery({query:'작년과 올해 청년월세 비교',year:2026,year_slice:true}).year,2026);
+ assert.deepEqual(resolveQuery({query:'2025년과 2026년 청년월세 예산 비교',year:2024,year_slice:true}).policy.years,[2025,2026]);
+ assert.deepEqual(resolveQuery({query:'2025년과 2026년 청년월세 예산 비교',year:2025,year_slice:'true'}).policy.years,[2025,2026]);
+});
+// 이슈 #1 회귀: 정중한 총예산 질문은 총괄표로, 예산과(부서) 질문은 시 전체 총액으로 넓히지 않는다.
+test('polite municipal total wording is recognised while 예산과 and other editions stay out',()=>{
+ for(const q of ['2026년 성남시 본예산 총예산','2026년 성남시 본예산 총예산이 얼마나 되나요?','성남시 2026년도 본예산의 총금액을 알려주세요.','올해 성남시 총예산은 얼마입니까?','성남시 세입예산과 세출예산 총액'])assert(isMunicipalTotal(q),q);
+ for(const q of ['2026년 예산과 총예산이 얼마인가요?','2026년 예산과의 총예산','성남시 예산과 총액 얼마야','2026년 추경 총예산이 얼마나 되나요?','2025년 결산 총액을 알려주세요.','도서관 총예산이 얼마나 되나요?','청년월세 총금액을 알려주세요.'])assert(!isMunicipalTotal(q),q);
+});

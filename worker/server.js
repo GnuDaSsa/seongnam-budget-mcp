@@ -196,7 +196,7 @@ async function compareYears(env,input,a,started){
  if(aligned)a.policy.notices.push('연도 비교: 편성 구분을 지정하지 않아 연도별 본예산 기준으로 맞췄습니다. 추경·결산 비교는 질문에 명시하세요.');
  const compact=a.policy.years.length>POLICY.max_comparison_years;
  if(compact)a.policy.notices.push('4개 이상 연도 조회: 연도별 사업 행 주변만 간추려 반환했습니다. 전문은 get_budget_page로 확인하세요.');
- const yearly=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,limit:2,compact,...(aligned?{budget_type:'본예산'}:{})})));
+ const yearly=await Promise.all(a.policy.years.map(year=>research(env,{...input,year,year_slice:true,limit:2,compact,...(aligned?{budget_type:'본예산'}:{})})));
  const per_year=yearly.map(({evidence,...rest})=>({...rest,evidence_ids:evidence.map(e=>e.id)}));
  return{question:a.query,query_interpretation:a.policy,per_year,evidence:yearly.flatMap(r=>r.evidence),match_quality:weakestQuality(yearly.map(r=>r.match_quality)),generation_performed:false,answer_policy:RULES,next_action:nextAction(YEAR_COMPARISON_NOTE),elapsed_ms:Date.now()-started};
 }

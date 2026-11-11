@@ -37,3 +37,25 @@ test('exact phrase is contiguous after whitespace normalization, with original c
  const separated='자본적위탁사업비'+ '나'.repeat(1000)+'주택과 자본적위탁사업비';
  assert(exactPhraseHit('주택과 자본적위탁사업비',separated).start>1000);
 });
+// 이슈 #1 회귀: "예산+과" 접속 표현과 끝의 출력 요청은 필수 검색어가 아니고, 실제 부서·조건어는 남는다.
+test('budget-and conjunction and a trailing output request are not required terms',()=>{
+ assert.deepEqual(retrievalWords('2026년 본예산 공공와이파이 유지관리 예산과 통계목'),['공공와이파이','유지관리']);
+ assert.deepEqual(retrievalWords('2026년 본예산 공공와이파이 유지관리 예산 통계목'),['공공와이파이','유지관리']);
+ assert.deepEqual(retrievalWords('2026년 본예산 청년월세 지원사업의 예산과 편성목, 통계목을 원문 페이지와 함께 알려주세요.'),['청년월세','지원사업']);
+ assert.deepEqual(retrievalWords('청년월세 예산을 알려줘'),['청년월세']);
+ assert.deepEqual(retrievalWords('2026년 성남시 본예산 총예산이 얼마나 되나요?'),[]);
+});
+test('department 예산과, conditions, codes and look-alike nouns stay as terms',()=>{
+ assert.deepEqual(retrievalWords('예산과 기본경비 예산'),['예산과','기본경비']);
+ assert.deepEqual(retrievalWords('행정기획조정실 예산과 통계목'),['행정기획조정실','예산과']);
+ assert.deepEqual(retrievalWords('2026년 예산과의 총예산이 얼마인가요?'),['예산과']);
+ assert.deepEqual(retrievalWords('청년월세 제외 주거급여 집행 잔액 이월'),['청년월세','제외','주거급여','집행','잔액','이월']);
+ assert.deepEqual(retrievalWords('201-01 사무관리비 통계목'),['201','01','사무관리비']);
+ assert.deepEqual(retrievalWords('홈페이지 유지관리 알려줘'),['홈페이지','유지관리']);
+ assert.deepEqual(retrievalWords('지급 근거 알려줘'),['지급','근거']);
+ assert.deepEqual(retrievalWords('시민회의 예산'),['시민회의']);
+ assert.deepEqual(retrievalWords('비교과 프로그램 운영'),['비교과','프로그램','운영']);
+ const text='공공와이파이 유지관리  120,000\n광역버스 유지관리  80,000';
+ assert.deepEqual(businessTermsHit('2026년 본예산 공공와이파이 유지관리 예산과 통계목',text)?.words,['공공와이파이','유지관리']);
+ assert.equal(businessTermsHit('마을버스 유지관리 예산과 통계목',text),null);
+});
