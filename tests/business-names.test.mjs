@@ -119,6 +119,38 @@ test('#8 없는 사업명은 구별 묶음으로 바뀌지 않고 유사한 사�
   assert.ok(!JSON.stringify(r).includes('스마트그린'));
 });
 
+// ── #8 띄어 쓴 활동어 제외 구절("유지 관리는 제외")은 붙여 쓴 형태와 같은 결과여야 한다 ──
+const NAME8R = '스마트그린·안전쉼터조성';
+const rows8real = () => [
+  total(D8, 7200000 + 500, 20),
+  row(D8, '2026년수정구일원' + NAME8R, 1800000, 21), row(D8, '2026년중원구일원' + NAME8R, 1600000, 22),
+  row(D8, '2026년분당구북부일원' + NAME8R, 1800000, 23), row(D8, '2026년분당구남부일원' + NAME8R, 2000000, 24),
+  row(D8, '2026년수정구일원스마트그린·안전쉼터유지관리', 500, 25),
+];
+const Q8S = '2026년 스마트도시과 일반회계 본예산 스마트 그린 안전 쉼터 조성의 수정구, 중원구, 분당구별 금액과 합계는? 유지 관리는 제외해줘.';
+
+test('#8 띄어 쓴 활동어 제외 구절은 단일 활동 낱말처럼 행을 제외한다', () => {
+  const a = parseExclusions('합계는? 유지 관리는 제외해줘.');
+  assert.deepEqual(a.items.map(x => [x.term, x.multiword]), [['유지관리', true]]);
+  assert.equal(rowExcluded('스마트그린 안전쉼터 유지관리(분당구)', a.items), true);
+  const b = parseExclusions('유지 보수는 제외해줘');
+  assert.equal(rowExcluded('도시정보시설운영및유지보수', b.items), true);
+  // 대조: 활동 낱말이 아닌 구절이나 앞에 다른 낱말이 붙은 구절은 다른 행을 지우지 않는다.
+  assert.equal(rowExcluded('스마트그린 안전쉼터 유지관리', parseExclusions('안전 관리는 제외해줘').items), false);
+  assert.equal(rowExcluded('스마트그린 안전쉼터 유지관리', parseExclusions('시설 유지 관리는 제외해줘').items), false);
+  assert.equal(rowExcluded('스마트그린 안전쉼터 조성(수정구)', parseExclusions('쉼터 조성은 제외해줘').items), false);
+});
+
+test('#8 띄어 쓴 유지 관리 제외 질문은 붙여 쓴 질문과 같은 합계를 낸다', async () => {
+  const r = await run(Q8S, [D8], rows8real());
+  assert.equal(r.status, 'calculated');
+  assert.equal(r.calculated_total.amount, 7200000);
+  assert.deepEqual(r.exclusions.unmatched_terms, []);
+  const joined = await run(Q8S.replace('유지 관리', '유지관리'), [D8], rows8real());
+  assert.equal(joined.calculated_total.amount, r.calculated_total.amount);
+  assert.equal(joined.exclusions.excluded_row_count, r.exclusions.excluded_row_count);
+});
+
 test('부서명에 든 구는 지역 구분으로 읽지 않는다', () => {
   const rows = [row('분당구사회복지과', '기초연금(분당구)', 5, 1)];
   assert.equal(matchDistrictGroups(rows, '2026년 분당구 사회복지과 기초연금', ['분당구사회복지과']), null);

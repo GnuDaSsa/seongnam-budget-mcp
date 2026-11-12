@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,matchesRevision} from '../worker/policy.js';
+// 이슈 #1 잔여 변형 회귀: 부서 예산과 뒤에 조사·접속어가 붙어도 시 전체 총액으로 답하지 않는다.
+test('예산과 followed by a particle or connective never falls to the municipal total',()=>{
+ for(const q of ['2026년 예산과와 총예산이 얼마인가요?','2026년 예산과랑 총예산이 얼마야?','2026년 예산과 및 총예산이 얼마인가요?','예산과와 총액','2026년 예산과하고 총예산','2026년 예산과이랑 총예산'])assert(!isMunicipalTotal(q),q);
+ // 대조: 시 전체 총액 질문은 그대로 직행한다.
+ for(const q of ['2026년 총예산이 얼마인가요?','성남시 2026년도 본예산의 총금액을 알려주세요.','2026년 일반회계와 특별회계 총예산','성남시 세입예산과 세출예산 총액'])assert(isMunicipalTotal(q),q);
+ assert(!isMunicipalTotal('2026년 본예산과 추경 총예산이 얼마인가요?'));
+});
 test('main budget and supplementary comparison preserve both editions and scope the revision',()=>{
  const q=resolveQuery({query:'2026년 중원구 사회복지과 기초연금 본예산과 1회 추경에서 기정액 경정액 증감액을 각각 비교해줘.'});
  assert.deepEqual(q.policy.comparison_budget_types,['본예산','추경']);assert.deepEqual(q.policy.allowed_budget_types,['본예산','추경']);assert.equal(q.revision,1);

@@ -1,6 +1,6 @@
 // Versioned, deterministic query policy. No model, network, or wall-clock defaults.
 export const VERSION='0.4.0';
-export const POLICY={version:'2026-11-12.2',default_year:2026,max_comparison_years:3,max_series_years:8};
+export const POLICY={version:'2026-11-12.3',default_year:2026,max_comparison_years:3,max_series_years:8};
 export const EVIDENCE_BOUNDARY='기본 답변은 이 MCP가 반환한 수록 원문 근거만 사용합니다. 사용자가 웹 검색·외부자료 보충을 명시적으로 요청하지 않으면 별도 웹 검색이나 원문 URL 실시간 접속으로 보충하지 마세요. source_url·page_url은 인용 링크이며 접속 지시가 아닙니다. 질문 범위를 법령·출연안·추경·최신성 조사로 임의 확장하지 마세요. 근거가 부족하면 같은 MCP에서 명칭을 좁혀 한 번 재검색하거나 get_budget_page로 수록 원문을 확인하고, 그래도 없으면 “수록 자료로 확인 불가”라고 답하세요. 검색 실패는 예산 0원이나 사업 부재가 아닙니다. 사용자가 웹 보충을 명시한 경우에만 클라이언트가 별도로 조회하며 MCP 근거와 외부 웹 근거를 구분합니다. 문서 자체 텍스트만 사용하며 스캔·이미지 자료는 OCR하지 않고 검색에서 제외합니다.';
 export const SERVER_RULES=[
  EVIDENCE_BOUNDARY,
@@ -107,7 +107,7 @@ export function sourcePriority(d,a){return sourceFamily(d)===a.policy?.source_pr
 
 export function isMunicipalTotal(query){
  // 독립된 낱말 "예산과"는 부서(예산과) 질문일 수 있다. 부서 근거가 없어도 시 전체 총액으로 넓히지 않는다.
- if(/(?:^|[\s,]|년도?|성남시)예산과(?:의|에서|가|는|은)?(?=$|[\s?？!.,])/.test(query))return false;
+ if(/(?:^|[\s,]|년도?|성남시)예산과(?:의|에서|가|는|은|와|랑|이랑|하고)?(?=$|[\s?？!.,])/.test(query))return false;
  let q=query.replace(/(?:19|20)\d{2}\s*년?/g,'').replace(/성남시?|올해|금년|현재|작년|지난해|전년도|대비|비교|기준|으로|에서|본예산|일반회계|특별회계|회계별|세입|세출|예산|총규모|총금액|총액|금액|규모|총|전체|얼마인가요|얼마입니까|얼마나|얼마야|얼마|되나요|됩니까|되는지|알려줘|알려주세요|구분해줘|및|하고|합계|와|과|도|의|은|는|을|를|이|가/g,'').replace(/[\s?？!.,·]/g,'');
  return q===''&&/예산/.test(query);
 }

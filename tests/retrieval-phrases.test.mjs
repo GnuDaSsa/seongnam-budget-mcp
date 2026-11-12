@@ -45,6 +45,14 @@ test('budget-and conjunction and a trailing output request are not required term
  assert.deepEqual(retrievalWords('청년월세 예산을 알려줘'),['청년월세']);
  assert.deepEqual(retrievalWords('2026년 성남시 본예산 총예산이 얼마나 되나요?'),[]);
 });
+// 이슈 #1 잔여 변형 회귀: 부서로 인식된 "예산과와 총예산"의 토큰도 "예산과"로 정리된다.
+test('예산과 with a trailing particle keeps one 예산과 term when recognized as a department',()=>{
+ const base=retrievalWords('2026년 예산과 총예산이 얼마인가요?');
+ assert.deepEqual(base,['예산과']);
+ for(const q of ['2026년 예산과와 총예산이 얼마인가요?','2026년 예산과랑 총예산이 얼마야?','2026년 예산과하고 총예산이 얼마인가요?'])assert.deepEqual(retrievalWords(q),base,q);
+ // 대조: 사업명 뒤 오타형은 필수 검색어에서 계속 제외되지 않고 그대로 남는다(부서 아님).
+ assert(retrievalWords('청년월세 예산과와 집행액').some(w=>w==='예산과와'));
+});
 test('department 예산과, conditions, codes and look-alike nouns stay as terms',()=>{
  assert.deepEqual(retrievalWords('예산과 기본경비 예산'),['예산과','기본경비']);
  assert.deepEqual(retrievalWords('행정기획조정실 예산과 통계목'),['행정기획조정실','예산과']);

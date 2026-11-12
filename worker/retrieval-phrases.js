@@ -14,7 +14,7 @@ const fieldWords=new Set(['성남시','예산','본예산','추경','결산','�
 const PARTICLE=/(?:으로|로|을|를|은|는|이|가|도|의|만|과|와)$/;
 const GENITIVE_NOUN=/(?:회의|협의|합의|심의|건의|논의|결의|동의|강의|문의|편의|주의|정의|질의|창의|유의|상의|임의|수의|예의|고의|토의|발의|품의|제의|항의|숙의|민의|대의|도의|신의|호의|자의|부의|모의|총의)$/;
 export function retrievalWords(query){
- const division=budgetDivisionRequested(query),isDivision=w=>division&&/^예산과(?:의|에서|가|는|은)?$/.test(w);
+ const division=budgetDivisionRequested(query),isDivision=w=>division&&/^예산과(?:의|에서|가|는|은|와|랑|이랑|하고)?$/.test(w);
  const tokens=withoutQueryYears(query).toLowerCase().replace(OUTPUT_TAIL,' ').match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[];
  const dropped=w=>!isDivision(w)&&(w.length<2||boilerplate.has(w)||isAnalytic(w)||fieldWords.has(w.replace(PARTICLE,'')));
  const words=[];

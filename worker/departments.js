@@ -8,10 +8,12 @@ export function statementDepartment(text){
 }
 // "예산과"는 부서명과 "예산+과" 접속 표현의 글자가 같다. 질문 첫머리, 실국명 뒤, 부서에만 붙는 조사처럼 문맥이 확인될 때만 부서로 본다.
 const YEAR='20\\d{2}(?:년도|년)?';
+// 질문 첫머리의 "예산과와/랑/및 총예산"은 부서 뒤 조사·접속어다. 원문 조사 검사(예산과에서·가)에는 넣지 않아 사업명 뒤 오타형은 부서로 보지 않는다.
+const JOSA='(?:의|와|랑|이랑|하고|및)?';
 const BUDGET_DIVISION=[
- new RegExp('^(?:성남시)?예산과(?:의)?'+YEAR),
- new RegExp('^(?:성남시)?'+YEAR+'(?:성남시)?예산과(?:의)?(?:본예산|추경|결산|예산|총|전체|기본경비)'),
- /^(?:성남시)?예산과(?:의)?(?:총|전체|기본경비)/,
+ new RegExp('^(?:성남시)?예산과'+JOSA+YEAR),
+ new RegExp('^(?:성남시)?'+YEAR+'(?:성남시)?예산과'+JOSA+'(?:본예산|추경|결산|예산|총|전체|기본경비)'),
+ new RegExp('^(?:성남시)?예산과'+JOSA+'(?:총|전체|기본경비)'),
  /예산과(?:소관|담당|부서)|(?:부서|담당)예산과/,
  /조정실예산과/
 ];
@@ -24,11 +26,12 @@ export function requestedDepartments(query,index){
  const namedBudgetDepartment=budgetDivisionRequested(query);
  // 구를 병렬로 열거하고 부서명을 마지막에 한 번만 쓴 경우, 실제 색인에 있는 이름만 확장한다.
  // 구 단독 언급이나 명칭이 다른 부서까지 추정해서 추가하지 않는다.
+ // 구 이름 사이 구분자는 0개 이상: normalizeDepartment가 공백을 지우므로 '수정구 중원구'는 구분자 없이 붙는다.
  const districts=['수정구','중원구','분당구'], expanded=new Set();
  const suffixes=new Set(index.departments.flatMap(d=>districts.filter(prefix=>d.key.startsWith(prefix)&&d.key.length>prefix.length).map(prefix=>d.key.slice(prefix.length))));
  for(const suffix of suffixes){
   const escaped=suffix.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  const pattern=new RegExp('((?:수정구|중원구|분당구)(?:(?:[·ㆍ,/]|와|과|및)+(?:수정구|중원구|분당구))+)' + escaped,'g');
+  const pattern=new RegExp('((?:수정구|중원구|분당구)(?:(?:[·ㆍ,/]|와|과|및)*(?:수정구|중원구|분당구))+)' + escaped,'g');
   for(const match of normalized.matchAll(pattern))for(const district of match[1].match(/수정구|중원구|분당구/g)||[])expanded.add(district+suffix);
  }
  const found=index.departments.filter(d=>(normalized.includes(d.key)||expanded.has(d.key))&&(!ambiguous.has(d.key)||namedBudgetDepartment));

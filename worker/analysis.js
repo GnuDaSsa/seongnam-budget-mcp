@@ -256,7 +256,7 @@ export function parseExclusions(question, ignore = []) {
 }
 
 // 제외어가 이 사업명을 가리키는가. 공백을 뺀 정확한 이름(괄호 포함)이 제외 구절 전체와 같거나,
-// 제외 구절이 단일 활동 낱말(조성·유지관리 등)일 때만 이름에 포함되는지 본다.
+// 제외 구절 전체(띄어 쓴 "유지 관리" 포함)가 활동 낱말(조성·유지관리 등)일 때만 이름에 포함되는지 본다.
 // "아동수당지급(자체)"를 제외해도 "아동수당지급"은 제외하지 않고, 여러 낱말 구절은 마지막 낱말이나 활동 낱말로 다른 행을 지우지 않는다.
 // terms는 parseExclusions의 items(권장) 또는 단일 낱말 문자열이다.
 export function rowExcluded(businessName, terms = []) {
@@ -264,8 +264,8 @@ export function rowExcluded(businessName, terms = []) {
   return (terms ?? []).some(t => {
     if (typeof t !== 'string' && t.unresolved) return false;
     const term = typeof t === 'string' ? t : t.term;
-    const multiword = typeof t === 'string' ? false : !!t.multiword;
-    return name === term || (!multiword && EXCLUDABLE_ACTIVITY.has(term) && name.includes(term));
+    // 띄어 쓴 활동어("유지 관리")는 이어 붙인 구절 전체가 활동 낱말이므로 붙여 쓴 형태와 같이 본다.
+    return name === term || (EXCLUDABLE_ACTIVITY.has(term) && name.includes(term));
   });
 }
 
