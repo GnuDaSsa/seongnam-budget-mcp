@@ -218,3 +218,61 @@ test('catalog에서 2026 전체 명세서 문서를 찾는다', real, () => {
   assert.ok(documents.some(d => d.document_id === MAIN_ID && d.account_group === '일반회계'));
   assert.ok(documents.some(d => d.document_id === SUP1_ID && d.revision === 1));
 });
+
+test('2019년 이전 제목 형식(회계별·합본·본청/구 분책)도 세출명세서로 고르고, 현행 형식이 있는 편성은 현행만 쓴다', () => {
+  const doc = (id, title, year, budget_type, revision = null) => ({ id, title, year, budget_type, revision, shards: [], page_count: 2, indexed_pages: 2 });
+  const cat = { documents: [
+    doc('g17', '2017년 세입세출예산서 · 본예산 · 일반회계 · 세출예산사업명세서', 2017, '본예산'),
+    doc('s17', '2017년 세입세출예산서 · 본예산 · 기타특별회계 · 세출예산사업명세서', 2017, '본예산'),
+    doc('w17', '2017년 세입세출예산서 · 본예산 · 상수도공기업특별회계 · 세출예산사업명세서', 2017, '본예산'),
+    doc('x17', '2017년 세입세출예산서 · 본예산 · 일반회계 · 세입예산사업명세서', 2017, '본예산'),
+    doc('r17', '2017년 세입세출예산서 · 4차 추경예산 · 원문 확인 · 세출예산사업명세서(일반+특별)', 2017, '추경', 4),
+    doc('p1', '2010년 세입세출예산서 · 본예산 - 성남시 고시 제2009-190호 · 원문 확인 · 세출예산사업명세서(일반회계) · 본청·사업소', 2010, '본예산'),
+    doc('p2', '2010년 세입세출예산서 · 본예산 - 성남시 고시 제2009-190호 · 원문 확인 · 세출예산사업명세서(일반회계) · 수정구·동주민센터', 2010, '본예산'),
+    doc('sp', '2010년 세입세출예산서 · 본예산 - 성남시 고시 제2009-190호 · 원문 확인 · 세출예산사업명세서(특별회계)', 2010, '본예산'),
+    doc('m26', '2026년 세입세출예산서 · 일반회계 · 세출예산사업명세서 · 전체', 2026, '본예산'),
+    doc('d26', '2026년 세입세출예산서 · 일반회계 · 세출예산사업명세서', 2026, '본예산'),
+    { ...doc('z', '2010년 세입세출예산서 · 1차 추경예산 · 원문 확인 · 세출예산사업명세서(일반회계) · 분당구·동주민센터', 2010, '추경', 1), page_count: 0, indexed_pages: 0 },
+  ] };
+  const got = findStatementDocuments(cat).documents.map(d => [d.document_id, d.account_group, d.part, d.all_pages_indexed]);
+  assert.deepEqual(got, [
+    ['sp', '기타특별회계', null, true], ['p1', '일반회계', '본청·사업소', true], ['p2', '일반회계', '수정구·동주민센터', true],
+    ['z', '일반회계', '분당구·동주민센터', false],
+    ['s17', '기타특별회계', null, true], ['g17', '일반회계', null, true], ['r17', '원문 확인', null, true],
+    ['m26', '일반회계', null, true],
+  ]);
+});
+
+test('2013년 이전 섹션 제목(전체 없음, 부서 범위)에서도 회계를 읽는다', () => {
+  assert.equal(parseSectionTitle('2009년도 본예산 주거환경개선').account, '주거환경개선');
+  assert.equal(parseSectionTitle('2010년도본예산일반회계분당구총무과~운중동').account, '일반회계');
+  assert.equal(parseSectionTitle('2026년도추경1회교통사업전체').account, '교통사업');
+  assert.equal(parseSectionTitle('2009년도 본예산 예산 편성 기준에 관한 설명 문장입니다 2,000'), null);
+});
+
+test('따옴표로 시작하는 세부사업명도 행으로 읽어 상위 단위를 사업으로 오인하지 않는다', () => {
+  const text = [
+    '부서: 위례동', '단위: 주민참여예산   (단위:천원)', '부서ㆍ정책ㆍ단위(회계)ㆍ세부사업ㆍ편성목      예산액              비교증감', '전년도 예산액',
+    '위례동                                                                 20,000                    0             20,000',
+    ' 주민자치센터운영                                                      20,000                    0             20,000',
+    '  주민참여예산                                                          20,000                    0             20,000',
+    "   '위례사랑함께그려요' 벽화사업(주민참여예산)                      20,000                    0             20,000",
+    '         401 시설비및부대비                                                20,000                    0             20,000',
+  ].join('\n');
+  const rows = parseStatementRows([{ page: 1, text }], { year: 2021, edition: '본예산', account: '일반회계' });
+  assert.deepEqual(rows.filter(r => r.level === 'business').map(r => [r.unit, r.business]), [['주민참여예산', "'위례사랑함께그려요' 벽화사업(주민참여예산)"]]);
+});
+
+test('2009~2026년 모든 본예산 세출명세서가 부서 합계까지 2026년과 같은 기준으로 맞는다', { skip: !hasSnapshot && 'local snapshot not present' }, () => {
+  const docs = findStatementDocuments(catalog(), { budget_type: '본예산' }).documents.filter(d => d.all_pages_indexed);
+  const years = [...new Set(docs.map(d => d.year))];
+  assert.deepEqual(years, Array.from({ length: 18 }, (_, i) => 2009 + i));
+  for (const y of years) assert.deepEqual([...new Set(docs.filter(d => d.year === y).map(d => d.account_group))].sort(), ['기타특별회계', '일반회계'], y + '년 회계 구성');
+  const failures = [];
+  for (const d of docs) {
+    const rows = parseStatementRows(loadStatementPages(d.document_id), { document_id: d.document_id, year: d.year, edition: '본예산', account: d.account_group });
+    const rec = reconcileStatement(rows);
+    if (rec.inventory_status !== 'verified') failures.push([d.year, d.account_group, d.part, rec.overall.reconciled_count + '/' + rec.overall.department_count]);
+  }
+  assert.deepEqual(failures, []);
+});

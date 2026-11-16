@@ -30,7 +30,7 @@ export function parseEdition(edition, revision) {
   return { budget_type: null, revision: null };
 }
 
-// 섹션 제목(예: 2026년도추경1회교통사업전체, 2026년도본예산전체일반회계)에서 회계명을 읽는다.
+// 섹션 제목(예: 2026년도추경1회교통사업전체, 2026년도본예산전체일반회계, 2009년도본예산주거환경개선)에서 회계명을 읽는다.
 export function parseSectionTitle(line) {
   const compact = norm(line).replace(/\(단위:?[^)]*\)$/, '');
   const m = compact.match(/^(\d{4})년도(본예산|추경\d+회)(.+)$/);
@@ -39,6 +39,9 @@ export function parseSectionTitle(line) {
   let account = null;
   if (rest.startsWith('전체')) account = rest.slice(2);
   else if (rest.endsWith('전체')) account = rest.slice(0, -2);
+  // 2013년 이전 형식: "2009년도본예산주거환경개선", 분책은 "2010년도본예산일반회계분당구총무과~운중동"(전체 없음).
+  else if (rest.startsWith('일반회계')) account = '일반회계';
+  else if (/^[가-힣]{2,20}$/.test(rest)) account = rest;
   if (!account) return null;
   return { year: Number(m[1]), edition: m[2], account, summary_page: rest.startsWith('전체') };
 }
@@ -102,7 +105,7 @@ function collectEntries(pages) {
       const stat = label.match(STAT_CODE);
       if (obj) entries.push({ ...entry, type: 'object', code: obj[1], name: obj[2] });
       else if (stat) entries.push({ ...entry, type: 'stat', code: stat[1], name: stat[2] });
-      else if (/^[가-힣A-Za-z0-9(「]/.test(label)) entries.push({ ...entry, type: 'name' });
+      else if (/^[가-힣A-Za-z0-9(「'‘"“[<〈《]/.test(label)) entries.push({ ...entry, type: 'name' });
     });
   }
   return { entries, warnings };

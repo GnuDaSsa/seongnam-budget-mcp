@@ -290,7 +290,8 @@ async function rollupAcrossDepartments(env,a,evidence){
  return businessRollup(await evidenceFor(env,hits,false,query),name,edition,hits.length>=ROLLUP_CANDIDATES);
 }
 // 세출명세서 "전체" 문서 하나를 쪽 순서대로 모두 읽어 행으로 만든다. 메모리 한도 때문에 최근 2개 문서만 보관한다.
-const STATEMENT_DOCS=findStatementDocuments(CATALOG).documents,SHARDS=new Map(CATALOG.shards.map(s=>[s.id,s])),rowCache=new Map();
+// 쪽→색인 번호(gid)는 행보다 훨씬 작아 따로 16개 문서까지 보관한다. 분책·추경 회차처럼 3개 이상 문서를 읽어도 근거 쪽을 잃지 않는다.
+const STATEMENT_DOCS=findStatementDocuments(CATALOG).documents,SHARDS=new Map(CATALOG.shards.map(s=>[s.id,s])),rowCache=new Map(),gidCache=new Map();
 async function statementRows(env,doc,diag){
  if(rowCache.has(doc.document_id)){const x=rowCache.get(doc.document_id);rowCache.delete(doc.document_id);rowCache.set(doc.document_id,x);diag?.count('cache_hits');return x.rows;}
  if(doc.all_pages_indexed!==true||!Number.isInteger(doc.page_count)||doc.page_count<1)fail('전체 쪽의 색인 상태를 확인할 수 없어 행 집계를 중단합니다.');
@@ -303,6 +304,7 @@ async function statementRows(env,doc,diag){
  const rows=parseStatementRows(pages,{document_id:doc.document_id,year:doc.year,edition:doc.budget_type==='추경'?doc.revision+'회 추경':'본예산',account:doc.account_group==='원문 확인'?null:doc.account_group});
  diag?.count('rows_read',rows.length);
  if(rowCache.size>=2)rowCache.delete(rowCache.keys().next().value);rowCache.set(doc.document_id,{rows,gids});
+ gidCache.delete(doc.document_id);if(gidCache.size>=16)gidCache.delete(gidCache.keys().next().value);gidCache.set(doc.document_id,gids);
  return rows;
 }
 const pageUrl=(documentId,page)=>{const d=DOCS.get(documentId);return d?d.url+'#page='+page:null;};
@@ -310,7 +312,7 @@ const pageUrl=(documentId,page)=>{const d=DOCS.get(documentId);return d?d.url+'#
 async function analysisEvidence(env,analysis,query){
  const hits=[];
  for(const s of analysis?.source_pages||[]){
-  const gid=rowCache.get(s.document_id)?.gids.get(s.page);if(gid===undefined)continue;
+  const gid=(rowCache.get(s.document_id)?.gids??gidCache.get(s.document_id))?.get(s.page);if(gid===undefined)continue;
   const sh=shardFor(gid),texts=await asset(env,'text-'+sh.id),text=texts[gid-sh.offset]||'';
   const before=text.split('\n').slice(0,Math.max(0,(s.source_line||1)-1)).join('\n'),start=Array.from(before).length;
   hits.push({id:s.document_id+':p'+s.page,gid,chunk:{start:Math.max(0,start-300),end:start+1500},retrieval_scores:{method:'statement_row_index',source_line:s.source_line}});
@@ -337,7 +339,7 @@ async function research(env,input){
   try{analysis=await diag.span('analysis')(()=>buildAnalysis(a,{documents:STATEMENT_DOCS,loadRows:doc=>statementRows(env,doc,diag),urlFor:pageUrl}));}
   catch(error){diag.markPartial();analysis={kind:'unknown',status:'error',method:'statement_row_index',reason:'세출명세서 행 계산 중 오류가 발생해 계산 결과를 반환하지 않았습니다. 순위·합계를 확정하지 마세요.',notices:[]};}
  }
- const analysed=analysis&&['complete','matched','calculated','compared'].includes(analysis.status);
+ const analysed=analysis&&['complete','matched','calculated','compared','new_in_revision'].includes(analysis.status);
  if(analysis?.source_pages?.length&&(analysed||analysis.status==='partial_scope')){
   const rowEvidence=await analysisEvidence(env,analysis,a.policy.institution_scope.city_retrieval_query);
   if(rowEvidence.length){const ids=new Set(rowEvidence.map(e=>e.id));evidence=[...rowEvidence,...found.filter(e=>!ids.has(e.id)).slice(0,analysed?1:2)];match_quality={level:'verified',basis:'statement_row_index'};}
@@ -363,7 +365,7 @@ async function research(env,input){
  const department_overview=a.policy.institution_scope.mode==='municipal'&&a.policy.source_preference==='expenditure'&&!a.topic_intent?await diag.span('overview')(()=>departmentOverviewFor(env,a)):null;
  const guidance=researchGuidance(a.query,department_overview,match_quality,analysis);
  if(a.departments?.length>1&&!(['department_sum','department_difference'].includes(analysis?.kind)&&analysis.status==='calculated'))guidance.note='여러 부서가 요청됐지만 모든 부서의 같은 사업과 금액을 검증해 합산한 결과는 아닙니다. 누락된 부서를 확인하고 전체 합계를 확정하지 마세요. '+guidance.note;
- if(a.policy.comparison_budget_types?.includes('본예산')&&a.policy.comparison_budget_types.includes('추경')&&!(analysis?.kind==='edition_compare'&&analysis.status==='compared'))guidance.note='본예산과 추경의 같은 사업 및 기정액·경정액·증감액을 각각 원문에서 확인하기 전에는 비교를 완료한 것으로 표시하지 마세요. '+guidance.note;
+ if(a.policy.comparison_budget_types?.includes('본예산')&&a.policy.comparison_budget_types.includes('추경')&&!(analysis?.kind==='edition_compare'&&['compared','new_in_revision'].includes(analysis.status)))guidance.note='본예산과 추경의 같은 사업 및 기정액·경정액·증감액을 각각 원문에서 확인하기 전에는 비교를 완료한 것으로 표시하지 마세요. '+guidance.note;
  if(edition_timeline)guidance.note=edition_timeline.note+' '+guidance.note;
  const rollupNote=business_rollup?.departments.length>1?'같은 세부사업이 '+business_rollup.departments.length+'개 부서에 편성되어 있습니다. business_rollup.rows의 부서별 금액을 모두 제시하고 합계는 계산값임을 밝히세요. ':'';
  return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,match_quality,analysis,edition_timeline,business_rollup,department_overview,retrieval:r.retrieval,coverage,department_availability:r.department_availability,topic_coverage:a.topic_intent?{complete:false,annual_final_budget_reconstructed:false,selection:"relevant_business_lines_with_edition_diversity",returned_locations:evidence.length,requested_limit:a.limit}:null,generation_performed:false,

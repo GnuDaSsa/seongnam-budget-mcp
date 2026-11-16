@@ -41,6 +41,20 @@ function rowView(r, urlFor) {
 
 function editionLabel(doc) { return doc.budget_type === '추경' ? doc.revision + '회 추경' : '본예산'; }
 
+// 같은 편성·회계의 분책(본청·사업소, 수정구·중원구·분당구 동주민센터)을 하나의 회계 문서로 묶는다.
+// 묶은 문서의 행은 분책 순서대로 이어 붙이며 각 행은 원래 document_id와 쪽을 그대로 가진다.
+export function mergeParts(docs = []) {
+  const out = [], groups = new Map();
+  for (const d of docs) {
+    if (!d.part) { out.push(d); continue; }
+    const key = [d.year, d.budget_type, d.revision ?? 0, d.account_group].join(':');
+    if (!groups.has(key)) { const g = { ...d, part: null, parts: [] }; groups.set(key, g); out.push(g); }
+    groups.get(key).parts.push(d);
+  }
+  for (const g of groups.values()) g.title = g.parts[0].title.replace(/\s*·\s*(본청·사업소|[가-힣]+구·동주민센터)\s*$/, '') + ' (분책 ' + g.parts.length + '개)';
+  return out;
+}
+
 function pickSources(rows) {
   const seen = new Set(), out = [];
   for (const r of rows) {
@@ -82,11 +96,15 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
 
   if (kind !== 'business_lookup' && parseExclusions(a.query, departments).terms.length) return stop('exclusion_unverified', '사업명 제외 조건을 이 계산 유형에서 검증할 수 없어 순위·합계·비교를 확정하지 않았습니다.');
 
-  if (a.year !== 2026) return stop('year_not_validated', '이 연도의 원문 행 분석은 아직 검증하지 않아 순위·합계·비교를 계산하지 않았습니다.');
-
   if (UNSUPPORTED_ACCOUNTS.includes(intent.explicit_account)) return stop('unsupported_account', intent.explicit_account + ' 명세서는 표 구조가 달라 행 단위 계산을 하지 않습니다. 원문 쪽을 직접 확인하세요.');
 
-  const yearDocs = documents.filter(d => d.year === a.year && !excluded.includes(d.budget_type));
+  // 색인되지 않은 문서(쪽 0개 등)는 읽지 않고 알린다. 2009~2013년 본청·구별 분책은 한 회계 문서로 묶는다.
+  const unindexed = documents.filter(d => d.year === a.year && !excluded.includes(d.budget_type) && d.all_pages_indexed === false);
+  const unindexedNotice = scopeDocs => {
+    const hit = unindexed.filter(u => scopeDocs.some(d => d.budget_type === u.budget_type && (d.revision ?? null) === (u.revision ?? null)));
+    if (hit.length) notices.push('수록 색인에 본문이 없는 세출명세서가 있어 계산에서 뺐습니다: ' + hit.map(d => editionLabel(d) + ' ' + d.account_group + (d.part ? '(' + d.part + ')' : '')).join(', ') + '. 이 범위의 행은 0원이나 부재로 해석하지 마세요.');
+  };
+  const yearDocs = mergeParts(documents.filter(d => d.year === a.year && !excluded.includes(d.budget_type) && d.all_pages_indexed !== false));
   const mainDocs = yearDocs.filter(d => d.budget_type === '본예산');
   const revisionDocs = yearDocs.filter(d => d.budget_type === '추경');
   // 계산 기준 편성: 질문에 추경만 명시했으면 그 회차, 그 밖에는 본예산(미지정이면 그 사실을 알린다).
@@ -95,7 +113,8 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   if (revisionOnly && !a.revision) return stop('edition_required', '추경 회차가 지정되지 않아 행 단위 계산을 하지 않았습니다. 회차를 지정하세요.');
   let primaryDocs = revisionOnly ? revisionDocs.filter(d => d.revision === a.revision) : mainDocs;
   if (intent.explicit_account === '일반회계' || intent.explicit_account === '기타특별회계') primaryDocs = primaryDocs.filter(d => d.account_group === intent.explicit_account || d.account_group === '원문 확인');
-  if (!primaryDocs.length) return stop('no_statement_document', (revisionOnly ? a.revision + '회 추경' : a.year + '년 본예산') + ' 세출예산사업명세서(전체)가 수록 색인에 없어 행 단위 계산을 하지 않았습니다.');
+  if (!primaryDocs.length) return stop('no_statement_document', (revisionOnly ? a.revision + '회 추경' : a.year + '년 본예산') + ' 세출예산사업명세서가 수록 색인에 없어 행 단위 계산을 하지 않았습니다.');
+  unindexedNotice(compareRequested || kind === 'edition_compare' ? yearDocs : primaryDocs);
   const editionBasis = 'query';
   base.edition_basis = editionBasis;
   if (kind === 'ranking' && compareRequested) notices.push('본예산과 추경을 함께 요청했지만 순위는 본예산 세출명세서 기준입니다. 추경 명세서는 변경된 사업만 나오는 변경 목록이라 추경을 포함한 전체 순위는 계산하지 않았습니다. 추경 반영 최대액은 department_overview.latest_amounts를 계산값으로만 참고하세요.');
@@ -104,7 +123,7 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   async function rowsOf(doc) {
     const hit = loaded.find(x => x.doc === doc);
     if (hit) return hit.rows;
-    const rows = await loadRows(doc);
+    const rows = doc.parts ? (await Promise.all(doc.parts.map(p => loadRows(p)))).flat() : await loadRows(doc);
     loaded.push({ doc, rows });
     return rows;
   }
@@ -118,7 +137,7 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   }
   const view = r => rowView(r, urlFor);
   const finish = (status, extra = {}, rows = []) => ({ ...base, status, notices, ...extra, source_pages: pickSources(rows),
-    documents_read: loaded.map(x => ({ document_id: x.doc.document_id, title: x.doc.title, edition: editionLabel(x.doc), account_group: x.doc.account_group, rows: x.rows.length })) });
+    documents_read: loaded.map(x => ({ document_id: x.doc.document_id, title: x.doc.title, edition: editionLabel(x.doc), account_group: x.doc.account_group, rows: x.rows.length, ...(x.doc.parts ? { parts: x.doc.parts.map(p => ({ document_id: p.document_id, part: p.part })) } : {}) })) });
 
   if (kind === 'department_difference') {
     const operandNames = diff.operands, excludedNames = diff.excluded;
@@ -263,6 +282,31 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
 
   const match = matchBusiness(found.rows, a.query, [department], { allowMulti: kind === 'business_lookup' });
 
+  // 추경 회차별 행을 모아 한 사업으로 특정되면 신설 흐름을 돌려준다. 본예산 0원은 원문 값이 아니므로 만들지 않는다.
+  async function newInRevision(dept) {
+    const wanted = a.revision ? [a.revision] : [...new Set(revisionDocs.map(d => d.revision))].sort((x, y) => x - y);
+    const pool = [];
+    for (const doc of revisionDocs.filter(d => wanted.includes(d.revision))) {
+      for (const row of await rowsOf(doc)) if (row.level === 'business' && norm(row.department) === norm(dept)) pool.push(row);
+    }
+    const m = matchBusiness(pool, a.query, [dept]);
+    if (m.status !== 'matched') return null;
+    const name = norm(m.rows[0].business);
+    if (m.rows.some(r => norm(r.business) !== name)) return null;
+    const revisions = wanted.map(rv => {
+      const hits = m.rows.filter(r => r.revision === rv);
+      if (hits.length !== 1) return { revision: rv, label: rv + '회 추경', status: hits.length ? 'ambiguous' : 'not_listed_in_revision' };
+      const r = hits[0];
+      return { revision: rv, label: rv + '회 추경', status: 'listed', revised_amount: r.amounts?.budget ?? null, previous_amount: r.amounts?.previous ?? null, amendment_change: r.amounts?.change ?? null,
+        unit: r.amount_unit ?? '천원', column_labels: r.column_labels ?? null, document_id: r.document_id, page: r.page, source_line: r.source_line, page_url: urlFor ? urlFor(r.document_id, r.page) : null };
+    });
+    const first = revisions.find(x => x.status === 'listed');
+    return finish('new_in_revision', {
+      reason: null, business: m.rows[0].business, department: dept, initial: null, first_listed_revision: first.revision, revisions,
+      note: department + '의 ' + a.year + '년 본예산 세출명세서에는 이 세부사업 행이 없고 ' + first.label + ' 변경 목록에 처음 나옵니다. 본예산 금액을 0원으로 적지 말고 "본예산 미편성(명세서에 행 없음), ' + first.label + '에서 편성"으로 표현하세요. 기정액·경정액·증감은 각 추경의 원문 열이며 서로 더하지 마세요.',
+    }, [...m.rows].sort((x, y) => x.revision - y.revision));
+  }
+
   // 각각: 서로 다른 정확한 이름의 사업을 따로 보여 준다. 이름이 비슷한 다른 행으로 대체하거나 합산하지 않는다.
   if (kind === 'business_lookup' && eachRequested(a.query) && (match.status === 'multi_matched' || match.status === 'matched')) {
     const named = match.status === 'multi_matched' ? match.groups : [{ name: match.rows[0].business, rows: match.rows }];
@@ -295,6 +339,11 @@ export async function buildAnalysis(a, { documents = [], loadRows, urlFor = null
   }
 
   if (kind === 'edition_compare') {
+    // 본예산에 없는 사업은 추경에서 신설됐을 수 있다. 추경 변경 목록에서 같은 부서의 정확한 사업명을 찾는다.
+    if (match.status === 'no_name_match') {
+      const created = await newInRevision(department);
+      if (created) return created;
+    }
     if (match.status !== 'matched' || match.rows.length !== 1) return finish(match.status === 'matched' ? 'ambiguous' : match.status, { reason: match.note ?? '본예산에서 질문한 사업 행을 하나로 특정하지 못해 비교하지 않았습니다.', candidates: match.candidates });
     const initial = match.rows[0];
     const wanted = a.revision ? [a.revision] : [...new Set(revisionDocs.map(d => d.revision))].sort((x, y) => x - y);

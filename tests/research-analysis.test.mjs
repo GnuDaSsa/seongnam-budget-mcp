@@ -131,11 +131,37 @@ test('#6a 없는 사업은 no_name_match이며 0원을 금지한다', live, asyn
   assert.match(g.note, /^미확인/);
 });
 
-test('편성 미지정은 임의 본예산 집계를 막고 미검증 연도는 행 집계를 막는다', live, async () => {
+test('편성 미지정은 임의 본예산 집계를 막고, 과거 연도도 2026년과 같은 행 집계를 한다', live, async () => {
   const missing = await run('2026년 분당구 구조물관리과 401-01 시설비가 가장 큰 사업은?', ['분당구구조물관리과']);
   assert.equal(missing.status, 'edition_required');
   const otherYear = await run('2025년 본예산 세부사업 중 가장 큰 사업은?');
-  assert.equal(otherYear.status, 'year_not_validated');
+  assert.equal(otherYear.kind, 'ranking');
+  assert.equal(otherYear.status, 'partial_scope', '회계 미지정 순위는 일반회계 안의 순위로만 표시');
+  assert.ok(otherYear.items.length > 0);
+  assert.ok(otherYear.items.every(i => i.document_id && i.page));
+  assert.equal(otherYear.documents_read[0].edition, '본예산');
+});
+
+test('2009~2013년 본청·구별 분책은 한 회계로 묶어 읽는다', live, async () => {
+  const r = await run('2010년 본예산 세부사업 중 가장 큰 사업 3개는?');
+  assert.equal(r.kind, 'ranking');
+  assert.equal(r.documents_read[0].parts.length, 4);
+  assert.deepEqual(r.notices, [], '본예산 질문에 색인되지 않은 1회 추경 분책을 알리지 않음');
+  const dept = await run('2012년 본예산 분당구 총무과 세부사업 중 가장 큰 사업은?', ['분당구총무과']);
+  assert.equal(dept.status, 'complete');
+  assert.ok(dept.items.every(i => i.department.replace(/\s/g, '') === '분당구총무과'));
+});
+
+test('과거 연도 편성 비교와 재원도 원문 행으로 계산한다', live, async () => {
+  const cmp = await run('2025년 청년청소년과 청년월세한시특별지원 본예산이랑 추경 비교', ['청년청소년과']);
+  assert.equal(cmp.kind, 'edition_compare');
+  assert.deepEqual(cmp.revisions.filter(x => x.status === 'compared').map(x => x.revision), [2, 3]);
+  const f = await run('2019년 수정구 사회복지과 기초연금 본예산의 국비 도비 시비', ['수정구사회복지과']);
+  assert.equal(f.kind, 'funding');
+  assert.equal(f.status, 'matched');
+  // 2013년에는 같은 업무가 주민생활지원과였다. 부서명 변경을 추정하지 않는다.
+  const renamed = await run('2013년 본예산 수정구 사회복지과 세부사업 중 가장 큰 사업은?', ['수정구사회복지과']);
+  assert.equal(renamed.status, 'department_not_in_statement');
 });
 
 test('#6b 수정구 기초연금 재원은 국·도·시 합이 예산액과 맞는다', live, async () => {
@@ -380,4 +406,17 @@ test('#4 비교 표현에서도 부서·편성 누락은 숫자 없이 불확실
   const noEdition = await runDiff('2026년 기초연금 일반회계 분당구 사회복지과 예산이 수정구 사회복지과보다 얼마나 적어?', [D_BUNDANG, D_SUJEONG]);
   assert.equal(noEdition.status, 'edition_required');
   assert.equal(noEdition.difference, undefined);
+});
+
+test('본예산에 없고 추경에서 신설된 사업은 new_in_revision으로 회차별 원문 열을 준다(0원을 만들지 않음)', live, async () => {
+  const r = await run('2024년 청년청소년과 청년월세한시특별지원 본예산이랑 추경 비교', ['청년청소년과']);
+  assert.equal(r.kind, 'edition_compare');
+  assert.equal(r.status, 'new_in_revision');
+  assert.equal(r.initial, null);
+  assert.equal(r.first_listed_revision, 1);
+  assert.deepEqual(r.revisions.map(x => x.status), ['listed', 'not_listed_in_revision', 'listed', 'not_listed_in_revision']);
+  assert.ok(r.revisions[0].page && Number.isSafeInteger(r.revisions[0].revised_amount));
+  assert.match(r.note, /0원으로 적지 말고/);
+  const none = await run('2024년 청년청소년과 달나라사업 본예산이랑 추경 비교', ['청년청소년과']);
+  assert.equal(none.status, 'no_name_match');
 });

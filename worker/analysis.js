@@ -12,21 +12,65 @@ const UNIT = '천원';
 // 본예산: 제목이 "… · 일반회계|기타특별회계 · 세출예산사업명세서 · 전체".
 // 추경: 제목이 "N회 추경 세입세출예산서 · 세출예산사업명세서"(회계 구분 없음, 한 문서에 여러 회계가 들어 있다).
 // 상수도·하수도·공영개발 특별회계는 구조가 달라 읽지 않는다(excluded).
+// 2019년 이전 편성은 제목 형식이 달라(회계별 "일반회계 · 세출예산사업명세서", 합본 "(일반+특별)",
+// 2009~2013년 "본청·사업소/수정구·…" 분책) legacyStatement로 고른다. 같은 편성에 현행 형식 문서가 있으면 그것만 쓴다.
+const PUBLIC_ENTERPRISE = /(상수도|하수도|공영개발)/;
+const STATEMENT_TITLE = /세출예산(?:사업)?명세서/;
+const MERGED_LINK_LABEL = /^세출예산사업명세서\(기타\s*특별회계\)\s+(?:상수도|하수도)공기업특별회계\((?:세입|세출)\)$/;
+
+function modernStatement(d, parts) {
+  if (!parts.includes('세출예산사업명세서')) return null;
+  if (d.budget_type === '본예산' && parts[parts.length - 1] === '전체' && /^(일반회계|기타특별회계)$/.test(parts[parts.length - 3] ?? '')) return { account_group: parts[parts.length - 3], part: null };
+  if (d.budget_type === '추경' && parts[parts.length - 1] === '세출예산사업명세서' && parts.length === 2) return { account_group: '원문 확인', part: null };
+  return null;
+}
+
+export function legacyStatement(d) {
+  const title = String(d?.title ?? '');
+  // 분책 이름(본청·사업소 등)에도 가운뎃점이 있어 먼저 떼어 낸다.
+  const partMatch = title.match(/·\s*(본청·사업소|수정구·동주민센터|중원구·동주민센터|분당구·동주민센터)\s*$/);
+  const part = partMatch ? partMatch[1] : null;
+  const parts = (partMatch ? title.slice(0, partMatch.index) : title).split('·').map(s => s.trim());
+  if (!['본예산', '추경'].includes(d?.budget_type) || !STATEMENT_TITLE.test(title) || /세입예산/.test(title.replace(/세입세출예산서/g, ''))) return null;
+  // 2011년 수집 제목은 링크 문구 두 개가 붙어 "세출예산사업명세서(기타특별회계) 상수도공기업특별회계(세입)"이 됐다.
+  // 이 문서 본문은 기타특별회계 세출명세서다(발전소주변지역지원사업·교통사업 등). 앞 문구만 제목으로 본다.
+  if (MERGED_LINK_LABEL.test(parts[parts.length - 1] ?? '')) return { account_group: '기타특별회계', part };
+  if (PUBLIC_ENTERPRISE.test(title) || /성인지/.test(title)) return null;
+  // 명세서 이름이 제목 끝(분책이면 분책 바로 앞)에 와야 한다. 부서별 분책(현행 연도)은 고르지 않는다.
+  const tail = parts[parts.length - 1];
+  const named = STATEMENT_TITLE.test(tail) || (STATEMENT_TITLE.test(parts[parts.length - 2] ?? '') && /일반회계\+|일반\+|일반_및/.test(tail));
+  if (!named) return null;
+  const scope = parts.slice(1).join(' ');
+  let account_group;
+  if (/일반회계\s*\+|일반\s*\+|일반_및|일반회계\+특별회계/.test(scope)) account_group = '원문 확인';
+  else if (/\((?:기타\s*)?특별회계\)|^기타특별회계\b|· 기타특별회계 ·/.test(scope) || /\((?:기타\s*)?특별회계\)/.test(tail) || parts.includes('기타특별회계')) account_group = '기타특별회계';
+  else if (/일반회계|\(일반\)/.test(scope)) account_group = '일반회계';
+  else return null;
+  return { account_group, part };
+}
+
 export function findStatementDocuments(catalog, { year = null, budget_type = null, revision = null } = {}) {
   const documents = [];
   const excluded = [];
+  const candidates = [];
   for (const d of catalog?.documents ?? []) {
     const parts = String(d.title ?? '').split('·').map(s => s.trim());
-    if (!parts.includes('세출예산사업명세서')) continue;
+    if (!STATEMENT_TITLE.test(d.title ?? '')) continue;
     if (year != null && d.year !== year) continue;
     if (budget_type != null && d.budget_type !== budget_type) continue;
     if (revision != null && (d.revision ?? null) !== revision) continue;
-    const isMain = d.budget_type === '본예산' && parts[parts.length - 1] === '전체' && /^(일반회계|기타특별회계)$/.test(parts[parts.length - 3] ?? '');
-    const isRevision = d.budget_type === '추경' && parts[parts.length - 1] === '세출예산사업명세서' && parts.length === 2;
-    if (!isMain && !isRevision) {
-      if (/(상수도|하수도|공영개발)/.test(d.title)) excluded.push({ document_id: d.id, title: d.title, reason: '구조가 다른 공기업·공영개발 회계 명세서는 읽지 않음' });
+    const modern = modernStatement(d, parts);
+    const legacy = modern ? null : legacyStatement(d);
+    if (!modern && !legacy) {
+      if (parts.includes('세출예산사업명세서') && PUBLIC_ENTERPRISE.test(d.title)) excluded.push({ document_id: d.id, title: d.title, reason: '구조가 다른 공기업·공영개발 회계 명세서는 읽지 않음' });
       continue;
     }
+    candidates.push({ d, kind: modern ? 'modern' : 'legacy', ...(modern || legacy) });
+  }
+  const editionKey = d => d.year + ':' + d.budget_type + ':' + (d.revision ?? 0);
+  const modernEditions = new Set(candidates.filter(c => c.kind === 'modern').map(c => editionKey(c.d)));
+  for (const { d, kind, account_group, part } of candidates) {
+    if (kind === 'legacy' && modernEditions.has(editionKey(d))) continue;
     const indexed = d.indexed_pages ?? null;
     documents.push({
       document_id: d.id,
@@ -34,16 +78,19 @@ export function findStatementDocuments(catalog, { year = null, budget_type = nul
       year: d.year,
       budget_type: d.budget_type,
       revision: d.revision ?? null,
-      account_group: isMain ? parts[parts.length - 3] : '원문 확인',
+      account_group,
+      part,
+      title_format: kind,
       shards: d.shards ?? [],
       page_count: d.page_count ?? null,
       indexed_pages: indexed,
-      all_pages_indexed: indexed != null && d.page_count != null ? indexed === d.page_count : null,
+      all_pages_indexed: indexed != null && d.page_count != null ? indexed === d.page_count && d.page_count > 0 : null,
       status: d.status ?? null,
     });
   }
+  const partOrder = p => (p ? ['본청·사업소', '수정구·동주민센터', '중원구·동주민센터', '분당구·동주민센터'].indexOf(p) + 1 : 0);
   documents.sort((a, b) => (a.year - b.year) || (a.budget_type === b.budget_type ? (a.revision ?? 0) - (b.revision ?? 0) : a.budget_type === '본예산' ? -1 : 1)
-    || a.account_group.localeCompare(b.account_group, 'ko'));
+    || a.account_group.localeCompare(b.account_group, 'ko') || partOrder(a.part) - partOrder(b.part));
   return { documents, excluded };
 }
 
