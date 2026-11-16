@@ -3,7 +3,7 @@
 import {createTelemetry} from './telemetry.js';
 
 // Must match the stage names worker/telemetry.js accepts (checked in tests/diagnostics.test.mjs).
-const SPANS = new Set(['scope', 'search', 'vector', 'lexical', 'hydrate', 'rerank', 'evidence', 'bridge', 'rollup', 'overview', 'analysis', 'asset_local', 'asset_remote', 'serialize']);
+const SPANS = new Set(['scope', 'search', 'vector', 'lexical', 'hydrate', 'rerank', 'evidence', 'bridge', 'rollup', 'overview', 'analysis', 'editions', 'asset_local', 'asset_remote', 'serialize']);
 const COUNTS = new Set(['assets_read', 'cache_hits', 'cache_misses', 'rows_read', 'years']);
 
 export function createDiagnostics(now) {
