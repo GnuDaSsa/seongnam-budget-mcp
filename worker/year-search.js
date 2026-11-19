@@ -1,4 +1,5 @@
 import {retrievalWords} from './retrieval-phrases.js';
+import {EVIDENCE_BOUNDARY} from './policy.js';
 
 const compact = value => String(value || '').toLowerCase().replace(/\s+/g, '');
 
@@ -33,6 +34,7 @@ export function directYearHit(hit, scope) {
 export function hasYearEvidence(result, scope) {
   if (result.answer_card) return true;
   if (result.edition_timeline?.latest_verified_row) return true;
+  if (result.analysis?.status === 'partial_scope' && result.analysis.items?.length && result.analysis.source_pages?.length) return true;
   if (result.retrieval?.mode?.startsWith('total_table_')) return false;
   if (['complete','matched','calculated','compared','new_in_revision'].includes(result.analysis?.status)) return true;
   return (result.evidence || result.results || []).some(hit => directYearHit(hit, scope));
@@ -45,7 +47,7 @@ export async function lookupYears(scope, {run, hasEvidence = hasYearEvidence, pr
   function report(result, matched) {
     const note = matched === scope.year ? '' : matched
       ? searched.slice(0,-1).join('·')+'년에서 질문에 맞는 근거를 확인하지 못해 '+matched+'년 자료를 반환했습니다. 답변에 실제 근거 연도와 편성을 밝히세요.'
-      : searched.join('·')+'년 수록 범위에서 질문에 맞는 직접 근거를 확인하지 못했습니다.';
+      : searched[0]+'년부터 '+searched.at(-1)+'년까지 수록 범위에서 질문에 맞는 직접 근거를 확인하지 못했습니다.';
     const policy = result.query_interpretation;
     return {...result, query_interpretation:{...policy, year_search:{start_year:scope.year, searched_years:searched, matched_year:matched},
       notices:[...policy.notices,...(note?[note]:[])]}, ...(note && result.next_action ? {next_action:note+' '+result.next_action} : {})};
@@ -61,5 +63,19 @@ export async function lookupYears(scope, {run, hasEvidence = hasYearEvidence, pr
     const result = await run(older);
     if (hasEvidence(result, older)) return report(result, year);
   }
-  return report(first, null);
+  const unresolved = {...first};
+  if (first.results) unresolved.results = [];
+  if (first.match_quality) {
+    // Keep clearly identified related reading, without promoting a rejected
+    // candidate or an unrelated department overview into a budget answer.
+    if (['verified','keyword'].includes(first.match_quality.level)) {
+      unresolved.evidence = [];
+      unresolved.match_quality = {level:'none',basis:'no_direct_year_evidence'};
+    }
+    unresolved.business_rollup = unresolved.edition_timeline = unresolved.department_overview = null;
+    unresolved.analysis = null;
+    unresolved.verification_status = {...first.verification_status,business:'not_verified',department:'not_verified',requested_details:'not_verified'};
+    unresolved.next_action = '수록 자료로 질문 대상의 예산을 확인할 수 없습니다. 의미 유사 후보가 있으면 참고자료로 표시하고 금액은 확정하지 마세요. '+EVIDENCE_BOUNDARY;
+  }
+  return report(unresolved, null);
 }

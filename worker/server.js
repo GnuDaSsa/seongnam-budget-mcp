@@ -10,7 +10,7 @@ import {departmentOverview} from './department-overview.js';
 import {researchGuidance} from './research-guidance.js';
 import {findStatementDocuments} from './analysis.js';
 import {parseStatementRows} from './statement-rows.js';
-import {buildAnalysis,analysisEligible} from './research-analysis.js';
+import {buildAnalysis,analysisEligible,businessResidue} from './research-analysis.js';
 import {createDiagnostics} from './diagnostics.js';
 import {lookupYears,directYearHit} from './year-search.js';
 import {editionTimelineEligible,editionsFor,rankEditionHits,chooseConsistentHits,mergeEditionEvidence,editionTimeline,verifiedEditionRow} from './edition-timeline.js';
@@ -197,6 +197,9 @@ async function search(env,input){
 function cityQuery(a){
  return canonicalDepartmentQuery(a.topic_intent?.content_query||a.policy.institution_scope.city_retrieval_query,a.departments);
 }
+function departmentOnly(a){
+ return a.departments?.length>0&&!businessResidue(cityQuery(a),a.departments.map(d=>d.name)).length;
+}
 // Read the term index once across all years. Years without a matching posting
 // need no page reads or vector searches. Never reuse an all-years top-N list.
 async function historicalCandidates(env,a){
@@ -208,7 +211,7 @@ async function historicalCandidates(env,a){
  const meta=await ranks(env),query=cityQuery(a);
  // Department questions can use verified statement rows even if conversational
  // ranking or aggregation words do not occur verbatim on the page.
- for(const [,doc] of a.department_rows||[]){const d=CATALOG.documents[doc];if(match(d,unscoped))possible.add(d.year);}
+ if(departmentOnly(a))for(const [,doc] of a.department_rows){const d=CATALOG.documents[doc];if(match(d,unscoped))possible.add(d.year);}
  if(isMunicipalTotal(a.query))return years.map(year=>({year,possible:true}));
  const queries=a.topic_intent?a.topic_intent.aliases.map(alias=>query.replace(/(?<![a-z])AI(?![a-z])/gi,alias)):[query];
  for(const q of queries){
@@ -223,7 +226,7 @@ async function historicalCandidates(env,a){
 async function lookupBudgetYears(env,a,run){
  a.lexical_plans=new Map();
  return lookupYears(a,{run,priorYears:()=>historicalCandidates(env,a),probe:async older=>{
-  if(isMunicipalTotal(older.query)||older.departments?.length)return true;
+  if(isMunicipalTotal(older.query)||departmentOnly(older))return true;
   const r=await searchYear(env,{...older,limit:20,mode:'lexical'});
   return r.results.some(h=>directYearHit(h,older));
  }});
@@ -385,12 +388,13 @@ async function editionTimelineFor(env,a,words){
  const ranked=[];
  for(const e of editions){
   const r=await lexicalSearch(env,{...a,query,budget_type:e.budget_type,revision:e.revision??undefined,limit:10,mode:undefined});
-  const candidates=await Promise.all(rankEditionHits(r.results.filter(h=>h.source_family==='expenditure'||isCombinedBudgetDocument(DOCS.get(h.document_id))),words).map(async c=>{
+  const candidates=[];
+  for(const c of rankEditionHits(r.results.filter(h=>h.source_family==='expenditure'||isCombinedBudgetDocument(DOCS.get(h.document_id))),words)){
    const sh=shardFor(c.hit.gid),texts=sh?await asset(env,'text-'+sh.id):null,raw=texts?.[c.hit.gid-sh.offset]||'';
-   if(sourceFamily(DOCS.get(c.hit.document_id),raw)!=='expenditure')return null;
+   if(sourceFamily(DOCS.get(c.hit.document_id),raw)!=='expenditure')continue;
    const verified_row=verifiedEditionRow(raw,c.hit,words);
-   return{...c,raw,verified_row,department:verified_row?.department||budgetClassification(raw,DOCS.get(c.hit.document_id),query)?.department||null};
-  }));
+   candidates.push({...c,raw,verified_row,department:verified_row?.department||budgetClassification(raw,DOCS.get(c.hit.document_id),query)?.department||null});
+  }
   ranked.push({...e,candidates:candidates.filter(c=>c&&(c.verified_row||c.match!=='keyword'||c.rank<10)).sort((x,y)=>Number(!!y.verified_row)-Number(!!x.verified_row))});
  }
  const picks=chooseConsistentHits(ranked).map(p=>{

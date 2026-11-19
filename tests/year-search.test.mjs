@@ -8,10 +8,10 @@ const env={ASSETS:{async fetch(req){
  const path=new URL(req.url).pathname;
  return new Response(await readFile(resolve('snapshot','.'+path)));
 }}};
-async function call(tool,query,options={}){
+async function call(tool,query,options={},environment=env){
  const request=new Request('https://test.local/public-mcp',{method:'POST',headers:{'content-type':'application/json'},
   body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:tool,arguments:{query,...options}}})});
- const {result}=await (await worker.fetch(request,env)).json();
+ const {result}=await (await worker.fetch(request,environment)).json();
  assert.equal(result.isError,false,result.content?.[0]?.text?.slice(0,150));
  return result.structuredContent;
 }
@@ -47,4 +47,17 @@ test('완전 미일치도 수록 연도 전체를 점검하고 금액을 확정�
  assert.equal(r.query_interpretation.year_search.matched_year,null);
  assert(r.query_interpretation.year_search.searched_years.at(-1)<=2008);
  assert.equal(r.answer_card,undefined);
+});
+test('부서의 미확인 사업은 이전 연도마다 부서 전체 명세서를 다시 읽지 않는다',async()=>{
+ const historicalText=[];
+ const observed={ASSETS:{fetch(req){
+  const file=new URL(req.url).pathname;
+  if(/\/text-(?:19\d\d|20[01]\d|202[0-5])-/.test(file))historicalText.push(file);
+  return env.ASSETS.fetch(req);
+ }}};
+ const r=await call('budget_research','노인복지과 zzxxxyyy123456',{mode:'lexical',limit:1},observed);
+ assert.equal(r.query_interpretation.year_search.matched_year,null);
+ assert.equal(r.department_overview,null);
+ assert.equal(r.verification_status.business,'not_verified');
+ assert.deepEqual(historicalText,[]);
 });
