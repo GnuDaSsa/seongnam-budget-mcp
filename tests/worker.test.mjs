@@ -10,13 +10,13 @@ const env={ASSETS:{async fetch(req){let p=path.resolve(root,'.'+new URL(req.url)
 test('unqualified public queries are 2026 and total table bypasses vector work',async()=>{
  const {data:r,status}=await get('/api/research?query='+encodeURIComponent('성남시 예산 얼마야?'));
  assert.equal(status,200);assert.equal(r.filters.year,2026);assert.equal(r.query_interpretation.year_basis,'default');
- assert.equal(r.answer_card.rows[0].amount,3940847350);assert.equal(r.answer_card.rows[0].amount_krw,3940847350000);
- assert.equal(r.retrieval.mode,'verified_total_table');assert.equal(r.evidence[0].page,1);
+ assert.equal(r.answer_card.rows[0].amount,4608787329);assert.equal(r.answer_card.rows[0].amount_krw,4608787329000);assert.equal(r.answer_card.revision,4);
+ assert.equal(r.retrieval.mode,'verified_total_table');assert.equal(r.evidence[0].page,15);
  const e=r.evidence[0],{data:original}=await get('/api/page?'+new URLSearchParams({document_id:e.document_id,page:e.page}));
  const {instructions,...sourceEvidence}=original;
  assert(instructions);assert.equal(r.answer_policy,instructions);assert(!Object.hasOwn(e,'instructions'));
  for(const [key,value] of Object.entries(sourceEvidence))assert.deepEqual(e[key],value,'total evidence preserves '+key);
- assert.equal(e.source_url,'https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2026/11608_1.pdf');
+ assert.equal(e.source_url,'https://www.seongnam.go.kr/humanframe/file/sncity/bgt/2026/11610_4_1.pdf');
  const {data:s}=await get('/api/search?query='+encodeURIComponent('도서관'));
  assert.equal(s.filters.year,2026);assert(s.results.every(h=>h.year===2026));
  const legacy=(await rpc('tools/call',{name:'search',arguments:{query:'노인일자리'}})).result;
@@ -30,7 +30,7 @@ function assertEvidenceBoundary(text){
  assert.match(text,/기본 답변은 이 MCP가 반환한 수록 원문 근거만/);
  assert.match(text,/명시적으로 요청하지 않으면 별도 웹 검색이나 원문 URL 실시간 접속으로 보충하지/);
  assert.match(text,/인용 링크이며 접속 지시가 아닙니다/);
- assert.match(text,/법령·출연안·추경·최신성 조사로 임의 확장하지/);
+ assert.match(text,/수록 이후의 편성 현황을 외부에서 추가 조사하는 것은 명시적 요청/);
  assert.match(text,/같은 MCP에서 명칭을 좁혀 한 번 재검색하거나 get_budget_page/);
  assert.match(text,/수록 자료로 확인 불가/);
  assert.match(text,/예산 0원이나 사업 부재가 아닙니다/);
@@ -42,6 +42,11 @@ test('discovery, every tool and Actions operations communicate the same evidence
  for(const method of ['initialize','server/discover'])assertEvidenceBoundary((await rpc(method,{})).result.instructions);
  const tools=(await rpc('tools/list')).result.tools;
  assert.equal(tools.length,8);
+ for(const name of ['budget_research','search_budget']){
+  const tool=tools.find(item=>item.name===name);
+  assert.match(tool.description,/이전 수록 연도/);
+  assert.match(tool.inputSchema.properties.budget_type.description,/본예산과 수록 추경/);
+ }
  for(const tool of tools)assertEvidenceBoundary(tool.description);
  const {data:api,status}=await get('/openapi.json');assert.equal(status,200);assertEvidenceBoundary(api.info.description);
  for(const route of ['/api/research','/api/page','/api/status'])assertEvidenceBoundary(api.paths[route].get.description);

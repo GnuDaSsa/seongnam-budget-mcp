@@ -70,9 +70,23 @@ test('municipal fast path does not swallow a department or business total',()=>{
  assert(!isMunicipalTotal('청년 월세 예산 얼마야?'));
  assert(!isMunicipalTotal('도서관 전체 예산'));
 });
+test('명시 회차의 두 어순이 같은 조건이 되고 오래된 revision 인자를 바로잡는다',()=>{
+ for(const q of ['성남시 제2회 추경 총예산','성남시 추경 2회 총예산','성남시 추가경정예산 제2차 총액']){
+  const r=resolveQuery({query:q,revision:1});
+  assert(isMunicipalTotal(q),q);assert.equal(r.budget_type,'추경');assert.equal(r.revision,2);
+  assert.deepEqual(r.policy.conflicts,[{field:'revision',parameter:1,query_revision:2,resolution:'explicit_query_precedence'}]);
+ }
+ const main=resolveQuery({query:'본예산 총액',revision:3});
+ assert.equal(main.revision,undefined);assert.equal(main.policy.conflicts[0].query_revision,null);
+ assert.throws(()=>resolveQuery({query:'1회 추경과 추경 2회 비교'}),/여러 추경 회차/);
+ assert.throws(()=>resolveQuery({query:'추경 0회 총액'}),/1~30회/);
+});
 test('answer card requires source unit and a reconciled total',()=>{
- const e={text:'합 계 100\n일반회계 70\n특별회계 30',unit:'천원',year:2026,id:'test',page_url:'https://www.seongnam.go.kr/example.pdf#page=1'};
- assert.equal(totalAnswerCard(e).rows[0].amount_krw,100000);
+ const e={text:'합 계 100\n일반회계 70\n특별회계 30',unit:'천원',year:2026,budget_type:'추경',revision:2,page:1,id:'test',source_url:'https://www.seongnam.go.kr/example.pdf',page_url:'https://www.seongnam.go.kr/example.pdf#page=1'};
+ const card=totalAnswerCard(e);
+ assert.equal(card.rows[0].amount_krw,100000);
+ assert.equal(card.budget_type,'추경');assert.equal(card.revision,2);
+ assert.equal(card.source_url,e.source_url);assert.equal(card.page,1);
  assert.equal(totalAnswerCard({...e,unit:'백만원'}),null);
  assert.equal(totalAnswerCard({...e,text:e.text.replace('100','99')}),null);
 });
@@ -122,5 +136,6 @@ test('a resolved query re-enters with the same years and only an internal slice 
 // 이슈 #1 회귀: 정중한 총예산 질문은 총괄표로, 예산과(부서) 질문은 시 전체 총액으로 넓히지 않는다.
 test('polite municipal total wording is recognised while 예산과 and other editions stay out',()=>{
  for(const q of ['2026년 성남시 본예산 총예산','2026년 성남시 본예산 총예산이 얼마나 되나요?','성남시 2026년도 본예산의 총금액을 알려주세요.','올해 성남시 총예산은 얼마입니까?','성남시 세입예산과 세출예산 총액'])assert(isMunicipalTotal(q),q);
- for(const q of ['2026년 예산과 총예산이 얼마인가요?','2026년 예산과의 총예산','성남시 예산과 총액 얼마야','2026년 추경 총예산이 얼마나 되나요?','2025년 결산 총액을 알려주세요.','도서관 총예산이 얼마나 되나요?','청년월세 총금액을 알려주세요.'])assert(!isMunicipalTotal(q),q);
+ for(const q of ['2026년 추경 총예산이 얼마나 되나요?', '성남시 제1회 추가경정예산 총액', '최근 추경까지 반영한 성남시 총예산','2025~2026년 성남시 총예산 비교'])assert(isMunicipalTotal(q),q);
+ for(const q of ['2026년 예산과 총예산이 얼마인가요?','2026년 예산과의 총예산','성남시 예산과 총액 얼마야','2025년 결산 총액을 알려주세요.','도서관 총예산이 얼마나 되나요?','청년월세 총금액을 알려주세요.'])assert(!isMunicipalTotal(q),q);
 });

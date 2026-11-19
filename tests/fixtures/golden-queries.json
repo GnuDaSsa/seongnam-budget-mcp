@@ -501,18 +501,19 @@
       "query": "2010년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 1757774347,
+        "answer_card_total": 1706215533,
         "any_evidence": {
           "year": 2010,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
             "합계",
-            "1,757,774,347"
-          ]
+            "1,706,215,533"
+          ],
+          "revision": 2
         }
       },
       "ground_truth": {
-        "document_id": "2ecc109a03a9ab8c9ac9",
+        "document_id": "9e860882cb676bd0a42e",
         "page": 1,
         "note": "2"
       }
@@ -523,18 +524,19 @@
       "query": "2014년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 2231041826,
+        "answer_card_total": 2235011292,
         "any_evidence": {
           "year": 2014,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
             "합계",
-            "2,231,041,826"
-          ]
+            "2,235,011,292"
+          ],
+          "revision": 4
         }
       },
       "ground_truth": {
-        "document_id": "069d33ddffacf1e8cc60",
+        "document_id": "e141544ad63f690d7b9a",
         "page": 1,
         "note": "2"
       }
@@ -545,18 +547,19 @@
       "query": "2018년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 3001455526,
+        "answer_card_total": 3290226019,
         "any_evidence": {
           "year": 2018,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
             "합계",
-            "3,001,455,526"
-          ]
+            "3,290,226,019"
+          ],
+          "revision": 5
         }
       },
       "ground_truth": {
-        "document_id": "283a4b5c4fde85347c83",
+        "document_id": "d5d3832c1630dd23055f",
         "page": 1,
         "note": "2"
       }
@@ -567,18 +570,19 @@
       "query": "2020년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 3084061570,
+        "answer_card_total": 4052797078,
         "any_evidence": {
           "year": 2020,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
             "합계",
-            "3,084,061,570"
-          ]
+            "4,052,797,078"
+          ],
+          "revision": 5
         }
       },
       "ground_truth": {
-        "document_id": "3fe6ddbc5670dc6f242c",
+        "document_id": "a5e4a3c2f5503cb2df1c",
         "page": 1,
         "note": "2"
       }
@@ -589,18 +593,19 @@
       "query": "2022년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 3263922826,
+        "answer_card_total": 4546025997,
         "any_evidence": {
           "year": 2022,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
             "합계",
-            "3,263,922,826"
-          ]
+            "4,546,025,997"
+          ],
+          "revision": 4
         }
       },
       "ground_truth": {
-        "document_id": "c6b965a41265a4c32898",
+        "document_id": "36267a351c8c1fda03a4",
         "page": 1,
         "note": "2"
       }
@@ -611,18 +616,19 @@
       "query": "2024년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 3540162018,
+        "answer_card_total": 4235037146,
         "any_evidence": {
           "year": 2024,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
             "합계",
-            "3,540,162,018"
-          ]
+            "4,235,037,146"
+          ],
+          "revision": 4
         }
       },
       "ground_truth": {
-        "document_id": "311202a405b2a2a98b64",
+        "document_id": "5fc11af726f603315c00",
         "page": 1,
         "note": "2"
       }
@@ -633,18 +639,19 @@
       "query": "2025년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 3829777841,
+        "answer_card_total": 4673332396,
         "any_evidence": {
           "year": 2025,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
             "합계",
-            "3,829,777,841"
-          ]
+            "4,673,332,396"
+          ],
+          "revision": 4
         }
       },
       "ground_truth": {
-        "document_id": "bcb8850c3df310bf46ee",
+        "document_id": "51a6de4040685d2a1ab8",
         "page": 1,
         "note": "2"
       }
@@ -655,19 +662,20 @@
       "query": "2026년 성남시 예산 총액",
       "args": {},
       "expect": {
-        "answer_card_total": 3940847350,
+        "answer_card_total": 4608787329,
         "any_evidence": {
           "year": 2026,
-          "budget_type": "본예산",
+          "budget_type": "추경",
           "text_includes": [
-            "합계",
-            "3,940,847,350"
-          ]
+            "총계",
+            "4,608,787,329"
+          ],
+          "revision": 4
         }
       },
       "ground_truth": {
-        "document_id": "04ea9506e9f6283a0f89",
-        "page": 1,
+        "document_id": "d0e97257468c97daf2d9",
+        "page": 15,
         "note": "2"
       }
     },

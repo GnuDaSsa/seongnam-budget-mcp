@@ -44,7 +44,7 @@ test('예산과 with a trailing particle or connective is a department only in t
  for(const q of ['작년 예산과 비교','청년월세 예산과와 집행액','사업 예산과와 총액','2026년 본예산과 추경 비교','세입예산과 세출예산 총액','본예산과의 차이','사업 예산과 총액'])assert.deepEqual(requestedDepartments(q,index),[],q);
 });
 test('latest budget means collected latest supplement unless kind or revision is explicitly chosen',()=>{
- const latest=resolveQuery({query:'2025년 AI반도체과 최종 예산'});assert.equal(latest.budget_type,'추경');assert.equal(latest.policy.budget_type_basis,'latest_budget_query');
+ const latest=resolveQuery({query:'2025년 AI반도체과 최종 예산'});assert.equal(latest.budget_type,undefined);assert.equal(latest.policy.budget_type_basis,'latest_budget_query');
  assert.equal(resolveQuery({query:'AI반도체과 최신 본예산'}).budget_type,'본예산');
  assert.equal(resolveQuery({query:'AI반도체과 최종 예산',budget_type:'본예산'}).budget_type,'본예산');
  assert.equal(resolveQuery({query:'AI반도체과 최신 예산',budget_type:'결산'}).budget_type,'결산');

@@ -46,55 +46,89 @@ async function research(query, extra = {}) {
 }
 
 const LEVELS = ['verified', 'keyword', 'semantic_bridge', 'semantic_only', 'none'];
-const TOTALS = {2026: 3940847350, 2025: 3829777841, 2019: 3012903337, 2010: 1757774347};
+const TOTALS = {2026: 4608787329, 2025: 4673332396, 2019: 3306354020, 2010: 1706215533};
 
 // 검증된 총액 카드 공통 검사
-function assertVerifiedTotal(r, year, amount) {
+function assertVerifiedTotal(r, year, amount, revision) {
   assert.equal(r.retrieval.mode, 'verified_total_table');
   assert.equal(r.answer_card.year, year);
   const rows = r.answer_card.rows;
   assert.equal(rows[0].amount, amount);
   assert.equal(rows[0].amount, rows[1].amount + rows[2].amount, '합계는 하위 두 행의 합');
   assert.equal(r.evidence[0].year, year);
-  assert.equal(r.evidence[0].budget_type, '본예산');
-  assert.match(r.evidence[0].title, /총괄표/);
-  assert.equal(r.filters.budget_type, '본예산');
+  const type = revision ? '추경' : '본예산';
+  assert.equal(r.evidence[0].budget_type, type);
+  assert.equal(r.evidence[0].revision, revision);
+  assert.match(r.evidence[0].text, /예\s*산\s*총\s*칙|회계별예산규모/);
+  assert.equal(r.filters.budget_type, type);
+  assert.equal(r.answer_card.budget_type, type);
+  assert.equal(r.answer_card.revision, revision);
+  assert.equal(r.answer_card.source_url, r.evidence[0].source_url);
+  assert.equal(r.answer_card.page_url, r.evidence[0].page_url);
 }
 
 // A. 총액 조회의 연도 일반화
-test('2025년 총액을 물으면 검증된 본예산 총괄표 카드를 반환한다', async () => {
-  assertVerifiedTotal(await research('2025년 성남시 예산 총액'), 2025, TOTALS[2025]);
+test('2025년 총액은 수록된 4회 추경 총괄표에서 확인한다', async () => {
+  assertVerifiedTotal(await research('2025년 성남시 예산 총액'), 2025, TOTALS[2025], 4);
 });
-test('2019년 총액을 물으면 검증된 본예산 총괄표 카드를 반환한다', async () => {
-  assertVerifiedTotal(await research('2019년 성남시 예산 총액'), 2019, TOTALS[2019]);
+test('2019년 총액은 수록된 4회 추경 총괄표에서 확인한다', async () => {
+  assertVerifiedTotal(await research('2019년 성남시 예산 총액'), 2019, TOTALS[2019], 4);
 });
-test('2010년 총액을 물으면 검증된 본예산 총괄표 카드를 반환한다', async () => {
-  assertVerifiedTotal(await research('2010년 성남시 예산 총액'), 2010, TOTALS[2010]);
+test('2010년 총액은 수록된 2회 추경 총괄표에서 확인한다', async () => {
+  assertVerifiedTotal(await research('2010년 성남시 예산 총액'), 2010, TOTALS[2010], 2);
 });
 test('작년 총액을 물으면 2025년 카드를 반환한다', async () => {
-  assertVerifiedTotal(await research('작년 성남시 예산 총액'), 2025, TOTALS[2025]);
+  assertVerifiedTotal(await research('작년 성남시 예산 총액'), 2025, TOTALS[2025], 4);
 });
-test('2009년 총액은 단위 표기가 깨져 있어 카드 없이 미검증 모드로 근거만 반환한다', async () => {
-  const r = await research('2009년 성남시 예산 총액');
+test('2009년 본예산은 단위 표기가 깨져 있어 카드 없이 미검증 모드로 근거만 반환한다', async () => {
+  const r = await research('2009년 성남시 본예산 총액');
   assert.equal(r.answer_card, undefined);
   assert.equal(r.retrieval.mode, 'total_table_unverified');
   assert.equal(r.evidence[0].year, 2009);
   assert.equal(r.evidence[0].budget_type, '본예산');
   assert.match(r.evidence[0].title, /총괄표/);
 });
-test('연도 없이 총액을 물으면 기존대로 2026년 합계를 반환한다', async () => {
-  const r = await research('성남시 예산 총액');
-  assert.equal(r.answer_card.year, 2026);
-  assert.equal(r.answer_card.rows[0].amount, TOTALS[2026]);
+test('연도·회차 미지정 총액은 최신 추경, 본예산·특정 회차는 지정한 편성으로 답한다', async () => {
+  assertVerifiedTotal(await research('성남시 예산 총액'), 2026, TOTALS[2026], 4);
+  assertVerifiedTotal(await research('성남시 최신 추경까지 반영한 총예산'), 2026, TOTALS[2026], 4);
+  assertVerifiedTotal(await research('성남시 본예산 총액'), 2026, 3940847350, null);
+  assertVerifiedTotal(await research('2026년 성남시 제1회 추경 총액'), 2026, 4180417278, 1);
+  assertVerifiedTotal(await research('2026년 성남시 추경 2회 총액', {revision:1}), 2026, 4286425391, 2);
+  const third = await research('2026년 성남시 제3회 추경 총액');
+  assertVerifiedTotal(third, 2026, 4593617931, 3);
+  assert.equal(third.evidence[0].page, 17);
+  const missing = await research('2026년 성남시 제5회 추경 총액');
+  assert.equal(missing.filters.revision, 5);
+  assert.equal(missing.answer_card, undefined);
+  assert.equal(missing.match_quality.level, 'none');
 });
 
 // B. 연도 비교의 편성 구분 정렬과 중복 제거
-test('편성 구분 없이 세 연도를 비교하면 본예산으로 맞춰 세 연도 근거를 모두 반환한다', async () => {
+test('편성 생략 시 통합 예산서의 4회 추경 사업 행을 한 건 제한에서도 첫 근거로 반환한다', async () => {
+  const r = await research('2026년 복지정책과 사회복지시설종사자건강검진 예산', {limit: 1});
+  const latest = r.edition_timeline.latest_verified_row;
+  assert.deepEqual([latest.edition, latest.amount, latest.previous_amount, latest.change, latest.unit],
+    ['4회 추경', 243600, 216000, 27600, '천원']);
+  assert.deepEqual([latest.document_id, latest.page], ['d0e97257468c97daf2d9', 222]);
+  assert.equal(r.evidence[0].page_url, latest.page_url);
+  assert.equal(r.evidence.length, 1);
+  assert.deepEqual(r.edition_timeline.editions.map(e => e.revision), [null, 1, 2, 3, 4]);
+});
+test('최종 회차에 미수록된 사업은 마지막으로 확인된 사업 행의 금액을 제시한다', async () => {
+  const r = await research('2025년 청년월세한시특별지원 예산', {limit: 1});
+  const timeline = r.edition_timeline;
+  assert.equal(timeline.editions.at(-1).edition,'4회 추경');
+  assert.equal(timeline.editions.at(-1).verified_row, undefined);
+  assert.deepEqual([timeline.latest_verified_row.edition, timeline.latest_verified_row.amount], ['3회 추경', 2920200]);
+  assert.equal(r.evidence[0].page,111);
+});
+test('편성 구분 없이 세 연도를 비교하면 연도별 본예산과 추경의 원문을 확인한다', async () => {
   const r = await research('2024년 2025년 2026년 노인일자리 예산 비교');
   assert.equal(r.per_year.length, 3);
   assert(r.evidence.length > 0);
-  assert(r.evidence.every(e => e.budget_type === '본예산'), '모든 근거가 본예산');
-  assert.equal(r.query_interpretation.comparison_budget_basis, 'main_budget_default');
+  assert(r.evidence.some(e => e.budget_type === '추경'), '추경 원문 근거 포함');
+  assert.equal(r.query_interpretation.comparison_budget_basis, 'latest_available_appropriation');
+  assert(r.per_year.every(y => y.edition_timeline?.editions.some(e => e.budget_type === '본예산')));
   const years = new Set(r.evidence.map(e => e.year));
   for (const year of [2024, 2025, 2026]) assert(years.has(year), year + '년 근거 포함');
 });

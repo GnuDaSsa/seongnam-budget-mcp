@@ -52,16 +52,27 @@ test('결산을 묻지 않은 사업 예산 질의는 본예산 또는 추경 �
   }
 });
 
-test('결산을 묻지 않은 총액 질의는 첫 근거가 본예산이다', async () => {
+test('편성 미지정 시 총액은 수록된 최종 추경, 본예산 지정 시 당초 총액을 반환한다', async () => {
   const r = await research('2025년 성남시 예산 총액');
-  assert.equal(r.evidence[0].budget_type, '본예산');
+  assert.equal(r.evidence[0].budget_type, '추경');
+  assert.equal(r.evidence[0].revision, 4);
+  assert.equal(r.answer_card.rows[0].amount, 4673332396);
+  const main = await research('2025년 성남시 본예산 총액');
+  assert.equal(main.evidence[0].budget_type, '본예산');
+  assert.equal(main.answer_card.rows[0].amount, 3829777841);
 });
 
-test('연도 비교에서 편성 구분을 지정하지 않으면 모든 근거가 본예산이다', async () => {
+test('연도 비교는 각 연도의 최종 추경까지 조회하고 명시한 본예산 조건을 따른다', async () => {
   const r = await research('2024년 2026년 노인일자리 예산 비교');
-  assert(r.evidence.length >= 1, '근거가 1건 이상이어야 함');
-  const types = r.evidence.map(e => e.budget_type);
-  assert(types.every(t => t === '본예산'), '편성 구분 ' + JSON.stringify(types));
+  assert.equal(r.query_interpretation.comparison_budget_basis, 'latest_available_appropriation');
+  assert.deepEqual(r.per_year.map(y => y.filters.year), [2024, 2026]);
+  for (const y of r.per_year) {
+    assert(y.edition_timeline.editions.some(e => e.budget_type === '추경' && e.revision === 4));
+    assert(r.evidence.some(e => e.year === y.filters.year && e.budget_type === '추경'));
+  }
+  const main = await research('2024년 2026년 본예산 노인일자리 예산 비교');
+  assert.deepEqual([...new Set(main.evidence.map(e => e.year))], [2024, 2026]);
+  assert(main.evidence.every(e => e.budget_type === '본예산'));
 });
 
 test('결산을 명시한 질의는 결산 근거만 반환한다', async () => {

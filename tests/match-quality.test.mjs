@@ -24,13 +24,13 @@ test('깨진 문자가 섞이면 true, 정상 문자열과 비문자열이면 fa
   assert.equal(hasReplacementCharacter(2026), false);
 });
 
-// 같은 연도 본예산의 총괄표만 골라야 하며, 추경·다른 연도·제목 불일치는 제외해야 한다.
-test('총괄표 문서를 찾을 때 같은 연도 본예산 총괄표만 고른다', () => {
+test('같은 연도 최종 편성의 총괄표를 고르고, 그 회차의 총괄표가 없으면 보류한다', () => {
   const documents = [
     {
       id: 'supplementary',
       year: 2026,
       budget_type: '추경',
+      revision: 2,
       title: '2026 제1회 추경 세입·세출예산규모 및 총괄표',
     },
     { id: 'other-year', year: 2025, budget_type: '본예산', title: '2025 세입·세출예산규모 및 총괄표' },
@@ -42,7 +42,9 @@ test('총괄표 문서를 찾을 때 같은 연도 본예산 총괄표만 고른
       title: '2026 세입·세출예산규모 및 총괄표',
     },
   ];
-  assert.equal(totalTableDocument(documents, 2026).id, 'target');
+  assert.equal(totalTableDocument(documents, 2026).id, 'supplementary');
+  assert.equal(totalTableDocument(documents.filter(d => d.budget_type === '본예산'), 2026).id, 'target');
+  assert.equal(totalTableDocument([...documents, {year:2026,budget_type:'추경',revision:3,title:'세출명세서'}], 2026), null);
   assert.equal(totalTableDocument(documents, 2025).id, 'other-year');
 });
 
@@ -66,10 +68,10 @@ test('명시된 질의 기준은 그대로 돌려준다', () => {
   assert.equal(comparisonBudgetBasis({ budget_type_basis: 'query' }), 'query');
 });
 
-test('편성 구분이 미지정이고 세출 우선이면 본예산 기본값을 사용한다', () => {
+test('편성 구분이 미지정인 세출 연도 비교는 각 연도의 최신 수록 편성을 확인한다', () => {
   assert.equal(
     comparisonBudgetBasis({ budget_type_basis: 'unspecified', source_preference: 'expenditure' }),
-    'main_budget_default',
+    'latest_available_appropriation',
   );
 });
 

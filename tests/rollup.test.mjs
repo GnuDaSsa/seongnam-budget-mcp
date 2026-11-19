@@ -77,7 +77,7 @@ test('본예산과 추경 비교 요청은 두 편성 범위를 보존한다', a
 
 // 같은 세부사업이 여러 부서에 편성된 경우의 부서별 묶음
 test('여러 부서에 편성된 세부사업은 부서별 행과 계산 합계를 함께 반환한다', async () => {
-  const r = await research('2024년 공공근로 지출과 시도비 비율');
+  const r = await research('2024년 본예산 공공근로 지출과 시도비 비율');
   assert.equal(r.match_quality.level, 'verified');
   const rollup = r.business_rollup;
   assert.equal(rollup.business_name, '공공근로사업추진');
@@ -98,7 +98,7 @@ test('여러 부서에 편성된 세부사업은 부서별 행과 계산 합계�
 // 여러 연도를 한 번에 조회할 때 연도별 묶음과 응답 크기 제한
 test('2021~2027년 조회는 연도별 묶음과 축소된 근거를 반환한다', async () => {
   const {status, data: r} = await get('/api/research?' + new URLSearchParams({
-    query: '2021~2027년 공공근로 지출과 시도비 비율',
+    query: '2021~2027년 본예산 공공근로 지출과 시도비 비율',
   }));
   assert.equal(status, 200);
   assert.equal(r.per_year.length, 7);

@@ -13,18 +13,27 @@ export function hasReplacementCharacter(value) {
   return typeof value === 'string' && value.includes('�');
 }
 
-// 해당 연도 본예산의 "세입·세출예산규모 및 총괄표" 문서. 없으면 null.
-export function totalTableDocument(documents, year) {
-  if (!Number.isInteger(year)) return null;
-  return documents.find(d => d.year === year && d.budget_type === '본예산' && /총괄표/.test(d.title || '')) || null;
+// 분리본의 공통 제목 뒤에는 세입명세서·세출명세서 등 별도 문서명이 붙는다.
+export function isCombinedBudgetDocument(doc) {
+  return /세입[·ㆍ․\s]*세출\s*예산서$/.test(doc?.title || '');
 }
 
-// 편성 구분을 밝히지 않은 세출 사업 비교는 연도별 본예산으로 맞춘다.
+// 호출자가 지정한 편성 조건 안에서 가장 최근 회차의 시 총괄표를 고른다.
+export function totalTableDocument(documents, year) {
+  if (!Number.isInteger(year)) return null;
+  const editions = documents.filter(d => d.year === year &&
+    (d.budget_type === '본예산' || (d.budget_type === '추경' && Number.isInteger(d.revision) && d.revision > 0)));
+  const latest = editions.reduce((max, d) => Math.max(max, d.revision || 0), 0);
+  const latestDocs = editions.filter(d => (d.revision || 0) === latest);
+  return latestDocs.find(d => /총괄표/.test(d.title || '')) || latestDocs.find(isCombinedBudgetDocument) || null;
+}
+
+// 각 연도의 수록 편성을 살피고 근거에 실제 회차를 표시한다.
 export function comparisonBudgetBasis(policy = {}, budgetType) {
   if (policy.budget_type_basis && policy.budget_type_basis !== 'unspecified') return policy.budget_type_basis;
   if (budgetType) return 'parameter';
   if (policy.source_preference !== 'expenditure') return 'source_preference';
-  return 'main_budget_default';
+  return 'latest_available_appropriation';
 }
 
 function isVerified(evidence) {

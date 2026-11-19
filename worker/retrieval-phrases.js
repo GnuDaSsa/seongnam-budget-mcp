@@ -1,4 +1,5 @@
 import {budgetDivisionRequested} from './departments.js';
+import {STATED_REVISION} from './policy.js';
 // Exact matches supplement semantic ranking; postings alone never prove a phrase.
 const boilerplate=new Set(['되나요','됩니까','얼마입니까','성남','성남시','예산','예산은','본예산','추경','결산','관련계획','얼마','얼마야','얼마인가요','알려줘','알려주세요','찾아줘','찾아주세요','조회','조회해줘','관련','기준','통계목','편성목','세부사업','예산목','보여줘','보여주세요','금액','내역','세출예산','세출예산서','사업명세서','성과계획','성과계획서','성과지표','성과목표']);
 for(const word of ['성남예산','성남시예산','본예산과','추경과','결산과','성과계획서와','비교','및','세부사업과','통계목도','통계목은','편성목은','최종','최신','마지막','최종예산','최신예산','마지막예산'])boilerplate.add(word);
@@ -25,7 +26,7 @@ const PARTICLE=/(?:으로|로|을|를|은|는|이|가|도|의|만|과|와)$/;
 const GENITIVE_NOUN=/(?:회의|협의|합의|심의|건의|논의|결의|동의|강의|문의|편의|주의|정의|질의|창의|유의|상의|임의|수의|예의|고의|토의|발의|품의|제의|항의|숙의|민의|대의|도의|신의|호의|자의|부의|모의|총의)$/;
 export function retrievalWords(query){
  const division=budgetDivisionRequested(query),isDivision=w=>division&&/^예산과(?:의|에서|가|는|은|와|랑|이랑|하고)?$/.test(w);
- const tokens=withoutQueryYears(query).toLowerCase().replace(TOOL_MENTION,' ').replace(OUTPUT_TAIL,' ').match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[];
+ const tokens=withoutQueryYears(query).toLowerCase().replace(STATED_REVISION,' ').replace(TOOL_MENTION,' ').replace(OUTPUT_TAIL,' ').match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[];
  const dropped=w=>!isDivision(w)&&(w.length<2||boilerplate.has(w)||isAnalytic(w)||fieldWords.has(w.replace(PARTICLE,'')));
  const words=[];
  tokens.forEach((w,i)=>{
@@ -43,7 +44,7 @@ export function retrievalWords(query){
 export function topicIntent(query){
  const topic=/(?<![a-z])ai(?![a-z]|\s*반\s*도\s*체\s*과)|인공\s*지능/i.test(query)&&!/조류\s*인플루엔자|고병원성|가금|방역/.test(query);
  if(!topic)return null;
- let content=withoutQueryYears(query).replace(/(?:제\s*)?\d+\s*(?:회|차)\s*(?:추경|추가경정)/g,' ')
+ let content=withoutQueryYears(query).replace(STATED_REVISION,' ')
   .replace(/사업\s*관련\s*예산|관련\s*사업(?:\s*예산)?/g,' ')
   .replace(/본예산|추가경정|추경|결산|최신|최종|마지막/g,' ')
   .replace(/반영(?:해서|하여|해줘|해주세요|해)?|포함(?:해서|하여|해줘|해주세요|해)?|찾아봐줘|찾아줘|알려줘|보여줘|제외(?:하고)?|빼고|말고|아니라|대신|모두|까지/g,' ')

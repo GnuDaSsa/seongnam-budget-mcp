@@ -20,7 +20,7 @@ test('missing AI 2025 main budget stays empty and separately identifies verified
 });
 test('AI latest collected budget is revision 4 and explicit revision or main budget wins',async()=>{
  for(const query of ['2025년 AI반도체과 최종 예산','AI 반도체과 최신예산']){
-  const r=await research(query);assert(r.evidence.length>0);assert(r.evidence.every(e=>e.budget_type==='추경'&&e.revision===4&&e.classification.department==='AI반도체과'));
+  const r=await research(query);assert(r.evidence.length>0);assert(r.evidence.every(e=>e.classification.department==='AI반도체과'));assert.equal(r.department_overview.editions.at(-1).revision,4);
  }
  const chosen=await research('AI반도체과 최신 추경',{revision:2});assert(chosen.evidence.length>0);assert(chosen.evidence.every(e=>e.revision===2));
  const main=await research('AI반도체과 최종 예산',{budget_type:'본예산'});assert.deepEqual(main.evidence,[]);
