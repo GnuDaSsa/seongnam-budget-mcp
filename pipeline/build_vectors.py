@@ -9,8 +9,6 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 if (ROOT.parent/'rag-libs').exists(): sys.path.insert(0,str(ROOT.parent/'rag-libs'))
 import numpy as np
-from safetensors.numpy import load_file
-from tokenizers import Tokenizer
 
 MODEL='minishlab/potion-multilingual-128M'
 REV='73908c3438cf03b6a01bcb9611d62b23d0726f08'
@@ -47,6 +45,8 @@ def chunks(text,size=800,overlap=120):
         start=max(start+1,end-overlap)
 
 def run():
+    from safetensors.numpy import load_file
+    from tokenizers import Tokenizer
     begin=time.time(); OUT.mkdir(parents=True,exist_ok=True)
     config=json.loads((SRC/'tokenizer.json').read_text('utf-8'))
     vocab=config['model']['vocab']

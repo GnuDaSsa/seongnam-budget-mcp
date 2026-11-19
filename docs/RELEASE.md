@@ -10,7 +10,7 @@
 2. `node scripts/release.mjs prepare --message "변경 내용"`으로 소스와 기존 검색 자산을 검증하고 테스트 후 커밋합니다. 자산이 없으면 임의로 전체 재수집을 시작하지 말고 기존 검증된 스냅샷을 준비합니다.
 3. `node scripts/release.mjs push`로 공공 GitLab의 보안 검사를 먼저 통과한 뒤 GitHub에 동일 커밋을 보냅니다. 양쪽 원격 SHA를 확인합니다.
 4. Sites 스킬에 따라 기존 사이트를 조회하고 단기 source credential을 발급받아 공식 helper로 checkout을 엽니다. 공개 audience를 유지합니다.
-5. `node scripts/release.mjs sync-sites --checkout <공식 helper가 반환한 checkout 경로>`로 기준 소스를 반영합니다. Sites의 검색 자산과 별도 Git 이력을 보존합니다.
+5. `node scripts/release.mjs sync-sites --checkout <공식 helper가 반환한 checkout 경로>`로 기준 소스를 반영합니다. 검색 자산도 변경한 경우 같은 경로로 `node scripts/sync-snapshot-assets.mjs --checkout <checkout 경로>`를 실행합니다. 이 명령은 Sites의 기존 커밋과 새 매니페스트를 대조해 해시가 달라졌거나 새로 추가된 파일만 복사합니다. 중단 후에는 같은 명령으로 이어갈 수 있습니다. 파일 내용이 기존·신규 해시 어느 쪽과도 일치하지 않으면 해당 파일을 보존하고 중단합니다. Sites 체크아웃에서 `node scripts/download-snapshot.mjs --check`로 모든 파일을 검증한 뒤 다음 단계로 진행합니다.
 6. 공식 `site-workflow.mjs`에 credential과 opening result, 빌드 명령, archivePath를 stdin JSON으로 전달합니다. 반환된 `project_id`, `commit_sha`, `archive`를 그대로 사용합니다.
 7. native `save_site_version` → `deploy_site_version`을 호출합니다. pending/building/publishing이면 같은 deployment를 조회하며, 성공 여부가 불확실한 상태에서 새 배포를 중복 생성하지 않습니다.
 8. `node scripts/release.mjs verify --receipt .release-state/deployment-receipt.json --connections .release-state/connections.json`으로 운영 버전과 공개 MCP를 확인합니다. 공식 배포 성공 응답과 연결된 `성남 예산 아카이브`·`성남 예산 공개 MCP`의 실제 `get_collection_status` 응답에서 아래 검증 필드만 저장합니다. 연결 확인이 빠지면 완료 처리하지 않습니다.

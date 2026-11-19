@@ -30,6 +30,20 @@ function requestedAffiliateCoverage(a){
 const RELEASE=/*__RELEASE__*/null;
 const DOCS=new Map(CATALOG.documents.map(d=>[d.id,d])), cache=new Map();
 
+function annualBudgetCoverage(documents){
+ const annual=documents.filter(d=>d.category==='연도별 예산서'&&Number.isInteger(d.year));
+ if(!annual.length)return null;
+ const year=Math.max(...annual.map(d=>d.year));
+ const counts=new Map();
+ for(const d of annual){
+  if(d.year!==year||d.budget_type!=='추경'||!Number.isInteger(d.revision))continue;
+  counts.set(d.revision,1+(counts.get(d.revision)||0));
+ }
+ const amendments=Array.from(counts,([revision,documents])=>({revision,documents})).sort((a,b)=>a.revision-b.revision);
+ return {year,amendments};
+}
+const ANNUAL_BUDGET_COVERAGE=annualBudgetCoverage(CATALOG.documents);
+
 const RULES=SERVER_RULES;
 const nextAction=text=>text+' '+EVIDENCE_BOUNDARY;
 const json=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
@@ -543,7 +557,7 @@ const schema=(p,r=[])=>({type:'object',properties:p,required:r,additionalPropert
 const TOOLS=[{name:'search_budget',description:'상세 검색용: 성남시 예산 원문의 검색 모드·필터별 요약과 관련도 점수가 필요할 때 사용. 일반 예산 질문은 원문 근거까지 반환하는 budget_research를 우선 사용. 연도와 편성 구분을 지정하지 않으면 해당 인자를 생략. 2026년부터 이전 수록 연도 순으로 근거를 찾고 본예산과 추경을 함께 확인.',inputSchema:schema(properties,['query']),annotations},
  {name:'get_budget_page',description:'사용자가 원문 전문을 요청했거나 검색 근거가 부족하거나 잘렸거나 표의 열 대응이 불명확할 때 page 값으로 전문·단위·출처 확인. budget_research 근거가 충분하면 추가 조회 없이 답변. PDF 쪽수와 HWP/엑셀 본문 블록을 구분.',inputSchema:schema({document_id:{type:'string'},page:{type:'integer',minimum:1}},['document_id','page']),annotations},
  {name:'list_budget_documents',description:'문서와 실패·미처리 상태를 연도·예산종류별로 확인할 때 사용.',inputSchema:schema({...properties,offset:{type:'integer',minimum:0}}),annotations},
- {name:'get_collection_status',description:'검색 가능 범위, 수집 누락, 스캔·이미지 제외 상태, 마지막 스냅샷 시각을 확인. 전체 수집 완료라고 추정하지 말 것. ocr_required 표시는 검색 제외 상태이며 OCR 실행 계획이 아닙니다.',inputSchema:schema({}),annotations},
+ {name:'get_collection_status',description:'검색 가능 범위, 수집 누락, 스캔·이미지 제외 상태, 배포 버전, 최근 회계연도에 수록한 추경 회차별 문서 수, 마지막 스냅샷 시각을 확인. 전체 수집 완료라고 추정하지 말 것. ocr_required 표시는 검색 제외 상태이며 OCR 실행 계획이 아닙니다.',inputSchema:schema({}),annotations},
  {name:'build_rag_context',description:'기존 연동 호환용: 상위 4개 원문 페이지/본문 블록 전문과 인용 규칙을 반환. 일반 예산 질문은 budget_research를 우선 사용. 생성 모델을 호출하지 않음.',inputSchema:schema(properties,['query']),annotations}];
 TOOLS.unshift({name:'budget_research',description:'성남시 본예산·추경·결산·사업비·부서별 예산·연도별 비교 질문에 먼저 사용. 법령 해석이나 다른 지자체 예산 조회에는 사용하지 않음. 사업비는 세출예산사업명세서를 우선하며 성과계획·지표 질문은 계획서를 조회. 원문 근거·단위·인용 URL과 부서·세부사업·편성목·통계목 및 해당 행을 한 번에 반환. 연도와 편성 구분을 지정하지 않으면 해당 인자를 생략. 2026년부터 이전 수록 연도 순으로 근거를 찾고 본예산과 추경을 함께 확인. 3개 연도까지는 근거 본문을, 4~8개 연도는 연도별 사업 행을 간추려 반환. 편성이나 추경 회차를 지정하지 않은 사업 질문은 그 해 본예산과 수록된 추경 회차를 각각 찾아 edition_timeline(회차별 행·담당 부서·원문 쪽)으로 함께 반환. 같은 세부사업이 여러 부서에 있으면 business_rollup으로 부서별 행을, 부서를 하나 명시하면 department_overview로 그 부서의 편성별 총액과 세부사업 금액순 목록을 함께 반환. 순위·여러 부서 합계·본예산과 추경 비교·재원 질문은 세출명세서 전체 행에서 계산한 analysis(상태·범위·원문 쪽 포함)를 반환하며 complete가 아닌 순위는 전체 순위가 아님. 근거가 충분하면 바로 답변. 생성 모델 없음.',inputSchema:schema(properties,['query']),annotations},
  {name:'search',description:'ChatGPT 호환 검색. 인용 가능한 id/title/url 반환. 연도를 생략하면 2026년부터 이전 수록 연도 순으로 근거를 조회. 전체 연도는 질문에 명시.',inputSchema:schema({query:properties.query},['query']),annotations},
@@ -557,7 +571,7 @@ async function tool(env,name,a){let def=TOOLS.find(t=>t.name===name);if(!def)fai
  if(name==='budget_research')return research(env,a);
  if(name==='search'){const r=await search(env,{query:a.query,limit:8});return{results:r.results.map(h=>({id:h.id,title:h.title+' · '+h.locator_label,url:h.page_url}))};}
  if(name==='fetch'){const m=a.id.match(/^([a-f0-9]{20}):p([1-9][0-9]{0,5})$/);if(!m)fail('search 결과의 id를 그대로 사용하세요.');const p=await page(env,{document_id:m[1],page:Number(m[2])});const {text,...metadata}=p;return{id:a.id,title:p.title+' · '+p.locator_label,text,url:p.page_url,metadata};}
- if(name==='search_budget')return search(env,a);if(name==='get_budget_page')return page(env,a);if(name==='list_budget_documents')return documents(a);if(name==='get_collection_status')return{...CATALOG.summary,query_policy:POLICY,release:RELEASE,affiliates:affiliateCoverage(),council:councilCoverage(),retrieval:retrievalStatus(),categories:[...new Set(CATALOG.documents.map(d=>d.category)),COUNCIL_CATEGORY],instructions:RULES};
+ if(name==='search_budget')return search(env,a);if(name==='get_budget_page')return page(env,a);if(name==='list_budget_documents')return documents(a);if(name==='get_collection_status')return{...CATALOG.summary,query_policy:POLICY,release:RELEASE,annual_budget_coverage:ANNUAL_BUDGET_COVERAGE,affiliates:affiliateCoverage(),council:councilCoverage(),retrieval:retrievalStatus(),categories:[...new Set(CATALOG.documents.map(d=>d.category)),COUNCIL_CATEGORY],instructions:RULES};
  let r=await search(env,{...a,limit:4}),evidence=await evidenceFor(env,r.results,true);return{question:a.query,query_interpretation:r.query_interpretation,evidence,retrieval:r.retrieval,answer_policy:RULES,generation_performed:false,coverage:r.coverage};}
 async function mcp(req,env){if(req.method!=='POST')return new Response(JSON.stringify({error:'Use JSON-RPC POST'}),{status:405,headers:{'content-type':'application/json','allow':'POST'}});if(!req.headers.get('content-type')?.includes('application/json'))return json({error:'application/json required'},415);if(Number(req.headers.get('content-length'))>65536)return json({error:'Request too large'},413);let chunks=[],size=0,reader=req.body?.getReader();if(reader){while(true){let {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>65536){await reader.cancel();return json({error:'Request too large'},413);}chunks.push(value);}}let bytes=new Uint8Array(size),at=0;for(let c of chunks){bytes.set(c,at);at+=c.byteLength;}let rpc;try{rpc=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}catch{return json({jsonrpc:'2.0',id:null,error:{code:-32700,message:'Parse error'}},400);}
  if(!rpc||rpc.jsonrpc!=='2.0'||typeof rpc.method!=='string'||Array.isArray(rpc))return json({jsonrpc:'2.0',id:rpc?.id??null,error:{code:-32600,message:'Invalid Request'}},400);let respond=result=>json({jsonrpc:'2.0',id:rpc.id??null,result});
@@ -569,6 +583,6 @@ async function mcp(req,env){if(req.method!=='POST')return new Response(JSON.stri
 export default{async fetch(req,env){let u=new URL(req.url),origin=req.headers.get('origin');if(origin&&origin!==u.origin)return json({error:'Origin not allowed'},403);try{
  if(u.pathname==='/mcp'||u.pathname==='/public-mcp')return await mcp(req,env);if(req.method!=='GET')return json({error:'Method not allowed'},405);
  if(u.pathname==='/')return new Response(HTML,{headers:{'content-type':'text/html; charset=utf-8','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"}});
- if(u.pathname==='/api/status')return json({...CATALOG.summary,query_policy:POLICY,release:RELEASE,affiliates:affiliateCoverage(),council:councilCoverage(),retrieval:retrievalStatus(),categories:[...new Set(CATALOG.documents.map(d=>d.category)),COUNCIL_CATEGORY],asset_binding:!!env.ASSETS});let a=Object.fromEntries(u.searchParams);
+ if(u.pathname==='/api/status')return json({...CATALOG.summary,query_policy:POLICY,release:RELEASE,annual_budget_coverage:ANNUAL_BUDGET_COVERAGE,affiliates:affiliateCoverage(),council:councilCoverage(),retrieval:retrievalStatus(),categories:[...new Set(CATALOG.documents.map(d=>d.category)),COUNCIL_CATEGORY],asset_binding:!!env.ASSETS});let a=Object.fromEntries(u.searchParams);
  if(u.pathname==='/openapi.json')return json(openapi(u.origin));if(u.pathname==='/api/research')return json(await research(env,a));if(u.pathname==='/api/search')return json(await search(env,a));if(u.pathname==='/api/page')return json(await page(env,a));if(u.pathname==='/api/documents')return json(documents(a));if(u.pathname==='/api/tools')return json(TOOLS);return json({error:'Not found'},404);
  }catch(e){return json({error:e.message},400);}}};

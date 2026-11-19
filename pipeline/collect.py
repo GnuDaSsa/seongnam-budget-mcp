@@ -2,12 +2,11 @@
 python pipeline/collect.py --discover / --collect / --export
 Raw downloads and SQLite remain outside the published source snapshot.
 """
-import argparse, concurrent.futures, hashlib, io, json, os, re, sqlite3, subprocess, time, zipfile, threading
+import argparse, concurrent.futures, hashlib, io, json, os, re, sqlite3, subprocess, sys, time, zipfile, threading
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
-import fitz
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
@@ -70,10 +69,9 @@ def upsert_metadata(c, m):
     c.execute('INSERT INTO documents(id,url,metadata) VALUES(?,?,?) ON CONFLICT(url) DO UPDATE SET metadata=excluded.metadata',
               (m['id'],m['url'],json.dumps(merged,ensure_ascii=False)))
 
-def discover(cached=False):
-    index=DATA/'source-index.html'
-    if not cached or not index.exists():fetch(INDEX,index)
-    soup=BeautifulSoup(index.read_bytes(),'html.parser')
+def parse_budget_index(html):
+    """Map official download URLs to their source metadata without touching the collector DB."""
+    soup=BeautifulSoup(html,'html.parser')
     result={}
     for section in soup.select('div[data-year]'):
         heading=account=kind=''
@@ -118,6 +116,12 @@ def discover(cached=False):
                   'account':account if '회계' in account else '원문 확인','source_section':account,'category':'연도별 예산서',
                   'filename':urlparse(url).path.split('/')[-1], 'discovered_at':now()}
             if url not in result: result[url]=meta
+    return result
+
+def discover(cached=False):
+    index=DATA/'source-index.html'
+    if not cached or not index.exists():fetch(INDEX,index)
+    result=parse_budget_index(index.read_bytes())
     c=db()
     c.execute("DELETE FROM documents WHERE url LIKE 'https://www.seongnam.go.kr/contents/down/%' AND indexed_pages=0")
     for m in result.values():
@@ -131,6 +135,7 @@ def parse_pdf(raw, identifier):
     with PDF_LOCK: return _parse_pdf(raw, identifier)
 
 def _parse_pdf(raw, identifier):
+    import fitz
     out=[]
     doc=fitz.open(filename=str(raw)) if isinstance(raw,Path) else fitz.open(stream=raw,filetype='pdf')
     for idx,p in enumerate(doc):
@@ -215,6 +220,9 @@ def export():
     print(json.dumps(summary,ensure_ascii=False),flush=True)
 
 if __name__=='__main__':
+    if sys.argv[1:]==['--parse-index-stdin']:
+        print(json.dumps(list(parse_budget_index(sys.stdin.buffer.read()).values())))
+        sys.exit(0)
     a=argparse.ArgumentParser(); a.add_argument('--discover',action='store_true'); a.add_argument('--cached',action='store_true'); a.add_argument('--collect',action='store_true'); a.add_argument('--export',action='store_true'); a.add_argument('--related-only',action='store_true'); a.add_argument('--failed-only',action='store_true'); a.add_argument('--workers',type=int,default=2); args=a.parse_args()
     if args.discover: discover(args.cached)
     if args.collect: collect(max(1,min(args.workers,3)),args.related_only,args.failed_only)

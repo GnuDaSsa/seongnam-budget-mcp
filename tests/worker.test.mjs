@@ -24,6 +24,21 @@ test('unqualified public queries are 2026 and total table bypasses vector work',
  assert.equal(detail.structuredContent.metadata.year,2026);
 });
 async function get(route){let r=await worker.fetch(new Request('https://test.local'+route),env);return{status:r.status,data:await r.json()};}
+test('site and MCP report the same annual amendments and serve the 2026 waterworks supplement',async()=>{
+ const {data:status}=await get('/api/status');
+ const viaMcp=(await rpc('tools/call',{name:'get_collection_status',arguments:{}})).result.structuredContent;
+ assert.deepEqual(viaMcp.annual_budget_coverage,status.annual_budget_coverage);
+ const latest=status.annual_budget_coverage;
+ const revision=latest.amendments.at(-1);
+ const list=await get('/api/documents?'+new URLSearchParams({year:latest.year,budget_type:'추경',revision:revision.revision,category:'연도별 예산서'}));
+ assert.equal(revision.documents,list.data.total);
+ const round4=await get('/api/documents?'+new URLSearchParams({year:2026,budget_type:'추경',revision:4,category:'연도별 예산서',query:'상수도공기업특별회계'}));
+ const water=round4.data.documents.find(d=>d.filename==='11610_6_1_4.pdf');
+ assert.ok(water,'4회 추경 상수도공기업특별회계 첨부 수록');
+ const original=(await rpc('tools/call',{name:'get_budget_page',arguments:{document_id:water.id,page:8}})).result.structuredContent;
+ assert.equal(original.page_url,water.url+'#page=8');
+ assert.match(original.text,/수도시설과/);
+});
 async function rpc(method,params){let r=await worker.fetch(new Request('https://test.local/mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})}),env);return r.json();}
 
 function assertEvidenceBoundary(text){
