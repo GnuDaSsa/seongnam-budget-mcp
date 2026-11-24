@@ -2,10 +2,10 @@
   "timezone": "Asia/Seoul",
   "first_day": "2026-11-24",
   "last_day": "2026-11-25",
-  "total_calls": 17459,
+  "total_calls": 17472,
   "benchmark_calls": 17379,
-  "unclassified_calls": 80,
-  "success_calls": 17445,
+  "unclassified_calls": 93,
+  "success_calls": 17458,
   "error_calls": 14,
   "daily": [
     {
@@ -18,10 +18,10 @@
     },
     {
       "day": "2026-11-25",
-      "total_calls": 16292,
+      "total_calls": 16305,
       "benchmark_calls": 16218,
-      "unclassified_calls": 74,
-      "success_calls": 16278,
+      "unclassified_calls": 87,
+      "success_calls": 16291,
       "error_calls": 14
     }
   ]
