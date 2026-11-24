@@ -1,6 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,matchesRevision} from '../worker/policy.js';
+import {resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePageAllowed,accountAllowed,matchesRevision} from '../worker/policy.js';
+test('명시된 회계 범위는 의미 검색과 키워드 검색에서 모두 보존한다',()=>{
+ const water={account:'상수도공기업특별회계'},sewer={account:'하수도공기업특별회계'},general={account:'일반회계'};
+ for(const q of ['상수도공기업특별회계 급수공사','상수도공기업 특별회계 급수공사','상수도 특별회계 급수공사']){
+  assert(accountAllowed(water,q));assert(!accountAllowed(sewer,q));assert(!accountAllowed(general,q));
+ }
+ assert(accountAllowed(sewer,'하수도 특별회계 급수공사'));
+ assert(!accountAllowed(water,'하수도 특별회계 급수공사'));
+ assert(accountAllowed(general,'상수도 급수공사'));
+ assert(accountAllowed(water,'일반회계와 특별회계 비교'));
+ assert(accountAllowed(general,'일반회계와 특별회계 비교'));
+});
+test('세입 질문의 합본 문서에서는 원문 쪽의 세출 형식을 제외한다',()=>{
+ const revenue=resolveQuery({query:'산성동 주차장 부지 사용료 세입'});
+ const combined={title:'2026년 추가경정예산서',budget_type:'추경'};
+ assert(!sourcePageAllowed(combined,'부서ㆍ정책ㆍ단위(회계)ㆍ세부사업ㆍ편성목',revenue));
+ assert(sourcePageAllowed({title:'세입예산사업명세서'},'< 주차지원과>',revenue));
+ assert(sourcePageAllowed(combined,'일반회계 세입 총괄표',revenue));
+});
+test('세부사업과 편성목을 물을 때 세입 수수료를 사업 근거로 반환하지 않는다',()=>{
+ const expenditure=resolveQuery({query:'2024년 상수도공기업특별회계 세부사업 급수공사 편성목 알려줘'});
+ const revenue={title:'상수도공기업특별회계 세입예산사업명세서',budget_type:'본예산'};
+ assert(!sourceAllowed(revenue,expenditure));
+ assert(sourceAllowed(revenue,resolveQuery({query:'2024년 상수도 급수공사 수수료 세입 예산'})));
+});
 // 이슈 #1 잔여 변형 회귀: 부서 예산과 뒤에 조사·접속어가 붙어도 시 전체 총액으로 답하지 않는다.
 test('예산과 followed by a particle or connective never falls to the municipal total',()=>{
  for(const q of ['2026년 예산과와 총예산이 얼마인가요?','2026년 예산과랑 총예산이 얼마야?','2026년 예산과 및 총예산이 얼마인가요?','예산과와 총액','2026년 예산과하고 총예산','2026년 예산과이랑 총예산'])assert(!isMunicipalTotal(q),q);

@@ -1,6 +1,6 @@
 // 근거 신뢰도 판정과 응답 축소. 모델·네트워크 호출 없이 반환된 근거만으로 계산한다.
 
-export const QUALITY_LEVELS = ['none', 'semantic_only', 'semantic_bridge', 'keyword', 'verified'];
+export const QUALITY_LEVELS = ['none', 'semantic_only', 'semantic_bridge', 'similar', 'keyword', 'verified'];
 
 const SEMANTIC_ONLY_TEXT_LIMIT = 1200;
 const SEMANTIC_ONLY_LEAD = 200;
@@ -57,9 +57,10 @@ function isKeyword(evidence, mode) {
 // verified > keyword > semantic_bridge > semantic_only > none
 export function matchQuality(evidence = [], mode = 'hybrid') {
   if (!evidence.length) return { level: 'none', basis: 'no_evidence' };
-  const direct = evidence.filter(e => !e.bridge);
+  const direct = evidence.filter(e => !e.bridge && e.match_kind !== 'similar');
   if (direct.some(isVerified)) return { level: 'verified', basis: 'query_terms_or_business_path_in_source' };
   if (direct.some(e => isKeyword(e, mode))) return { level: 'keyword', basis: 'keyword_postings' };
+  if (evidence.some(e => e.match_kind === 'similar')) return { level: 'similar', basis: 'similar_original_business_name' };
   if (evidence.some(e => e.bridge)) return { level: 'semantic_bridge', basis: 'business_title_from_semantic_source' };
   return { level: 'semantic_only', basis: 'vector_similarity_only' };
 }

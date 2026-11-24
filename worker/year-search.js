@@ -1,4 +1,4 @@
-import {retrievalWords} from './retrieval-phrases.js';
+import {retrievalWords,postingQueryScope} from './retrieval-phrases.js';
 import {EVIDENCE_BOUNDARY} from './policy.js';
 
 const compact = value => String(value || '').toLowerCase().replace(/\s+/g, '');
@@ -7,6 +7,7 @@ const compact = value => String(value || '').toLowerCase().replace(/\s+/g, '');
 // starting year only when the requested subject is identifiable in the source.
 export function directYearHit(hit, scope) {
   if (!hit || hit.year !== scope.year || hit.bridge) return false;
+  if (hit.match_kind === 'similar' && hit.similar_business?.original_name) return true;
   if (hit.source_scope === 'affiliate') return true; // affiliateReader checks every requested word.
   if (scope.topic_intent) return Boolean(hit.topic_matches?.length);
   if (hit.source_scope === 'council') return false; // council evidence has separate verified city anchors.
@@ -22,7 +23,9 @@ export function directYearHit(hit, scope) {
   for (const d of scope.departments || []) {
     if (department === compact(d.name)) query = query.replace(d.name, ' ');
   }
-  const words = retrievalWords(query).map(compact);
+  const posting=postingQueryScope(query,scope.policy.source_preference);
+  if(posting.query&&posting.metadata.some(word=>!compact([hit.title,hit.account].join(' ')).includes(compact(word))))return false;
+  const words = retrievalWords(posting.query||query).map(compact);
   if (!words.length) return Boolean(department && scope.departments?.some(d => department === compact(d.name)));
   return body.split('\n').some(line => {
     const value = compact(line);

@@ -1,11 +1,13 @@
 import {budgetClassification} from './classification.js';
-import {POLICY,VERSION,SERVER_RULES,EVIDENCE_BOUNDARY,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePriority,matchesRevision} from './policy.js';
+import {POLICY,VERSION,SERVER_RULES,EVIDENCE_BOUNDARY,resolveQuery,isMunicipalTotal,totalAnswerCard,sourceFamily,sourceAllowed,sourcePageAllowed,accountAllowed,sourcePriority,matchesRevision} from './policy.js';
+import {topicEditionOrder,distinctTopicBusinesses} from './topic-selection.js';
+import {similarBusinessCandidate,hasBusinessRow,similarBusinessRows} from './similar-business.js';
 import {vectorSearch,rerank} from './semantic.js';
 import {openapi} from './openapi.js';
-import {retrievalWords,exactPhraseHit,businessTermsHit,topicIntent,topicBusinessMatches} from './retrieval-phrases.js';
+import {retrievalWords,exactPhraseHit,businessTermsHit,topicIntent,topicBusinessMatches,postingQueryScope} from './retrieval-phrases.js';
 import {institutionScope,createAffiliateReader,eligibleAffiliateDocuments,mergeCityFirst,affiliateWords} from './affiliates.js';
 import {createCouncilReader,mergeCouncilLast,councilAllowed,COUNCIL_CATEGORY} from './council.js';
-import {requestedDepartments,canonicalDepartmentQuery,departmentMatches} from './departments.js';
+import {requestedDepartments,canonicalDepartmentQuery,departmentMatches,revenueDepartmentMatches} from './departments.js';
 import {departmentOverview} from './department-overview.js';
 import {researchGuidance} from './research-guidance.js';
 import {findStatementDocuments} from './analysis.js';
@@ -53,7 +55,7 @@ function args(a={}){if(!a||typeof a!=='object'||Array.isArray(a))fail('객체 �
  if(a.query!==undefined&&(typeof a.query!=='string'||a.query.length>160))fail('검색어는 160자 이하 문자열이어야 합니다.');
  if(hasReplacementCharacter(a.query))fail('검색어 인코딩이 올바르지 않습니다. UTF-8로 보내세요.');
  if(a.budget_type&&!['본예산','추경','결산','관련계획'].includes(a.budget_type))fail('지원하지 않는 예산 종류입니다.');return b;}
-function match(d,a){return !!d&&d.source_scope!=='affiliate'&&/^https:\/\/www\.seongnam\.go\.kr\//.test(d.url)&&(!a.department_doc_ids||a.department_doc_ids.has(d.id))&&(!a.year||d.year===a.year)&&(!a.budget_type||d.budget_type===a.budget_type||(a.budget_type==='관련계획'&&sourceFamily(d)==='performance'))&&matchesRevision(d,a)&&(!a.latest_city_revisions||d.revision===a.latest_city_revisions[d.year])&&(!a.category||d.category===a.category)&&(!a.document_id||d.id===a.document_id)&&sourceAllowed(d,a);}
+function match(d,a){return !!d&&d.source_scope!=='affiliate'&&/^https:\/\/www\.seongnam\.go\.kr\//.test(d.url)&&(!a.department_doc_ids||a.department_doc_ids.has(d.id))&&(!a.year||d.year===a.year)&&(!a.budget_type||d.budget_type===a.budget_type||(a.budget_type==='관련계획'&&sourceFamily(d)==='performance'))&&matchesRevision(d,a)&&(!a.latest_city_revisions||d.revision===a.latest_city_revisions[d.year])&&(!a.category||d.category===a.category)&&(!a.document_id||d.id===a.document_id)&&(isMunicipalTotal(a.query)||accountAllowed(d,a.policy?.institution_scope?.city_retrieval_query||a.query))&&sourceAllowed(d,a);}
 async function asset(env,name){if(cache.has(name)){let x=cache.get(name);cache.delete(name);cache.set(name,x);return x;}
  if(!env.ASSETS)fail('검색 파일 저장소가 연결되지 않았습니다.');let r=await env.ASSETS.fetch(new Request('https://assets.local/corpus/'+name+'.json.gz'));if(!r.ok)fail('검색 파일 조회 실패: '+name);
  let x=await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();if(cache.size>=2)cache.delete(cache.keys().next().value);cache.set(name,x);return x;}
@@ -62,7 +64,10 @@ let departmentIndex=null;
 async function departmentScoped(env,a){
  if(!departmentIndex){const data=await asset(env,'departments');if(data.schema_version!==1||data.corpus_catalog_sha256!==SEMANTIC.corpus_catalog_sha256||!Array.isArray(data.departments))fail('부서 검색 메타데이터 버전 불일치');departmentIndex=data;}
  const departments=requestedDepartments(a.query,departmentIndex),rows=departments.flatMap(d=>d.locations);
- a.departments=departments;a.department_rows=rows;a.department_gids=departments.length?new Set(rows.map(p=>p[0])):null;a.department_doc_ids=departments.length?new Set(rows.map(p=>CATALOG.documents[p[1]].id)):null;
+ a.departments=departments;a.department_rows=rows;
+ const expenditureIndex=a.policy.source_preference!=='revenue';
+ a.department_gids=departments.length&&expenditureIndex?new Set(rows.map(p=>p[0])):null;
+ a.department_doc_ids=departments.length&&expenditureIndex?new Set(rows.map(p=>CATALOG.documents[p[1]].id)):null;
  a.policy.department_scope={names:departments.map(d=>d.name),basis:departments.length?'exact_original_header':'unspecified',organizational_rename_inferred:false};
  let topicQuery=canonicalDepartmentQuery(a.query,departments);for(const d of departments)topicQuery=topicQuery.replace(d.name,' ');
  a.topic_intent=topicIntent(topicQuery);
@@ -87,6 +92,12 @@ async function ranks(env){
  try{rankMetadata=await rankLoading;return rankMetadata;}finally{rankLoading=null;}
 }
 function groups(q){return retrievalWords(q).filter(w=>!['대한','관한'].includes(w)).slice(0,8).map(w=>({word:w,grams:/^[가-힣]+$/.test(w)?[...new Set(Array.from({length:w.length-1},(_,i)=>w.slice(i,i+2)))]:[w]}));}
+function revenueScopeWords(query,departments){
+ let content=query;
+ for(const department of departments||[])content=content.replace(department.name,' ');
+ const scoped=postingQueryScope(content,'revenue');
+ return retrievalWords(scoped.query||content).filter(word=>word!=='세입');
+}
 function cite(d,p){let isBlock=d.locator_kind==='text_block',isArchive=d.filename.toLowerCase().endsWith('.zip'),member=p[6];
  let kind=isBlock?'text_block':isArchive?'archive_pdf_page':'pdf_page',pdfPage=isBlock?null:isArchive?(member?.page??null):p[1];
  let label=isBlock?'본문 블록 '+p[1]+' (쪽수 아님)':isArchive?(member?'ZIP '+member.member+' · PDF '+member.page+'쪽':'ZIP 내부 위치 '+p[1]+' (통합 쪽수 아님)'):'PDF '+p[1]+'쪽';
@@ -121,9 +132,13 @@ async function lexicalPlan(env,q,plans){
 async function lexicalSearch(env,input){let a=args(input),q=(a.query||'').trim();if(q.length<2)fail('검색어를 두 글자 이상 입력하세요.');
  if(a.topic_intent&&input.topic_candidate_limit===64)a.limit=64;
  if(input.rollup_candidate_limit===ROLLUP_CANDIDATES)a.limit=ROLLUP_CANDIDATES;
- const {words:gs,weight,candidates:eligible,allowSpacing}=await lexicalPlan(env,q,a.lexical_plans);
+ const posting=postingQueryScope(q,a.policy?.source_preference);
+ const {words:gs,weight,candidates:eligible,allowSpacing}=await lexicalPlan(env,posting.query||q,a.lexical_plans);
  const meta=await ranks(env);let candidates=[],scanned=0,matched=0;
- for(const [gid,missing] of eligible){const d=CATALOG.documents[meta[gid*4]];if(!d||!match(d,a)||a.department_gids&&!a.department_gids.has(gid))continue;scanned++;matched++;let score=weight/Math.sqrt(Math.max(1200,meta[gid*4+1])/1500);if(meta[gid*4+2])score+=3;score+=2*sourcePriority(d,a);for(const g of gs)if(d.title.includes(g.word))score+=3;candidates.push({gid,d,score,missing,hashId:meta[gid*4+3]});}
+ for(const [gid,missing] of eligible){const d=CATALOG.documents[meta[gid*4]];if(!d||!match(d,a)||a.department_gids&&!a.department_gids.has(gid))continue;
+  const metadata=(d.title+' '+d.account).replace(/\s/g,'').toLowerCase();
+  if(posting.query&&posting.metadata.some(word=>!metadata.includes(word)))continue;
+  scanned++;matched++;let score=weight/Math.sqrt(Math.max(1200,meta[gid*4+1])/1500);if(meta[gid*4+2])score+=3;score+=2*sourcePriority(d,a);for(const g of gs)if(d.title.includes(g.word))score+=3;candidates.push({gid,d,score,missing,hashId:meta[gid*4+3]});}
  candidates.sort((x,y)=>x.missing-y.missing||sourcePriority(y.d,a)-sourcePriority(x.d,a)||y.score-x.score||((y.d.year||0)-(x.d.year||0)));if(candidates.length>1000)candidates.length=1000;
  const seen=new Set(),selected=[];for(const c of candidates){if(seen.has(c.hashId))continue;seen.add(c.hashId);selected.push(c);if(selected.length>=(allowSpacing?Math.max(a.limit,16):a.limit))break;}
  const grouped=new Map(),hydrated=new Map();for(const c of selected){const sh=shardFor(c.gid);if(!grouped.has(sh.id))grouped.set(sh.id,{sh,items:[]});grouped.get(sh.id).items.push(c);}
@@ -132,7 +147,10 @@ async function lexicalSearch(env,input){let a=args(input),q=(a.query||'').trim()
   for(const c of items){const pi=c.gid-sh.offset,p=index.pages[pi],raw=texts[pi],exact_match=exactPhraseHit(q,raw,c.d.title),business_match=businessTermsHit(q,raw,c.d.title),text=raw.replace(/[ \t]{2,}/g,' ').replace(/\n\s*\n/g,'\n'),exactExcerpt=exactPhraseHit(q,text,c.d.title),hit=exactExcerpt?Array.from(text).slice(0,exactExcerpt.start).join('').length:Math.max(0,...gs.map(g=>text.indexOf(g.word)).filter(n=>n>=0)),start=Math.max(0,hit-160);
    if(c.missing&&!exact_match)continue;
    const topic_matches=topicBusinessMatches(raw,a.topic_intent);
-   if(!departmentMatches(raw,a.departments)||a.topic_intent&&!topic_matches.length)continue;
+   if(!sourcePageAllowed(c.d,raw,a))continue;
+   if(a.policy.source_preference==='revenue'&&a.departments?.length?
+     sourceFamily(c.d,raw)!=='revenue'||!revenueDepartmentMatches(raw,a.departments,revenueScopeWords(q,a.departments)):
+     !departmentMatches(raw,a.departments)||a.topic_intent&&!topic_matches.length)continue;
    const classification=budgetClassification(raw,c.d,q);
    hydrated.set(c.gid,{id:c.d.id+':p'+p[1],...cite(c.d,p),source_family:sourceFamily(c.d,raw),classification,gid:c.gid,score:Math.round(c.score*100)/100,excerpt:text.slice(start,start+1200),excerpt_is_partial:text.length>1200,exact_match,business_match,topic_matches,source_priority:sourcePriority(c.d,a)});
   }
@@ -144,11 +162,6 @@ async function lexicalSearch(env,input){let a=args(input),q=(a.query||'').trim()
  return{query:q,filters:{year:a.year??null,budget_type:a.budget_type??null,category:a.category??null},results,scanned_pages:scanned,matched_pages_before_dedup:matched,coverage:CATALOG.summary,instructions:RULES};}
 
 function retrievalStatus(){let {doc_ids,clusters,source_files,...m}=SEMANTIC;return {...m,clusters:clusters.length,vectorization_complete:SEMANTIC.pages===CATALOG.summary.snapshot_units,hybrid_search:true,reranking_enabled:true,cross_encoder:false};}
-function editionDiverse(items,documentFor){
- const seen=new Set(),first=[],rest=[];
- for(const item of items){const d=documentFor(item),key=[d.year,d.budget_type,d.revision||0].join(':');if(!seen.has(key)){seen.add(key);first.push(item);}else rest.push(item);}
- return first.concat(rest);
-}
 async function topicLexicalSearch(env,a){
  if(!a.topic_intent)return lexicalSearch(env,a);
  const merged=new Map();let base,scanned=0,matched=0;
@@ -160,7 +173,7 @@ async function topicLexicalSearch(env,a){
 }
 async function uncachedSearch(env,input){
  let a=args(input),q=(a.query||'').trim();if(q.length<2)fail('검색어를 두 글자 이상 입력하세요.');
- if(a.mode==='lexical'){const r=await topicLexicalSearch(env,a);r.results=(a.topic_intent?editionDiverse(r.results,h=>DOCS.get(h.document_id)):r.results).slice(0,a.limit);return {...r,retrieval:{mode:'lexical',reranked:false}};}
+ if(a.mode==='lexical'){const r=await topicLexicalSearch(env,a);r.results=(a.topic_intent?topicEditionOrder(r.results,h=>DOCS.get(h.document_id),a.limit):r.results).slice(0,a.limit);return {...r,retrieval:{mode:'lexical',reranked:false}};}
  if(a.mode&&!['hybrid','vector'].includes(a.mode))fail('mode는 hybrid, vector, lexical 중 하나입니다.');
  const started=Date.now(),allowed=new Set(SEMANTIC.doc_ids.map((id,i)=>match(DOCS.get(id),a)?i:-1).filter(i=>i>=0));
  const vectorQuery=a.topic_intent?a.topic_intent.content_query.replace(/(?<![a-z])AI(?![a-z])/gi,'AI 인공지능')+' 사업':q;
@@ -168,13 +181,16 @@ async function uncachedSearch(env,input){
  const union=new Map();vec.hits.forEach((h,i)=>union.set(h.gid,{...h,rrf:1/(60+i+1),vector_rank:i+1,lexical_rank:null}));
  lex.results.forEach((h,i)=>{let c=union.get(h.gid)||{gid:h.gid,rrf:0,vector_rank:null};c.rrf+=1/(60+i+1);c.lexical_rank=i+1;c.exact_match=h.exact_match;c.business_match=h.business_match;c.topic_matches=h.topic_matches;c.source_priority=h.source_priority;union.set(h.gid,c);});
  let selected=[...union.values()].sort((x,y)=>Number(!!y.topic_matches?.length)-Number(!!x.topic_matches?.length)||Number(!!y.exact_match)-Number(!!x.exact_match)||Number(!!y.business_match)-Number(!!x.business_match)||(y.source_priority||0)-(x.source_priority||0)||y.rrf-x.rrf),candidates=[];
- if(a.topic_intent){const meta=await ranks(env);selected=editionDiverse(selected,h=>CATALOG.documents[meta[h.gid*4]]);}selected=selected.slice(0,SEMANTIC.rerank_candidates);
+ if(a.topic_intent){const meta=await ranks(env);selected=topicEditionOrder(selected,h=>CATALOG.documents[meta[h.gid*4]],SEMANTIC.rerank_candidates);}selected=selected.slice(0,SEMANTIC.rerank_candidates);
  const grouped=new Map();for(const c of selected){const sh=shardFor(c.gid);if(!grouped.has(sh.id))grouped.set(sh.id,{sh,items:[]});grouped.get(sh.id).items.push(c);}
  const loadedCandidates=new Map();
  // Read each shard once and release its full page arrays before the next shard.
  for(const {sh,items} of grouped.values()){
   const [idx,texts]=await Promise.all([asset(env,'pages-'+sh.id),asset(env,'text-'+sh.id)]);
-  for(let c of items){const pi=c.gid-sh.offset,p=idx.pages[pi],text=texts[pi],d=DOCS.get(p[0]);if(!match(d,a)||!departmentMatches(text,a.departments))continue;
+  for(let c of items){const pi=c.gid-sh.offset,p=idx.pages[pi],text=texts[pi],d=DOCS.get(p[0]);if(!match(d,a)||!sourcePageAllowed(d,text,a))continue;
+   if(a.policy.source_preference==='revenue'&&a.departments?.length?
+     sourceFamily(d,text)!=='revenue'||!revenueDepartmentMatches(text,a.departments,revenueScopeWords(q,a.departments)):
+     !departmentMatches(text,a.departments))continue;
    c.topic_matches=topicBusinessMatches(text,a.topic_intent);if(a.topic_intent&&!c.topic_matches.length)continue;
    const chars=Array.from(text),exact=a.mode==='vector'?null:exactPhraseHit(q,text,d.title);c.exact_match=exact;c.business_match=a.mode==='vector'?null:businessTermsHit(q,text,d.title);c.source_priority=sourcePriority(d,a);
    const verified=c.topic_matches[0]||exact||c.business_match;
@@ -186,7 +202,7 @@ async function uncachedSearch(env,input){
  candidates=selected.map(c=>loadedCandidates.get(c.gid)).filter(Boolean);
 
  const hydrated=Date.now();await rerank(vec,candidates);if(a.mode!=='vector')candidates.sort((x,y)=>Number(!!y.exact_match)-Number(!!x.exact_match)||Number(!!y.business_match)-Number(!!x.business_match)||Number(!!y.classification.matched_paths.length)-Number(!!x.classification.matched_paths.length)||y.source_priority-x.source_priority||y.score-x.score);const rerankedAt=Date.now();let seen=new Set(),results=[];
- if(a.topic_intent)candidates=editionDiverse(candidates,c=>c.d);
+ if(a.topic_intent)candidates=topicEditionOrder(distinctTopicBusinesses(candidates,c=>c.topic_matches?.[0]?.source_excerpt),c=>c.d,a.limit);
  const verifiedOnly=!a.topic_intent&&a.mode!=='vector'&&candidates.some(c=>c.exact_match||c.business_match);
  for(let c of candidates){if(seen.has(c.p[4])||(verifiedOnly&&!c.exact_match&&!c.business_match))continue;if(!c.lexical_rank&&!c.exact_match&&!c.business_match&&c.cosine<0.2)continue;seen.add(c.p[4]);results.push({id:c.d.id+':p'+c.p[1],...cite(c.d,c.p),source_family:c.classification.status==='layout_extracted'?'expenditure':sourceFamily(c.d),gid:c.gid,score:+c.score.toFixed(6),excerpt:c.text,classification:c.classification,topic_matches:c.topic_matches,excerpt_is_partial:c.text.length<c.full_length,chunk:{start:c.start,end:c.end,offset_unit:'Unicode code points'},retrieval_scores:{cosine:+c.cosine.toFixed(6),token_maxsim:+c.maxsim.toFixed(6),rrf:+c.rrf.toFixed(6),vector_rank:c.vector_rank,lexical_rank:c.lexical_rank,exact_phrase:c.exact_match?.phrase??null,business_terms:c.business_match?.words??null}});if(results.length>=a.limit)break;}
  return {query:q,filters:{year:a.year??null,budget_type:a.budget_type??null,category:a.category??null},results,scanned_pages:lex.scanned_pages,matched_pages_before_dedup:lex.matched_pages_before_dedup,retrieval:{mode:a.mode||'hybrid',embedding_model:SEMANTIC.model,dimensions:SEMANTIC.dimensions,index:SEMANTIC.index_type,nprobe:SEMANTIC.nprobe,vector_chunks_scanned:vec.scanned,vector_candidates:vec.hits.length,lexical_candidates:lex.results.length,reranker:SEMANTIC.reranker,reranker_type:SEMANTIC.reranker_type,reranked:true,reranked_candidates:candidates.length,exact_phrase_candidates:candidates.filter(c=>c.exact_match).length,business_term_candidates:candidates.filter(c=>c.business_match).length,timings_ms:{vector:vectorDone-started,lexical:lexicalDone-vectorDone,hydrate:hydrated-lexicalDone,rerank:rerankedAt-hydrated},elapsed_ms:Date.now()-started},coverage:CATALOG.summary,instructions:RULES};
@@ -228,11 +244,16 @@ async function historicalCandidates(env,a){
  if(departmentOnly(a))for(const [,doc] of a.department_rows){const d=CATALOG.documents[doc];if(match(d,unscoped))possible.add(d.year);}
  if(isMunicipalTotal(a.query))return years.map(year=>({year,possible:true}));
  const queries=a.topic_intent?a.topic_intent.aliases.map(alias=>query.replace(/(?<![a-z])AI(?![a-z])/gi,alias)):[query];
+ const candidate=similarBusinessCandidate(query);
+ if(candidate&&!a.departments?.length&&a.policy.source_preference==='expenditure'){
+  queries.push(query.replace(new RegExp(Array.from(candidate.requested).join('\\s*')),candidate.similar));
+ }
  for(const q of queries){
-  const plan=await lexicalPlan(env,q,a.lexical_plans);
+  const posting=postingQueryScope(q,a.policy?.source_preference);
+  const plan=await lexicalPlan(env,posting.query||q,a.lexical_plans);
   for(const [gid] of plan.candidates){
    const d=CATALOG.documents[meta[gid*4]];
-   if(match(d,unscoped)&&(!a.department_gids||a.department_gids.has(gid)))possible.add(d.year);
+   if(match(d,unscoped)&&(!posting.query||posting.metadata.every(word=>(d.title+' '+d.account).replace(/\s/g,'').toLowerCase().includes(word)))&&(!a.department_gids||a.department_gids.has(gid)))possible.add(d.year);
   }
  }
  return years.map(year=>({year,possible:possible.has(year)}));
@@ -242,7 +263,8 @@ async function lookupBudgetYears(env,a,run){
  return lookupYears(a,{run,priorYears:()=>historicalCandidates(env,a),probe:async older=>{
   if(isMunicipalTotal(older.query)||departmentOnly(older))return true;
   const r=await searchYear(env,{...older,limit:20,mode:'lexical'});
-  return r.results.some(h=>directYearHit(h,older));
+  if(r.results.some(h=>directYearHit(h,older)))return true;
+  return (await similarBusinessEvidence(env,older,[])).length>0;
  }});
 }
 // Search-only hosts also need a citable recent amendment when their top-N
@@ -305,6 +327,7 @@ const NEXT_BY_QUALITY={
  none:'현재 범위에서 근거를 찾지 못했습니다. 검색 실패를 예산 부재로 해석하지 마세요. 다른 연도로 조용히 대체하지 마세요.',
  semantic_only:'의미 유사 후보만 찾았습니다. 질의어가 원문에서 확인되지 않았으므로 같은 사업이라고 단정하지 마세요. 후보에 보이는 실제 사업명으로 한 번 재검색하거나 get_budget_page로 확인하고, 확인되지 않으면 수록 자료로 확인 불가라고 답하세요.',
  semantic_bridge:'질문과 의미가 비슷한 설명 자료의 사업명(bridge.business_name)으로 세출명세서를 다시 찾았습니다. 그 사업이 질문이 뜻한 사업이라는 대응은 추정이므로 사업명을 밝히고 답하세요. 연도와 문서 종류를 밝히세요.',
+ similar:'원문 행의 이름이 질문과 다릅니다. 유사 항목으로 표시하고 동일 사업으로 단정하지 마세요. 원문 명칭·행과 연도·회계를 함께 밝히고 행 종류나 금액이 불분명하면 원문을 확인하세요.',
  found:'제공된 원문 근거로 직접 답하세요. 연도와 문서 종류를 밝히세요. 충분한 근거가 있으면 같은 질문을 재검색하거나 수집 현황을 먼저 호출하지 마세요. 표 대응이 불분명하거나 필요한 문맥이 잘렸을 때만 전문을 확인하세요.'
 };
 // 각 연도의 편성 범위를 그대로 검색하고 회차와 근거를 함께 반환한다.
@@ -317,7 +340,9 @@ async function compareYears(env,input,a,started){
  const yearly=[];
  for(const year of a.policy.years)yearly.push(await research(env,{...input,year,year_slice:true,limit:2,compact}));
  const per_year=yearly.map(({evidence,...rest})=>({...rest,evidence_ids:evidence.map(e=>e.id)}));
- return{question:a.query,query_interpretation:a.policy,per_year,evidence:yearly.flatMap(r=>r.evidence),match_quality:weakestQuality(yearly.map(r=>r.match_quality)),generation_performed:false,answer_policy:RULES,next_action:nextAction(YEAR_COMPARISON_NOTE),elapsed_ms:Date.now()-started};
+ const similar=yearly.some(result=>result.match_quality?.level==='similar');
+ const note=(similar?'유사 항목이 포함되어 있습니다. 원문 사업명이 같은 사업인지 확인하기 전에는 연도별 동일 사업으로 단정하지 마세요. ':'')+YEAR_COMPARISON_NOTE;
+ return{question:a.query,query_interpretation:a.policy,per_year,evidence:yearly.flatMap(r=>r.evidence),match_quality:weakestQuality(yearly.map(r=>r.match_quality)),generation_performed:false,answer_policy:RULES,next_action:nextAction(note),elapsed_ms:Date.now()-started};
 }
 // 합본에는 표지·목차·명세서가 함께 있으므로 원문 표의 머리말로 쪽을 찾는다.
 async function totalTablePage(env,doc){
@@ -480,6 +505,22 @@ async function research(env,input){
  a.pinned_single_year=input.year_scope==='single';
  return lookupBudgetYears(env,a,scope=>researchYear(env,input,{...scope,policy:{...scope.policy,notices:[...scope.policy.notices]}},started));
 }
+async function similarBusinessEvidence(env,a,found){
+ if(a.policy.source_preference!=='expenditure'||a.topic_intent||a.departments?.length||a.document_id)return [];
+ const name=similarBusinessCandidate(a.query);
+ if(!name||found.some(hit=>hasBusinessRow(hit.text,name.requested)))return [];
+ const sourcePattern=Array.from(name.requested).join('\\s*');
+ const query=a.query.replace(new RegExp(sourcePattern),name.similar);
+ const policy={...a.policy,institution_scope:{...a.policy.institution_scope,city_retrieval_query:query}};
+ const hits=await searchYear(env,{...a,query,policy,limit:Math.max(a.limit,8)});
+ const rows=await evidenceFor(env,hits.results,false,query);
+ const metadata=postingQueryScope(a.query,'expenditure').metadata;
+ return rows.flatMap(row=>{
+  if(row.source_family!=='expenditure'||metadata.some(word=>!(row.title+' '+row.account).replace(/\s/g,'').toLowerCase().includes(word)))return [];
+  const candidates=similarBusinessRows(row.text,name.requested,name.similar);
+  return candidates.length?[{...row,match_kind:'similar',similar_business:{requested_name:name.requested,original_name:candidates[0].name,row_kind:candidates[0].kind,source_excerpt:candidates[0].source_excerpt}}]:[];
+ });
+}
 async function researchYear(env,input,a,started){
  const diag=createDiagnostics();
  if(a.year_scope!=='all'&&a.policy.institution_scope.mode==='municipal'&&a.budget_type==='추경'&&!a.revision&&/최신|마지막|최종/.test(a.query)){
@@ -512,7 +553,7 @@ async function researchYear(env,input,a,started){
   if(rowEvidence.length){const ids=new Set(rowEvidence.map(e=>e.id));evidence=[...rowEvidence,...found.filter(e=>!ids.has(e.id)).slice(0,analysed?1:2)];match_quality={level:'verified',basis:'statement_row_index'};}
  }
  if(match_quality.level==='semantic_only'){
-  const bridged=a.topic_intent?[]:await diag.span('bridge')(()=>bridgeToStatements(env,a,found)),sources=new Set(bridged.map(e=>e.bridge.from_id));
+  const bridged=a.topic_intent||a.policy.source_preference==='revenue'?[]:await diag.span('bridge')(()=>bridgeToStatements(env,a,found)),sources=new Set(bridged.map(e=>e.bridge.from_id));
   evidence=[...bridged,...found.filter(e=>sources.has(e.id)),...found.filter(e=>!sources.has(e.id))].slice(0,6).map(e=>e.bridge?e:trimSemanticEvidence(e));
   match_quality=matchQuality(evidence,r.retrieval?.mode);
  }
@@ -531,6 +572,11 @@ async function researchYear(env,input,a,started){
   }
  }
  const currentRow=edition_timeline?.latest_verified_row;
+ const similar=await similarBusinessEvidence(env,a,found);
+ if(similar.length&&!currentRow&&!['complete','matched','calculated','compared','new_in_revision'].includes(analysis?.status)){
+  evidence=similar.slice(0,a.limit);
+  match_quality={level:'similar',basis:'similar_original_business_name'};
+ }
  // 단일 사업의 자동 편성 비교가 색인 행을 못 찾았어도, 다른 수록 원문 쪽에서 검증한 금액이 있으면 이를 제시한다.
  if(currentRow&&!a.budget_type&&!a.policy.allowed_budget_types.length&&analysis?.kind==='edition_compare'&&
     !analysis.initial&&!analysis.revisions?.length&&['no_name_match','department_not_in_statement','no_statement_document'].includes(analysis.status))analysis=null;
@@ -540,12 +586,14 @@ async function researchYear(env,input,a,started){
  evidence=await councilReader.attachLinks(env,evidence);
  const department_overview=a.policy.institution_scope.mode==='municipal'&&a.policy.source_preference==='expenditure'&&!a.topic_intent?await diag.span('overview')(()=>departmentOverviewFor(env,a)):null;
  const guidance=researchGuidance(a.query,department_overview,match_quality,analysis);
+ if(match_quality.level==='similar')guidance.note='정확한 사업명과 다른 유사 항목입니다. 원문 사업명을 명시하고 같은 사업으로 단정하지 마세요. '+guidance.note;
+ if(a.policy.source_preference==='revenue')guidance.note='세입 명세서의 각 행은 해당 장·관·항·목 및 부서 구간의 금액입니다. 확인된 항목 금액을 부서 전체 세입 총액으로 확대하지 마세요. '+guidance.note;
  if(currentRow)guidance.status.business='verified_statement_row_on_page';
  if(a.departments?.length>1&&!(['department_sum','department_difference'].includes(analysis?.kind)&&analysis.status==='calculated'))guidance.note='여러 부서가 요청됐지만 모든 부서의 같은 사업과 금액을 검증해 합산한 결과는 아닙니다. 누락된 부서를 확인하고 전체 합계를 확정하지 마세요. '+guidance.note;
  if(a.policy.comparison_budget_types?.includes('본예산')&&a.policy.comparison_budget_types.includes('추경')&&!(analysis?.kind==='edition_compare'&&['compared','new_in_revision'].includes(analysis.status)))guidance.note='본예산과 추경의 같은 사업 및 기정액·경정액·증감액을 각각 원문에서 확인하기 전에는 비교를 완료한 것으로 표시하지 마세요. '+guidance.note;
  if(edition_timeline)guidance.note=edition_timeline.note+' '+guidance.note;
  const rollupNote=business_rollup?.departments.length>1?business_rollup.edition+'에 같은 세부사업이 '+business_rollup.departments.length+'개 부서에서 확인됩니다. 부서별 행을 제시하고 합계는 해당 편성에 수록된 행의 계산값으로 표시하세요. 추경 변경 행의 합계를 부서 전체의 연간 사업비로 사용하지 마세요. ':'';
- return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,match_quality,analysis,edition_timeline,business_rollup,department_overview,retrieval:r.retrieval,coverage,department_availability:r.department_availability,topic_coverage:a.topic_intent?{complete:false,annual_final_budget_reconstructed:false,selection:"relevant_business_lines_with_edition_diversity",returned_locations:evidence.length,requested_limit:a.limit}:null,generation_performed:false,
+ return{question:a.query,filters:r.filters,query_interpretation:a.policy,source_selection:{preference:a.policy.source_preference,returned_families:[...new Set(evidence.map(e=>e.source_family))],returned_budget_types:[...new Set(evidence.map(e=>e.budget_type))],note:a.policy.source_preference==='revenue'?'세입명세서의 항목 범위와 원문 행을 확인합니다. 부분 항목을 부서 전체 세입으로 확대하지 마세요.':'문서 종류를 지정하지 않은 사업 질문은 세출명세서를 우선합니다. 본예산·추경을 함께 찾을 수 있으며 반환된 편성 구분과 회차를 각각 표시하세요. 성과계획서는 편성 내역을 대신하지 않습니다.'},evidence,match_quality,analysis,edition_timeline,business_rollup,department_overview,retrieval:r.retrieval,coverage,department_availability:r.department_availability,topic_coverage:a.topic_intent?{complete:false,annual_final_budget_reconstructed:false,selection:"relevant_business_lines_with_edition_diversity",returned_locations:evidence.length,requested_limit:a.limit}:null,generation_performed:false,
   verification_status:guidance.status,next_action:nextAction(guidance.note+rollupNote+(NEXT_BY_QUALITY[match_quality.level]||NEXT_BY_QUALITY.found)),answer_policy:RULES,diagnostics:diag.toJSON(),elapsed_ms:Date.now()-started};
 }
 

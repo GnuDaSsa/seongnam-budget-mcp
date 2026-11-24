@@ -16,7 +16,7 @@ export function researchGuidance(query, overview, quality, analysis = null) {
   // 통계목 코드 순위는 세부사업 총액 overview로 답할 수 없다.
   const statRanking = ranking && STAT_CODE.test(text);
   const overviewIntent = !statRanking && (ranking || DEPARTMENT_TOTAL.test(text));
-  const weak = ['semantic_only', 'none', 'semantic_bridge'].includes(quality?.level);
+  const weak = ['semantic_only', 'none', 'semantic_bridge', 'similar'].includes(quality?.level);
   const analysed = analysis && ['complete', 'matched', 'calculated', 'compared', 'new_in_revision', 'verified'].includes(analysis.status);
   const status = {
     department: overview ? 'overview_available' : 'not_verified',

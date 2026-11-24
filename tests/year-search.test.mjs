@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import worker from '../dist/server/index.js';
+import {directYearHit} from '../worker/year-search.js';
+test('이전 연도 판정은 제목의 회계·세입 범위와 본문의 항목을 함께 확인한다',()=>{
+ const scope={year:2024,query:'상수도 급수공사 수수료 세입',departments:[],policy:{source_preference:'revenue',institution_scope:{city_retrieval_query:'상수도 급수공사 수수료 세입'}}};
+ const hit={year:2024,title:'상수도공기업특별회계 세입예산사업명세서',text:'○ 급수공사 수수료  1,000'};
+ assert(directYearHit(hit,scope));
+ assert(!directYearHit({...hit,title:'하수도 세입예산사업명세서'},scope));
+});
 
 const env={ASSETS:{async fetch(req){
  const path=new URL(req.url).pathname;

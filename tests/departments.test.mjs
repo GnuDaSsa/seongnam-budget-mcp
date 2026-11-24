@@ -1,6 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {statementDepartment,normalizeDepartment,requestedDepartments,canonicalDepartmentQuery,departmentMatches} from '../worker/departments.js';
+import {statementDepartment,normalizeDepartment,requestedDepartments,canonicalDepartmentQuery,departmentMatches,revenueDepartmentMatches} from '../worker/departments.js';
+test('세입 부서는 세입표의 부서 구간에서 확인한다',()=>{
+ const departments=[{name:'도서관지원과',key:'도서관지원과'}];
+ assert(revenueDepartmentMatches('항: 재산임대수입\n  < 도서관지원과>   75,050',departments));
+ assert(!revenueDepartmentMatches('부서: 도서관지원과\n  세출 사업',departments));
+ assert(!revenueDepartmentMatches('< 중앙도서관>\n○도서관지원과임대수입',departments));
+ const mixed='< 도서관지원과>\n○도서관임대수입 100\n< 주차지원과>\n○주차장부지사용료 300';
+ assert(!revenueDepartmentMatches(mixed,departments,['주차장','부지','사용료']));
+ assert(revenueDepartmentMatches(mixed,departments,['도서관','임대수입']));
+});
+test('시설 위치에 붙은 동 이름은 담당 부서로 제한하지 않는다',()=>{
+ const idx={departments:['산성동','주차지원과'].map(name=>({name,key:normalizeDepartment(name),locations:[]}))};
+ assert.deepEqual(requestedDepartments('산성동 주차장 부지 사용료 세입',idx),[]);
+ assert.deepEqual(requestedDepartments('산성동 행정복지센터 예산',idx).map(d=>d.name),['산성동']);
+ assert.deepEqual(requestedDepartments('산성동 예산',idx).map(d=>d.name),['산성동']);
+});
+test('소관 부서 뒤의 시설명이 다른 부서명과 같아도 소관 부서만 선택한다',()=>{
+ const idx={departments:['도서관지원과','중앙도서관'].map(name=>({name,key:normalizeDepartment(name),locations:[]}))};
+ assert.deepEqual(requestedDepartments('도서관지원과 소관 중앙도서관 구내식당 임대수입 세입',idx).map(d=>d.name),['도서관지원과']);
+ assert.deepEqual(requestedDepartments('중앙도서관 세입',idx).map(d=>d.name),['중앙도서관']);
+});
 import {resolveQuery} from '../worker/policy.js';
 const index={departments:['AI반도체과','미래산업과','도시계획과','예산과'].map(name=>({name,key:normalizeDepartment(name),locations:[]}))};
 test('explicit district lists expand the shared department only to named indexed districts',()=>{

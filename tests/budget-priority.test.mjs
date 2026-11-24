@@ -34,6 +34,41 @@ async function research(query, extra = {}) {
 
 const BUDGET_PLAN_TYPES = ['본예산', '추경'];
 
+test('세입 부서 구간과 위치·회계 항목은 원문 쪽에서 확인한다', async () => {
+  const department = await research('2026년 도서관지원과 세입 예산 알려줘');
+  assert.equal(department.evidence[0].document_id, '900cfcf0496b43682393');
+  assert.equal(department.evidence[0].page, 4);
+  assert.equal(department.evidence[0].source_family, 'revenue');
+  const parking = await research('2026년 산성동 주차장 부지 사용료 세입');
+  assert.equal(parking.evidence[0].document_id, '77026d693c41306e52d5');
+  assert.equal(parking.evidence[0].page, 5);
+  assert.equal(parking.evidence[0].source_family, 'revenue');
+  const fee = await research('2024년 상수도 급수공사 수수료 세입 예산');
+  assert.equal(fee.evidence[0].document_id, '83a60464d077ef91714a');
+  assert.equal(fee.evidence[0].page, 2);
+  assert.equal(fee.evidence[0].source_family, 'revenue');
+  assert.match(department.next_action, /부서 전체 세입 총액으로 확대하지/);
+});
+
+test('회계가 지정된 이름 변형은 유사 항목으로 표시하고 회계 범위를 지킨다', async () => {
+  for (const query of ['2024년 상수도 특별회계 급수공사비 알려줘','2024년 상수도공기업 특별회계 급수 공사비 알려줘']) {
+    const result = await research(query);
+    assert.equal(result.match_quality.level, 'similar');
+    assert.equal(result.evidence[0].document_id, '0775a628b8a18ab92908');
+    assert.equal(result.evidence[0].page, 12);
+    assert.equal(result.evidence[0].similar_business.original_name, '급수공사');
+    assert.match(result.next_action, /유사 항목/);
+  }
+  const exact = await research('2013년 상수도 특별회계 급수공사비 통계목 알려줘');
+  assert.equal(exact.match_quality.level, 'verified');
+  assert.equal(exact.evidence[0].page, 36);
+  const comparison = await research('2024년과 2025년 상수도 특별회계 급수공사비 예산 비교');
+  assert.equal(comparison.match_quality.level, 'similar');
+  assert.match(comparison.next_action, /유사 항목/);
+  const otherAccount = await research('2024년 하수도공기업특별회계 급수공사비 세출 예산');
+  assert(otherAccount.evidence.every(e => e.account === '하수도공기업특별회계'));
+});
+
 // 규칙: 결산을 묻지 않은 질문은 예산편성 자료(본예산·추경)만 근거로 쓴다.
 test('결산을 묻지 않은 사업 예산 질의는 본예산 또는 추경 근거만 반환한다', async () => {
   const queries = [

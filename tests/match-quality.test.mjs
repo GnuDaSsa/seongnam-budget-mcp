@@ -16,6 +16,13 @@ import {
   trimSemanticEvidence as trimForCompare,
 } from '../worker/quality.js';
 
+test('유사 근거를 정확 일치로 승격하지 않고 연도별 신뢰도에 보존한다',()=>{
+ const candidate={match_kind:'similar',retrieval_scores:{exact_phrase:'유사 이름'}};
+ assert.equal(matchQuality([candidate]).level,'similar');
+ assert.equal(weakestQuality([{level:'verified'},{level:'similar'}]).level,'similar');
+ assert.equal(weakestQuality([{level:'similar'},{level:'similar'}]).level,'similar');
+});
+
 // 깨진 인코딩 문자(U+FFFD)가 섞인 검색어를 식별하는지 확인한다.
 test('깨진 문자가 섞이면 true, 정상 문자열과 비문자열이면 false를 반환한다', () => {
   assert.equal(hasReplacementCharacter('성남�예산'), true);

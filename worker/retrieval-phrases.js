@@ -2,7 +2,7 @@ import {budgetDivisionRequested} from './departments.js';
 import {STATED_REVISION} from './policy.js';
 // Exact matches supplement semantic ranking; postings alone never prove a phrase.
 const boilerplate=new Set(['되나요','됩니까','얼마입니까','성남','성남시','예산','예산은','본예산','추경','결산','관련계획','얼마','얼마야','얼마인가요','알려줘','알려주세요','찾아줘','찾아주세요','조회','조회해줘','관련','기준','통계목','편성목','세부사업','예산목','보여줘','보여주세요','금액','내역','세출예산','세출예산서','사업명세서','성과계획','성과계획서','성과지표','성과목표']);
-for(const word of ['성남예산','성남시예산','본예산과','추경과','결산과','성과계획서와','비교','및','세부사업과','통계목도','통계목은','편성목은','최종','최신','마지막','최종예산','최신예산','마지막예산'])boilerplate.add(word);
+for(const word of ['성남예산','성남시예산','본예산과','추경과','결산과','성과계획서와','비교','및','세부사업과','통계목도','통계목은','편성목은','최종','최신','마지막','최종예산','최신예산','마지막예산','소관'])boilerplate.add(word);
 export function withoutQueryYears(query){return query.replace(/(?<![\p{L}\p{N}])(?:19|20)\d{2}(?:\s*(?:년도|년)(?:과|와|의|에서|에는|에|은|는|도|부터|까지|보다|대비)?)?(?![\p{L}\p{N}])/gu,' ');}
 function compact(text){return text.toLowerCase().replace(/\s/gu,'');}
 // 분석 요청어는 원문 사업 행에 없는 경우가 많다. 필수 검색어로 두면 키워드 검색이 0건이 되므로 조사만 떼고 제외한다.
@@ -39,6 +39,18 @@ export function retrievalWords(query){
  return words;
 }
 
+// 회계명과 세입 표기는 페이지가 아닌 문서 제목에만 있는 경우가 있다.
+export function postingQueryScope(query,preference){
+ const words=retrievalWords(query),metadata=[];
+ const account=/^(?:일반회계|기타특별회계|특별회계|상수도공기업특별회계|하수도공기업특별회계|공영개발사업특별회계)$/;
+ const core=words.filter(word=>{
+  const isMetadata=account.test(word)||(/^(?:상수도|하수도|공영개발)(?:공기업|사업)?$/.test(word)&&words.includes('특별회계'))||(preference==='revenue'&&/^(?:세입|상수도|하수도)$/.test(word));
+  if(isMetadata)metadata.push(word);
+  return !isMetadata;
+ });
+ return {query:metadata.length&&core.length?core.join(' '):null,metadata};
+}
+
 // Topic requests are not department requests. Keep control language out of both
 // embeddings and postings, and require the topic in a business line, not a header.
 export function topicIntent(query){
@@ -58,7 +70,7 @@ export function topicBusinessMatches(text,intent){
  let offset=0;const lines=String(text).split('\n');
  for(let i=0;i<lines.length;i++){
   const line=lines[i],start=offset;offset+=Array.from(line).length+1;
-  if(!topic.test(line)||/^\s*(?:부서|정책|단위)\s*[:：]/.test(line)||/^\s*AI\s*반도체과(?:\s|$)/i.test(line)||/조류\s*인플루엔자|고병원성|가금|방역|(?:재무활동|행정운영경비)\s*\(\s*AI\s*반도체과/i.test(line))continue;
+  if(!topic.test(line)||/^\s*(?:부서|정책|단위)\s*[:：]/.test(line)||/^\s*[가-힣a-z\s]+(?:국|과|팀|담당관|사업소)\s{2,}[△▲\d]/i.test(line)||/조류\s*인플루엔자|고병원성|가금|방역|(?:재무활동|행정운영경비)\s*\(\s*AI\s*반도체과/i.test(line))continue;
   // Never borrow another business on the same page to satisfy extra terms.
   const context=line.toLowerCase().replace(/\s/g,'');
   if(other.some(w=>!context.includes(w)))continue;

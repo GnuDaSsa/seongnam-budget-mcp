@@ -34,7 +34,17 @@ export function requestedDepartments(query,index){
   const pattern=new RegExp('((?:수정구|중원구|분당구)(?:(?:[·ㆍ,/]|와|과|및)*(?:수정구|중원구|분당구))+)' + escaped,'g');
   for(const match of normalized.matchAll(pattern))for(const district of match[1].match(/수정구|중원구|분당구/g)||[])expanded.add(district+suffix);
  }
- const found=index.departments.filter(d=>(normalized.includes(d.key)||expanded.has(d.key))&&(!ambiguous.has(d.key)||namedBudgetDepartment));
+ const found=index.departments.filter(d=>{
+  const locationOnly=d.key.endsWith('동')&&normalized.includes(d.key)&&
+   new RegExp(d.key+'(?:\\d+번지)?(?:주차장|부지|도로|공원|토지|건물|시설)').test(normalized);
+  return !locationOnly&&(normalized.includes(d.key)||expanded.has(d.key))&&(!ambiguous.has(d.key)||namedBudgetDepartment);
+ });
+ // 소관을 한 번 명시한 경우 그 바로 앞 부서가 담당이며 뒤의 시설명은 별도로 해석한다.
+ const owners=normalized.split('소관');
+ if(owners.length===2){
+  const explicit=found.filter(d=>owners[0].endsWith(d.key)||owners[0].endsWith(d.key+'의'));
+  if(explicit.length)return explicit.filter(d=>!explicit.some(other=>other.key!==d.key&&other.key.includes(d.key)));
+ }
  // Prefer a qualified 보건소/구 department name over its shorter suffix.
  return found.filter(d=>!found.some(other=>other.key!==d.key&&other.key.includes(d.key)));
 }
@@ -47,4 +57,13 @@ export function departmentMatches(text,departments){
  if(!departments?.length)return true;
  const name=normalizeDepartment(statementDepartment(text));
  return departments.some(d=>d.key===name);
+}
+export function revenueDepartmentMatches(text,departments,words=[]){
+ if(!departments?.length)return true;
+ const source=String(text),headings=Array.from(source.matchAll(/<\s*([^<>\n]+?)\s*>/g));
+ return headings.some((heading,index)=>{
+  if(!departments.some(department=>department.key===normalizeDepartment(heading[1])))return false;
+  const section=normalizeDepartment(source.slice(heading.index,headings[index+1]?.index));
+  return words.every(word=>section.includes(normalizeDepartment(word)));
+ });
 }
