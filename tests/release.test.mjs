@@ -106,4 +106,6 @@ test('completion requires both remotes, official success, live identity and conn
 test('source paths exclude secrets, assets, traversal and arbitrary files',()=>{
  for(const file of ['.env','docs/secrets.json','snapshot/semantic/cluster-0.bin.gz','../README.md','C:/outside.md','notes.txt'])assert.equal(allowed(file),false,file);
  for(const file of ['scripts/release.mjs','docs/RELEASE.md','.github/workflows/ci.yml'])assert.equal(allowed(file),true,file);
+ for(const file of ['drizzle/0000_mcp_usage_daily.sql','drizzle/meta/_journal.json','drizzle/meta/0000_snapshot.json'])assert.equal(allowed(file),true,file);
+ for(const file of ['drizzle/manual.sql','drizzle/meta/export.json','drizzle/../backup.sql'])assert.equal(allowed(file),false,file);
 });

@@ -48,6 +48,7 @@ let code=await readFile('worker/server.js','utf8');
 code=code.replace('/*__CATALOG__*/null',JSON.stringify(catalog)).replace('/*__AFFILIATES__*/null',JSON.stringify(affiliates)).replace('/*__COUNCIL__*/null',JSON.stringify(council)).replace('/*__HTML__*/null',JSON.stringify(html)).replace('/*__SEMANTIC__*/null',JSON.stringify(semantic)).replace('/*__RELEASE__*/null',JSON.stringify(await buildIdentity(root)));
 await build({stdin:{contents:code,resolveDir:path.join(root,'worker'),sourcefile:'server.js'},bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:path.join(out,'server/index.js')});
 await cp('.openai/hosting.json',path.join(out,'.openai/hosting.json'));
+await cp('drizzle',path.join(out,'.openai/drizzle'),{recursive:true});
 await cp('snapshot/corpus',path.join(out,'client/corpus'),{recursive:true});
 await mkdir(path.join(out,'client/affiliates'),{recursive:true});
 for(const d of affiliates.documents)await cp('snapshot/affiliates/'+d.shard+'.json.gz',path.join(out,'client/affiliates',d.shard+'.json.gz'));

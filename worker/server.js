@@ -14,6 +14,8 @@ import {findStatementDocuments} from './analysis.js';
 import {parseStatementRows} from './statement-rows.js';
 import {buildAnalysis,analysisEligible,businessResidue} from './research-analysis.js';
 import {createDiagnostics} from './diagnostics.js';
+import {recordToolUsage,getMcpUsage} from './traffic.js';
+import {trafficPage} from './traffic-page.js';
 import {lookupYears,directYearHit} from './year-search.js';
 import {editionTimelineEligible,editionsFor,rankEditionHits,chooseConsistentHits,mergeEditionEvidence,editionTimeline,verifiedEditionRow} from './edition-timeline.js';
 import {matchQuality,weakestQuality,trimSemanticEvidence,bridgeBusinessNames,asBridgedEvidence,comparisonBudgetBasis,totalTableDocument,isCombinedBudgetDocument,hasReplacementCharacter,rollupBusinessName,businessRollup,compactEvidence} from './quality.js';
@@ -614,12 +616,15 @@ const TOOLS=[{name:'search_budget',description:'상세 검색용: 성남시 예�
 TOOLS.unshift({name:'budget_research',description:'성남시 본예산·추경·결산·사업비·부서별 예산·연도별 비교 질문에 먼저 사용. 법령 해석이나 다른 지자체 예산 조회에는 사용하지 않음. 사업비는 세출예산사업명세서를 우선하며 성과계획·지표 질문은 계획서를 조회. 원문 근거·단위·인용 URL과 부서·세부사업·편성목·통계목 및 해당 행을 한 번에 반환. 연도와 편성 구분을 지정하지 않으면 해당 인자를 생략. 2026년부터 이전 수록 연도 순으로 근거를 찾고 본예산과 추경을 함께 확인. 3개 연도까지는 근거 본문을, 4~8개 연도는 연도별 사업 행을 간추려 반환. 편성이나 추경 회차를 지정하지 않은 사업 질문은 그 해 본예산과 수록된 추경 회차를 각각 찾아 edition_timeline(회차별 행·담당 부서·원문 쪽)으로 함께 반환. 같은 세부사업이 여러 부서에 있으면 business_rollup으로 부서별 행을, 부서를 하나 명시하면 department_overview로 그 부서의 편성별 총액과 세부사업 금액순 목록을 함께 반환. 순위·여러 부서 합계·본예산과 추경 비교·재원 질문은 세출명세서 전체 행에서 계산한 analysis(상태·범위·원문 쪽 포함)를 반환하며 complete가 아닌 순위는 전체 순위가 아님. 근거가 충분하면 바로 답변. 생성 모델 없음.',inputSchema:schema(properties,['query']),annotations},
  {name:'search',description:'ChatGPT 호환 검색. 인용 가능한 id/title/url 반환. 연도를 생략하면 2026년부터 이전 수록 연도 순으로 근거를 조회. 전체 연도는 질문에 명시.',inputSchema:schema({query:properties.query},['query']),annotations},
  {name:'fetch',description:'search 결과 id로 원문 페이지/본문 블록 전문과 인용 URL 조회. id는 search 결과 값을 그대로 사용.',inputSchema:schema({id:{type:'string',maxLength:100}},['id']),annotations});
+const countedToolNames=new Set(TOOLS.map(t=>t.name));
 const TITLES={budget_research:'성남 예산 근거 조회',search:'성남 예산 검색',fetch:'예산 원문 읽기',search_budget:'예산 상세 검색',get_budget_page:'원문 페이지 조회',list_budget_documents:'예산 문서 목록',get_collection_status:'수집 범위 확인',build_rag_context:'예산 근거 묶음'};for(const t of TOOLS){t.title=TITLES[t.name];t.annotations={...t.annotations,title:t.title};}
 for(const t of TOOLS)t.description+=' '+EVIDENCE_BOUNDARY;
+TOOLS.push({name:'get_mcp_usage',title:'MCP 호출 통계',description:'성남 예산 MCP의 이용 실적·누적 트래픽·일별 도구 호출 횟수를 물을 때 사용합니다. 집계 시작 후 기록분을 한국시간 기준으로 제공하며, 질문자 수와 질문 수는 집계하지 않습니다.',inputSchema:schema({}),annotations:{...annotations,title:'MCP 호출 통계'}});
 for(const t of TOOLS.filter(t=>['budget_research','search_budget','search','list_budget_documents','build_rag_context'].includes(t.name)))t.description+=' 시 예산서를 먼저 표시하고 검증된 의회 회의록 발언을 보충합니다. 의회 발언은 제출안 설명이며 첨부 설명자료 원문 확인과 구분합니다. 시청 자료만 요청하면 의회 근거를 제외합니다. 질문에 산하기관 포함 또는 특정 기관명을 명시하면 해당 기관 자체 공개자료도 검색하며 시 자료를 먼저 표시합니다. 기관 예산과 시 출연금을 중복 합산하지 마세요.';
 TOOLS.find(t=>t.name==='search').outputSchema=schema({results:{type:'array',items:schema({id:{type:'string'},title:{type:'string'},url:{type:'string'}},['id','title','url'])}},['results']);
 TOOLS.find(t=>t.name==='fetch').outputSchema=schema({id:{type:'string'},title:{type:'string'},text:{type:'string'},url:{type:'string'},metadata:{type:'object',additionalProperties:true}},['id','title','text','url','metadata']);
 async function tool(env,name,a){let def=TOOLS.find(t=>t.name===name);if(!def)fail('알 수 없는 도구입니다.');if(!a||typeof a!=='object'||Array.isArray(a))fail('객체 인자가 필요합니다.');for(let k of Object.keys(a)){let p=def.inputSchema.properties[k],v=a[k];if(!p)fail('허용되지 않은 인자: '+k);if(p.type==='string'&&typeof v!=='string'||p.type==='integer'&&!Number.isInteger(v))fail('잘못된 인자 형식: '+k);if(p.enum&&!p.enum.includes(v)||p.minimum!==undefined&&v<p.minimum||p.maximum!==undefined&&v>p.maximum||p.minLength!==undefined&&v.length<p.minLength||p.maxLength!==undefined&&v.length>p.maxLength)fail('허용 범위를 벗어난 인자: '+k);}for(let k of def.inputSchema.required)if(a[k]===undefined)fail('필수 인자: '+k);
+ if(name==='get_mcp_usage')return getMcpUsage(env.DB);
  if(name==='budget_research')return research(env,a);
  if(name==='search'){const r=await search(env,{query:a.query,limit:8});return{results:r.results.map(h=>({id:h.id,title:h.title+' · '+h.locator_label,url:h.page_url}))};}
  if(name==='fetch'){const m=a.id.match(/^([a-f0-9]{20}):p([1-9][0-9]{0,5})$/);if(!m)fail('search 결과의 id를 그대로 사용하세요.');const p=await page(env,{document_id:m[1],page:Number(m[2])});const {text,...metadata}=p;return{id:a.id,title:p.title+' · '+p.locator_label,text,url:p.page_url,metadata};}
@@ -630,10 +635,31 @@ async function mcp(req,env){if(req.method!=='POST')return new Response(JSON.stri
  if(rpc.method.startsWith('notifications/'))return new Response(null,{status:202});
  if(rpc.method==='server/discover')return respond({supportedVersions:['2026-07-28'],serverInfo:{name:'seongnam-budget',version:VERSION+(RELEASE?.source_sha?'+'+RELEASE.source_sha.slice(0,12):'')},capabilities:{tools:{}},instructions:RULES});
  if(rpc.method==='initialize')return respond({protocolVersion:['2025-11-25','2025-06-18','2025-03-26'].includes(rpc.params?.protocolVersion)?rpc.params.protocolVersion:'2025-11-25',capabilities:{tools:{}},serverInfo:{name:'seongnam-budget',version:VERSION+(RELEASE?.source_sha?'+'+RELEASE.source_sha.slice(0,12):'')},instructions:RULES});
- if(rpc.method==='ping')return respond({});if(rpc.method==='tools/list')return respond({tools:TOOLS});if(rpc.method==='tools/call'){try{let data=await tool(env,rpc.params?.name,rpc.params?.arguments||{});return respond({content:[{type:'text',text:JSON.stringify(data)}],structuredContent:data,isError:false});}catch(e){return respond({content:[{type:'text',text:e.message}],isError:true});}}
+ if(rpc.method==='ping')return respond({});if(rpc.method==='tools/list')return respond({tools:TOOLS});
+ if(rpc.method==='tools/call'){
+  const name=rpc.params?.name, startedAt=Date.now();
+  let response, isError=false;
+  try {
+   const data=await tool(env,name,rpc.params?.arguments||{});
+   response=respond({content:[{type:'text',text:JSON.stringify(data)}],structuredContent:data,isError:false});
+  } catch(e) {
+   isError=true;
+   response=respond({content:[{type:'text',text:e.message}],isError:true});
+  }
+  if(countedToolNames.has(name)){
+   const recorded=await recordToolUsage(env.DB,req.headers.get('user-agent'),isError,startedAt);
+   response.headers.set('x-mcp-usage-recorded',String(recorded));
+  }
+  return response;
+ }
  return json({jsonrpc:'2.0',id:rpc.id??null,error:{code:-32601,message:'Method not found'}});}
 export default{async fetch(req,env){let u=new URL(req.url),origin=req.headers.get('origin');if(origin&&origin!==u.origin)return json({error:'Origin not allowed'},403);try{
  if(u.pathname==='/mcp'||u.pathname==='/public-mcp')return await mcp(req,env);if(req.method!=='GET')return json({error:'Method not allowed'},405);
+ if(u.pathname==='/traffic')return new Response(trafficPage(),{headers:{'content-type':'text/html; charset=utf-8','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'"}});
+ if(u.pathname==='/api/traffic'){
+  try{return json(await getMcpUsage(env.DB));}
+  catch(e){return json({error:e.message},503);}
+ }
  if(u.pathname==='/')return new Response(HTML,{headers:{'content-type':'text/html; charset=utf-8','x-content-type-options':'nosniff','content-security-policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"}});
  if(u.pathname==='/api/status')return json({...CATALOG.summary,query_policy:POLICY,release:RELEASE,annual_budget_coverage:ANNUAL_BUDGET_COVERAGE,affiliates:affiliateCoverage(),council:councilCoverage(),retrieval:retrievalStatus(),categories:[...new Set(CATALOG.documents.map(d=>d.category)),COUNCIL_CATEGORY],asset_binding:!!env.ASSETS});let a=Object.fromEntries(u.searchParams);
  if(u.pathname==='/openapi.json')return json(openapi(u.origin));if(u.pathname==='/api/research')return json(await research(env,a));if(u.pathname==='/api/search')return json(await search(env,a));if(u.pathname==='/api/page')return json(await page(env,a));if(u.pathname==='/api/documents')return json(documents(a));if(u.pathname==='/api/tools')return json(TOOLS);return json({error:'Not found'},404);

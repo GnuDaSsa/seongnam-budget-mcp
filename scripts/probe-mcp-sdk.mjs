@@ -6,8 +6,8 @@ import assert from 'node:assert/strict';
 const origin=process.argv[2]||'http://127.0.0.1:8765',checks=[];
 const client=new Client({name:'seongnam-public-compatibility-check',version:'1.0.0'});
 try{
- await client.connect(new StreamableHTTPClientTransport(new URL(origin+'/public-mcp')));checks.push({name:'SDK initialize',pass:true});
- const listed=await client.listTools();assert.equal(listed.tools.length,8);assert(listed.tools.every(t=>t.annotations.readOnlyHint));checks.push({name:'8 read-only tools',pass:true});
+ await client.connect(new StreamableHTTPClientTransport(new URL(origin+'/public-mcp'),{requestInit:{headers:{'user-agent':'SeongnamBudgetQA/1.0'}}}));checks.push({name:'SDK initialize',pass:true});
+ const listed=await client.listTools();assert.equal(listed.tools.length,9);assert(listed.tools.every(t=>t.annotations.readOnlyHint));checks.push({name:'9 read-only tools',pass:true});
  for(const query of [{query:'청년 주거비 지원',year:2026},{query:'아이를 맡기는 시설 지원',year:2026},{query:'노인일자리'}]){
   let start=performance.now();const r=await client.callTool({name:'budget_research',arguments:query});assert(!r.isError);const data=r.structuredContent;assert(data.evidence.length>0);assert.equal(data.generation_performed,false);assert(data.evidence.every(e=>e.source_url&&e.unit&&e.text&&e.context));checks.push({name:'budget_research',query,milliseconds:Math.round(performance.now()-start),server_ms:data.elapsed_ms,timings_ms:data.retrieval.timings_ms,cache_hit:data.retrieval.cache_hit,first_source:data.evidence[0].page_url});
  }

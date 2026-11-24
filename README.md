@@ -9,6 +9,9 @@
 - 공개 사이트: https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site
 - 인증 없는 공개 MCP: https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site/public-mcp
 
+운영 서버의 누적·일별 도구 호출 수는 [MCP 호출 현황](https://seongnam-budget-research-20261107.gnudas0923.chatgpt.site/traffic)에서, 집계 시작 전의 검증 실적은 [과거 검증 기록과 집계 기준](docs/USAGE.md)에서 확인할 수 있습니다.
+GitHub는 매일 한국시간 00시 23분에 집계를 확인하고, 수치가 바뀐 날의 [일별 호출 기록](https://github.com/GnuDaSsa/seongnam-budget-mcp/blob/codex/traffic-history/usage.json)을 별도 브랜치에 보관합니다. [기록 작업 이력](https://github.com/GnuDaSsa/seongnam-budget-mcp/actions/workflows/usage-history.yml)에서 수동 실행과 처리 결과를 볼 수 있습니다.
+
 ## 실행
 
 Python 3.13+, Node.js 22+가 필요합니다. Windows에서는 시스템 curl.exe를 사용합니다. TLS 검증을 끄지 않습니다.

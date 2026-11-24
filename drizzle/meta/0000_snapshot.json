@@ -1,0 +1,78 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "7006e744-df50-4211-a558-b529903a655e",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "mcp_usage_daily": {
+      "name": "mcp_usage_daily",
+      "columns": {
+        "day": {
+          "name": "day",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "calls": {
+          "name": "calls",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "mcp_usage_daily_day_source_outcome_pk": {
+          "columns": [
+            "day",
+            "source",
+            "outcome"
+          ],
+          "name": "mcp_usage_daily_day_source_outcome_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "valid_source": {
+          "name": "valid_source",
+          "value": "\"mcp_usage_daily\".\"source\" IN ('benchmark', 'unclassified')"
+        },
+        "valid_outcome": {
+          "name": "valid_outcome",
+          "value": "\"mcp_usage_daily\".\"outcome\" IN ('success', 'error')"
+        },
+        "valid_calls": {
+          "name": "valid_calls",
+          "value": "typeof(\"mcp_usage_daily\".\"calls\") = 'integer' AND \"mcp_usage_daily\".\"calls\" > 0"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

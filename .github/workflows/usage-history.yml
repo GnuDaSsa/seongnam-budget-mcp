@@ -1,0 +1,57 @@
+name: Archive MCP tool usage
+on:
+  schedule:
+    - cron: '23 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: archive-mcp-tool-usage
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check archive validation rules
+        run: node --test tests/archive-usage.test.mjs
+      - name: Keep a verified daily snapshot on the history branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref=refs/heads/codex/traffic-history
+          history="$RUNNER_TEMP/traffic-history"
+          if git ls-remote --exit-code origin "$ref" >/dev/null; then
+            git fetch --no-tags --depth=1 origin "$ref"
+            git worktree add --detach "$history" FETCH_HEAD
+            if [[ ! -f "$history/usage.json" ]]; then
+              # Only the original historical benchmark seed may precede the first live snapshot.
+              files="$(git ls-tree --name-only FETCH_HEAD)"
+              [[ "$files" == $'README.md\nbenchmark-baseline.json' ]]
+              [[ -f "$history/README.md" && ! -L "$history/README.md" ]]
+              [[ -f "$history/benchmark-baseline.json" && ! -L "$history/benchmark-baseline.json" ]]
+              headers="$(git cat-file -p FETCH_HEAD | sed '/^$/,$d')"
+              if grep -q '^parent ' <<< "$headers"; then
+                echo "기존 이력에서 호출 기록이 누락되어 보관을 중단합니다." >&2
+                exit 1
+              fi
+            fi
+          else
+            result=$?
+            if [[ "$result" != 2 ]]; then exit "$result"; fi
+            git worktree add --detach --no-checkout "$history" HEAD
+            git -C "$history" switch --orphan archive-initial
+          fi
+          node scripts/archive-usage.mjs "$history/usage.json"
+          git -C "$history" add -- usage.json
+          if git -C "$history" diff --cached --quiet; then exit 0; fi
+          git -C "$history" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Archive MCP usage $(date -u +%F)"
+          git -C "$history" push origin "HEAD:$ref"

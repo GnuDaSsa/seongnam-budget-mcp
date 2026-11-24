@@ -104,7 +104,7 @@ export class Release {
  async verify(receipt,connections){
   const s=await this.load();await this.assertRemotes(s);
   if(receipt.status!=='succeeded'||receipt.project_id!==this.config.site.project_id||receipt.url!==this.config.site.url||!receipt.id||!receipt.version_id)throw Error('A successful official Sites deployment receipt is required');
-  const request=async(route,body)=>{const res=await this.fetcher(this.config.site.url+route,{...(body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(30000)});if(!res.ok)throw Error('Live verification HTTP '+res.status);return res.json();};
+  const request=async(route,body)=>{const res=await this.fetcher(this.config.site.url+route,{...(body?{method:'POST',headers:{'content-type':'application/json','user-agent':'SeongnamBudgetQA/1.0'},body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(30000)});if(!res.ok)throw Error('Live verification HTTP '+res.status);return res.json();};
   const check=r=>{if(r?.source_sha!==s.source_sha||r?.source_digest!==s.source_digest||r?.verified_source!==true)throw Error('Live release identity mismatch');};
   check((await request('/api/status')).release);
   for(const [query,code] of [['청년월세지원사업 통계목','301-01'],['판교 연구센터 예산','401-01']]){

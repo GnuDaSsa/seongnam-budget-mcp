@@ -5,6 +5,32 @@ import path from 'node:path';
 import vm from 'node:vm';
 import worker from '../dist/server/index.js';
 import {exactPhraseHit} from '../worker/retrieval-phrases.js';
+test('only recognized budget tool calls on either MCP route write one usage observation',async()=>{
+ const writes=[];
+ const DB={prepare(){return{
+  bind(...values){return{async run(){writes.push(values);return{success:true};}};},
+  async all(){return{success:true,results:[]};},
+ };}};
+ const call=(method,name,route='/public-mcp',ua='test-client',bindings={DB})=>worker.fetch(
+  new Request('https://test.local'+route,{method:'POST',headers:{'content-type':'application/json','user-agent':ua},
+   body:JSON.stringify({jsonrpc:'2.0',id:1,method,params:{name,arguments:{}}})}),bindings);
+ assert.equal((await call('tools/call','get_collection_status')).headers.get('x-mcp-usage-recorded'),'true');
+ const failed=await call('tools/call','fetch','/mcp','SeongnamBudgetQA/1.0');
+ assert.equal((await failed.json()).result.isError,true);
+ assert.equal(failed.headers.get('x-mcp-usage-recorded'),'true');
+ for(const [method,name] of [['ping'],['initialize'],['tools/list'],['tools/call','unknown'],['tools/call','get_mcp_usage']]){
+  assert.equal((await call(method,name)).headers.has('x-mcp-usage-recorded'),false);
+ }
+ for(const route of ['/api/status','/api/traffic','/traffic']){
+  assert.equal((await worker.fetch(new Request('https://test.local'+route),{DB})).status,200);
+ }
+ assert.deepEqual(writes.map(values=>values.slice(1)),[['unclassified','success'],['benchmark','error']]);
+ const unavailable=await call('tools/call','get_collection_status','/mcp','test',{});
+ assert.equal(unavailable.headers.get('x-mcp-usage-recorded'),'false');
+ assert.equal((await unavailable.json()).result.isError,false);
+ assert.equal((await (await call('tools/call','get_mcp_usage','/mcp','test',{})).json()).result.isError,true);
+ assert.equal((await worker.fetch(new Request('https://test.local/api/traffic'),{})).status,503);
+});
 const root=path.resolve('dist/client');
 const env={ASSETS:{async fetch(req){let p=path.resolve(root,'.'+new URL(req.url).pathname);if(!p.startsWith(root+path.sep))return new Response('',{status:403});try{return new Response(await readFile(p));}catch{if(/^\/semantic\/tokens-\d+\.bin\.gz$/.test(new URL(req.url).pathname)){try{return new Response(await readFile(path.resolve('snapshot','.'+new URL(req.url).pathname)));}catch{}}return new Response('',{status:404});}}}};
 test('unqualified public queries are 2026 and total table bypasses vector work',async()=>{
@@ -56,13 +82,14 @@ function assertEvidenceBoundary(text){
 test('discovery, every tool and Actions operations communicate the same evidence boundary',async()=>{
  for(const method of ['initialize','server/discover'])assertEvidenceBoundary((await rpc(method,{})).result.instructions);
  const tools=(await rpc('tools/list')).result.tools;
- assert.equal(tools.length,8);
+ assert.equal(tools.length,9);
  for(const name of ['budget_research','search_budget']){
   const tool=tools.find(item=>item.name===name);
   assert.match(tool.description,/이전 수록 연도/);
   assert.match(tool.inputSchema.properties.budget_type.description,/본예산과 수록 추경/);
  }
- for(const tool of tools)assertEvidenceBoundary(tool.description);
+ for(const tool of tools.filter(t=>t.name!=='get_mcp_usage'))assertEvidenceBoundary(tool.description);
+ assert.match(tools.find(t=>t.name==='get_mcp_usage').description,/트래픽/);
  const {data:api,status}=await get('/openapi.json');assert.equal(status,200);assertEvidenceBoundary(api.info.description);
  for(const route of ['/api/research','/api/page','/api/status'])assertEvidenceBoundary(api.paths[route].get.description);
  assert.equal(tools.find(t=>t.name==='search').outputSchema.additionalProperties,false,'legacy search shape remains results-only');
@@ -126,7 +153,7 @@ test('document inventory does not inherit the default expenditure search prefere
 test('Korean retrieval returns real 2026 evidence and exact page',async()=>{let start=performance.now();let {data:s,status}=await get('/api/search?query='+encodeURIComponent('노인일자리')+'&year=2026&budget_type='+encodeURIComponent('본예산')+'&limit=5');assert.equal(status,200);assert(s.results.length>0);for(let h of s.results){assert.equal(h.year,2026);assert.equal(h.budget_type,'본예산');assert(h.source_url.startsWith('https://www.seongnam.go.kr/'));let {data:p}=await get('/api/page?document_id='+h.document_id+'&page='+h.pdf_page);assert(p.text.includes('일자리'));assert.equal(p.pdf_page,h.pdf_page);}console.log('2026 search+pages milliseconds:',Math.round(performance.now()-start));});
 test('a verified budget total retains source units and numbers',async()=>{let {data:d}=await get('/api/documents?year=2026&limit=20');let doc=d.documents.find(x=>x.url.endsWith('/11608_1.pdf'));assert(doc);let {data:p}=await get('/api/page?document_id='+doc.id+'&page=1');assert(p.text.includes('3,940,847,350'));assert(p.text.includes('천원'));assert.equal(p.unit,'천원');});
 test('invalid input, unknown pages and absent evidence do not invent answers',async()=>{assert.equal((await get('/api/search?query=x')).status,400);assert.equal((await get('/api/search?query=valid&year=abc')).status,400);assert.equal((await get('/api/page?document_id=missing&page=1')).status,400);let {data:s}=await get('/api/search?year=2026&query=zzzzzzzzzzzz');assert.deepEqual(s.results,[]);});
-test('MCP modern and legacy discovery advertise read only tools',async()=>{assert.deepEqual((await rpc('server/discover')).result.supportedVersions,['2026-07-28']);assert.equal((await rpc('initialize',{protocolVersion:'2025-03-26'})).result.protocolVersion,'2025-03-26');let {result}=await rpc('tools/list');assert.equal(result.tools.length,8);assert(result.tools.every(t=>t.annotations.readOnlyHint));assert.equal((await rpc('tools/call',{name:'get_collection_status'})).result.isError,false);assert.equal((await rpc('tools/call',{name:'unknown'})).result.isError,true);assert.equal((await rpc('tools/call',{name:'get_collection_status',arguments:{url:'http://localhost'}})).result.isError,true);});
+test('MCP modern and legacy discovery advertise read only tools',async()=>{assert.deepEqual((await rpc('server/discover')).result.supportedVersions,['2026-07-28']);assert.equal((await rpc('initialize',{protocolVersion:'2025-03-26'})).result.protocolVersion,'2025-03-26');let {result}=await rpc('tools/list');assert.equal(result.tools.length,9);assert(result.tools.every(t=>t.annotations.readOnlyHint));assert.equal((await rpc('tools/call',{name:'get_collection_status'})).result.isError,false);assert.equal((await rpc('tools/call',{name:'unknown'})).result.isError,true);assert.equal((await rpc('tools/call',{name:'get_collection_status',arguments:{url:'http://localhost'}})).result.isError,true);});
 test('tool guidance prefers one research call and reserves page reads for insufficient evidence',async()=>{
  const list=(await rpc('tools/list')).result.tools,description=name=>list.find(t=>t.name===name).description;
  assert.match(description('budget_research'),/성남시.*본예산.*추경.*결산.*사업비/);
@@ -139,7 +166,7 @@ test('tool guidance prefers one research call and reserves page reads for insuff
  assert.match(description('build_rag_context'),/기존 연동 호환용.*budget_research를 우선 사용/);
 });
 test('MCP rejects parse errors and cross-origin requests',async()=>{let r=await worker.fetch(new Request('https://test.local/mcp',{method:'POST',headers:{'content-type':'application/json'},body:'{'}),env);assert.equal(r.status,400);r=await worker.fetch(new Request('https://test.local/api/status',{headers:{origin:'https://evil.invalid'}}),env);assert.equal(r.status,403);});
-test('public MCP works without authentication headers',async()=>{let r=await worker.fetch(new Request('https://test.local/public-mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/list'})}),env);assert.equal(r.status,200);assert.equal((await r.json()).result.tools.length,8);});
+test('public MCP works without authentication headers',async()=>{let r=await worker.fetch(new Request('https://test.local/public-mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/list'})}),env);assert.equal(r.status,200);assert.equal((await r.json()).result.tools.length,9);});
 test('browser script compiles after locator and audience changes',async()=>{let html=await readFile('web/index.html','utf8');let scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,1);new vm.Script(scripts[0][1]);assert(html.includes('/public-mcp'));assert(!html.includes('사이트는 소유자 전용'));});
 test('non-PDF evidence uses a text block and never invents PDF page numbers',async()=>{let catalog=JSON.parse(await readFile('snapshot/catalog.json','utf8'));let doc=catalog.documents.find(d=>d.locator_kind==='text_block'&&d.shards.length);assert(doc,'At least one actual office attachment must be indexed');let {data:p,status}=await get('/api/page?document_id='+doc.id+'&page=1');assert.equal(status,200);assert.equal(p.pdf_page,null);assert.equal(p.locator_kind,'text_block');assert.equal(p.page_url,doc.url);assert(p.text.includes('PDF 페이지 번호 아님'));assert(!p.page_url.includes('#page='));});
 test('oldest annual budget can be searched separately from current budgets',async()=>{let {status,data:s}=await get('/api/search?query='+encodeURIComponent('도서관')+'&year=2007&limit=3');assert.equal(status,200);assert(s.results.length>0);assert(s.results.every(x=>x.year===2007));});
