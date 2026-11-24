@@ -36,7 +36,7 @@ export function requestedDepartments(query,index){
  }
  const found=index.departments.filter(d=>{
   const locationOnly=d.key.endsWith('동')&&normalized.includes(d.key)&&
-   new RegExp(d.key+'(?:\\d+번지)?(?:주차장|부지|도로|공원|토지|건물|시설)').test(normalized);
+   new RegExp(d.key+'(?:소재|일원)?(?:\\d+번지)?(?:주차장|부지|도로|공원|토지|건물|시설)').test(normalized);
   return !locationOnly&&(normalized.includes(d.key)||expanded.has(d.key))&&(!ambiguous.has(d.key)||namedBudgetDepartment);
  });
  // 소관을 한 번 명시한 경우 그 바로 앞 부서가 담당이며 뒤의 시설명은 별도로 해석한다.
@@ -63,7 +63,16 @@ export function revenueDepartmentMatches(text,departments,words=[]){
  const source=String(text),headings=Array.from(source.matchAll(/<\s*([^<>\n]+?)\s*>/g));
  return headings.some((heading,index)=>{
   if(!departments.some(department=>department.key===normalizeDepartment(heading[1])))return false;
-  const section=normalizeDepartment(source.slice(heading.index,headings[index+1]?.index));
+  const before=source.slice(0,heading.index).split('\n');
+  const context=new Map();
+  const levels=['장','관','항','목'];
+  for(const line of before){
+   const match=line.match(/^\s*(장|관|항|목)\s*[:：]\s*(.+)$/);
+   if(!match)continue;
+   for(const child of levels.slice(levels.indexOf(match[1])+1))context.delete(child);
+   context.set(match[1],match[2]);
+  }
+  const section=normalizeDepartment([...context.values()].join(' ')+' '+source.slice(heading.index,headings[index+1]?.index));
   return words.every(word=>section.includes(normalizeDepartment(word)));
  });
 }

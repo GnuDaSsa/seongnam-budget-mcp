@@ -69,6 +69,41 @@ test('회계가 지정된 이름 변형은 유사 항목으로 표시하고 회�
   assert(otherAccount.evidence.every(e => e.account === '하수도공기업특별회계'));
 });
 
+test('세입 계층과 위치 이름은 해당 원문 구간만 반환한다', async () => {
+  const revenue = await research('2026년 일반회계 도서관지원과 재산임대수입 세입', {limit: 5});
+  assert.equal(revenue.evidence[0].document_id, '900cfcf0496b43682393');
+  assert.equal(revenue.evidence[0].page, 4);
+  assert.match(revenue.evidence[0].text, /항:\s*211\s*재산임대수입/);
+  const wrongDepartment = await research('2026년 도서관지원과 소관 사물함 임대료 세입', {limit: 5});
+  assert(!wrongDepartment.evidence.some(e => e.text?.includes('중앙도서관사물함임대료')));
+  for (const query of ['2026년 산성동 소재 주차장 부지 사용료 세입','2026년 산성동 7번지 주차장 부지 사용료 세입']) {
+    const parking=await research(query,{limit:5});
+    assert.equal(parking.evidence[0].page,5);
+    assert(parking.evidence.every(e=>e.source_family==='revenue'));
+    assert(!parking.query_interpretation.department_scope.names.includes('산성동'));
+  }
+});
+
+test('같은 부서와 제한하지 않은 범위에서 원문 이름이 다르면 유사로 표시한다', async () => {
+  for (const query of [
+    '2026년 일반회계 기업혁신과 중소기업 디지털 전환 지원비 편성목 알려줘',
+    '2026년 중소기업 디지털 전환 지원비 편성목 알려줘'
+  ]) {
+    const result=await research(query,{limit:5});
+    assert.equal(result.match_quality.level,'similar');
+    assert(result.evidence.some(e=>e.similar_business?.original_name==='중소기업디지털전환지원'&&e.classification.department==='기업혁신과'));
+  }
+  const nursery=await research('2026년 일반회계 아동보육과 야간연장형 어린이집 운영지원비 편성목 알려줘',{limit:5});
+  assert.equal(nursery.match_quality.level,'similar');
+  assert(nursery.evidence.some(e=>e.similar_business?.original_name==='야간연장형어린이집운영지원'&&e.classification.department==='아동보육과'));
+  const exact=await research('2024년 상수도공기업 특별회계 본예산 세부사업 급수 공사 편성목',{limit:5});
+  assert.equal(exact.match_quality.level,'verified');
+  assert(exact.evidence.some(e=>e.document_id==='0775a628b8a18ab92908'&&e.page===12));
+  const alias=await research('2024년 상수도공기업 특별회계 본예산 급수 공사비 세출 편성목',{limit:5});
+  assert.equal(alias.match_quality.level,'similar');
+  assert(alias.evidence.some(e=>e.document_id==='0775a628b8a18ab92908'&&e.page===12));
+});
+
 // 규칙: 결산을 묻지 않은 질문은 예산편성 자료(본예산·추경)만 근거로 쓴다.
 test('결산을 묻지 않은 사업 예산 질의는 본예산 또는 추경 근거만 반환한다', async () => {
   const queries = [

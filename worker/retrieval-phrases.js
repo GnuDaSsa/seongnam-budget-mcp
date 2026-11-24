@@ -2,7 +2,7 @@ import {budgetDivisionRequested} from './departments.js';
 import {STATED_REVISION} from './policy.js';
 // Exact matches supplement semantic ranking; postings alone never prove a phrase.
 const boilerplate=new Set(['되나요','됩니까','얼마입니까','성남','성남시','예산','예산은','본예산','추경','결산','관련계획','얼마','얼마야','얼마인가요','알려줘','알려주세요','찾아줘','찾아주세요','조회','조회해줘','관련','기준','통계목','편성목','세부사업','예산목','보여줘','보여주세요','금액','내역','세출예산','세출예산서','사업명세서','성과계획','성과계획서','성과지표','성과목표']);
-for(const word of ['성남예산','성남시예산','본예산과','추경과','결산과','성과계획서와','비교','및','세부사업과','통계목도','통계목은','편성목은','최종','최신','마지막','최종예산','최신예산','마지막예산','소관'])boilerplate.add(word);
+for(const word of ['성남예산','성남시예산','본예산과','추경과','결산과','성과계획서와','비교','및','세부사업과','통계목도','통계목은','편성목은','최종','최신','마지막','최종예산','최신예산','마지막예산','소관','세출'])boilerplate.add(word);
 export function withoutQueryYears(query){return query.replace(/(?<![\p{L}\p{N}])(?:19|20)\d{2}(?:\s*(?:년도|년)(?:과|와|의|에서|에는|에|은|는|도|부터|까지|보다|대비)?)?(?![\p{L}\p{N}])/gu,' ');}
 function compact(text){return text.toLowerCase().replace(/\s/gu,'');}
 // 분석 요청어는 원문 사업 행에 없는 경우가 많다. 필수 검색어로 두면 키워드 검색이 0건이 되므로 조사만 떼고 제외한다.
@@ -26,7 +26,7 @@ const PARTICLE=/(?:으로|로|을|를|은|는|이|가|도|의|만|과|와)$/;
 const GENITIVE_NOUN=/(?:회의|협의|합의|심의|건의|논의|결의|동의|강의|문의|편의|주의|정의|질의|창의|유의|상의|임의|수의|예의|고의|토의|발의|품의|제의|항의|숙의|민의|대의|도의|신의|호의|자의|부의|모의|총의)$/;
 export function retrievalWords(query){
  const division=budgetDivisionRequested(query),isDivision=w=>division&&/^예산과(?:의|에서|가|는|은|와|랑|이랑|하고)?$/.test(w);
- const tokens=withoutQueryYears(query).toLowerCase().replace(STATED_REVISION,' ').replace(TOOL_MENTION,' ').replace(OUTPUT_TAIL,' ').match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[];
+ const tokens=withoutQueryYears(query).toLowerCase().replace(STATED_REVISION,' ').replace(TOOL_MENTION,' ').replace(OUTPUT_TAIL,' ').replace(/(?<=동)\s+(?:소재|일원)(?=\s+(?:주차장|부지|도로|공원|토지|건물|시설))/g,' ').match(/[가-힣]+|[a-z]+|\d[\d,]*/g)||[];
  const dropped=w=>!isDivision(w)&&(w.length<2||boilerplate.has(w)||isAnalytic(w)||fieldWords.has(w.replace(PARTICLE,'')));
  const words=[];
  tokens.forEach((w,i)=>{

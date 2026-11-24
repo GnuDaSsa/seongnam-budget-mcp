@@ -1,15 +1,17 @@
-import {postingQueryScope} from './retrieval-phrases.js';
+import {postingQueryScope,retrievalWords} from './retrieval-phrases.js';
 
-// 같은 회계의 실제 사업 행을 다시 찾는 제한된 이름 변형이다.
-export function similarBusinessCandidate(query){
- const scope=postingQueryScope(query,'expenditure');
- if(!scope.metadata.some(word=>word.endsWith('회계'))||!scope.query)return null;
+// 명시된 범위에서 실제 원문 행을 다시 찾는 제한된 이름 변형이다.
+export function similarBusinessCandidate(query,departments=[]){
+ let content=query;
+ for(const department of departments)content=content.replace(new RegExp(Array.from(department.replace(/\s/g,'')).join('\\s*')),' ');
+ const scope=postingQueryScope(content,'expenditure');
+ const subject=scope.query||content;
  if(/제외|빼고|말고|\d{2,}/.test(query.replace(/(?:19|20)\d{2}/g,'')))return null;
- const requested=scope.query.replace(/\s/g,'');
- if(!/^[가-힣]{5,}$/.test(requested))return null;
- const similar=requested.endsWith('사업')?requested.slice(0,-2):requested.slice(0,-1);
+ const words=scope.query?scope.query.replace(/\s/g,''):scope.metadata.length?'':retrievalWords(subject).join('');
+ if(!/^[가-힣]{4,}(?:비|사업)$/.test(words))return null;
+ const similar=words.endsWith('사업')?words.slice(0,-2):words.slice(0,-1);
  if(similar.length<4)return null;
- return {requested,similar};
+ return {requested:words,similar};
 }
 
 export function hasBusinessRow(text,name){

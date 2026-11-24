@@ -18,7 +18,7 @@ import {similarBusinessCandidate,hasBusinessRow,similarBusinessRows} from '../wo
 test('회계 범위의 비 접미어 유사 후보는 원문 사업 행과 명칭을 확인한다',()=>{
  const candidate=similarBusinessCandidate('상수도 특별회계 급수공사비 통계목 알려줘');
  assert.deepEqual(candidate,{requested:'급수공사비',similar:'급수공사'});
- assert.equal(similarBusinessCandidate('급수공사비 통계목 알려줘'),null);
+ assert.deepEqual(similarBusinessCandidate('급수공사비 통계목 알려줘'),candidate);
  assert.equal(similarBusinessCandidate('상수도 특별회계 수도비'),null);
  assert(hasBusinessRow('정책\n   급수공사   1,420,420  1,420,780  △360',candidate.similar));
  assert(!hasBusinessRow('○ 급수공사 수수료  20,000',candidate.similar));
@@ -27,6 +27,7 @@ test('회계 범위의 비 접미어 유사 후보는 원문 사업 행과 명�
  assert(hasBusinessRow('  ○ 급수공사 수수료','급수공사수수료'));
  assert.deepEqual(similarBusinessCandidate('상수도 특별회계 급수 공사비 통계목'),candidate);
  assert.deepEqual(similarBusinessCandidate('일반회계 청년 주거 지원사업'),{requested:'청년주거지원사업',similar:'청년주거지원'});
+ assert.deepEqual(similarBusinessCandidate('2026년 일반회계 기업혁신과 중소기업 디지털 전환 지원비 편성목',['기업혁신과']),{requested:'중소기업디지털전환지원비',similar:'중소기업디지털전환지원'});
  assert.deepEqual(similarBusinessRows('   청년주거지원  200  100  100\n   청년문화지원  100  80  20','청년주거지원사업','청년주거지원').map(row=>row.name),['청년주거지원']);
  assert.deepEqual(similarBusinessRows('   상수도관리  100  80  20','급수공사비','급수공사'),[]);
  assert.deepEqual(similarBusinessRows('  201 일반운영비  100  80  20','일반운영비용','일반운영비').map(row=>[row.name,row.kind]),[['일반운영비','appropriation']]);
@@ -50,7 +51,7 @@ test('주제 사업 행에서 실국 및 부서의 조직 합계를 제외한다
 test('주제 근거는 본예산 사업을 충분히 남기고 추경도 반영한다',()=>{
  const rows=['본1','본2','본3','본4','추1','추2','추3','추4'].map((name,index)=>({name,budget_type:index<4?'본예산':'추경',revision:index<4?null:index-3,year:2026}));
  const ordered=topicEditionOrder(rows,row=>row,5);
- assert.deepEqual(ordered.slice(0,5).map(row=>row.name),['본1','본2','본3','추1','추2']);
+ assert.deepEqual(ordered.slice(0,5).map(row=>row.name),['본1','본2','본3','본4','추1']);
  const onlyRevisions=rows.slice(4);
  assert.deepEqual(topicEditionOrder(onlyRevisions,row=>row,5),onlyRevisions);
 });
@@ -72,6 +73,8 @@ test('AI topic controls are separate from contents and topic evidence cannot be 
 });
 test('output requests are removed but bounded business terms must all be present',()=>{
  assert.deepEqual(retrievalWords('도서관지원과 소관 임대수입 세입'),['도서관지원과','임대수입','세입']);
+ assert.deepEqual(retrievalWords('반도체 소재 지원 예산'),['반도체','소재','지원']);
+ assert.deepEqual(retrievalWords('산성동 소재 주차장 부지 사용료 세입'),['산성동','주차장','부지','사용료','세입']);
  assert.deepEqual(retrievalWords('청년월세지원사업 통계목 보여줘'),['청년월세지원사업']);
  const h=businessTermsHit('판교 연구센터 예산','😀 판교시스템반도체연구센터조성 26,299,000');assert(h);assert.deepEqual(h.words,['판교','연구센터']);
  assert.equal(businessTermsHit('판교 연구센터 예산','판교동 주민자치센터 운영'),null);

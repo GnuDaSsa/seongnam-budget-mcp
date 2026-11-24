@@ -18,6 +18,8 @@ test('세입 질문의 합본 문서에서는 원문 쪽의 세출 형식을 제
  assert(!sourcePageAllowed(combined,'부서ㆍ정책ㆍ단위(회계)ㆍ세부사업ㆍ편성목',revenue));
  assert(sourcePageAllowed({title:'세입예산사업명세서'},'< 주차지원과>',revenue));
  assert(sourcePageAllowed(combined,'일반회계 세입 총괄표',revenue));
+ assert(!sourcePageAllowed({title:'성인지 예산'},'사업수혜자 남성 여성',revenue));
+ assert(!sourcePageAllowed({title:'세입세출예산서'},'사업수혜자 총괄 인원',revenue));
 });
 test('세부사업과 편성목을 물을 때 세입 수수료를 사업 근거로 반환하지 않는다',()=>{
  const expenditure=resolveQuery({query:'2024년 상수도공기업특별회계 세부사업 급수공사 편성목 알려줘'});

@@ -3,7 +3,7 @@ export function topicEditionOrder(items, documentFor, limit) {
  const base=items.filter(item=>documentFor(item).budget_type==='본예산');
  const other=items.filter(item=>documentFor(item).budget_type!=='본예산');
  if(!other.length)return items;
- const count=Math.min(base.length,Math.ceil(limit*0.6));
+ const count=Math.min(base.length,Math.ceil(limit*(limit<=5?0.8:0.6)));
  const selected=new Set(base.slice(0,count));
  const first=[],rest=[],seen=new Set(base.slice(0,count).map(item=>{
   const doc=documentFor(item);return [doc.year,doc.budget_type,doc.revision||0].join(':');

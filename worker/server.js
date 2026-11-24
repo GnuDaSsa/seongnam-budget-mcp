@@ -144,7 +144,7 @@ async function lexicalSearch(env,input){let a=args(input),q=(a.query||'').trim()
  const grouped=new Map(),hydrated=new Map();for(const c of selected){const sh=shardFor(c.gid);if(!grouped.has(sh.id))grouped.set(sh.id,{sh,items:[]});grouped.get(sh.id).items.push(c);}
  for(const {sh,items} of grouped.values()){
   const [index,texts]=await Promise.all([asset(env,'pages-'+sh.id),asset(env,'text-'+sh.id)]);
-  for(const c of items){const pi=c.gid-sh.offset,p=index.pages[pi],raw=texts[pi],exact_match=exactPhraseHit(q,raw,c.d.title),business_match=businessTermsHit(q,raw,c.d.title),text=raw.replace(/[ \t]{2,}/g,' ').replace(/\n\s*\n/g,'\n'),exactExcerpt=exactPhraseHit(q,text,c.d.title),hit=exactExcerpt?Array.from(text).slice(0,exactExcerpt.start).join('').length:Math.max(0,...gs.map(g=>text.indexOf(g.word)).filter(n=>n>=0)),start=Math.max(0,hit-160);
+  for(const c of items){const pi=c.gid-sh.offset,p=index.pages[pi],raw=texts[pi],subject=posting.query||q,exact_match=exactPhraseHit(subject,raw,c.d.title),business_match=businessTermsHit(subject,raw,c.d.title),text=raw.replace(/[ \t]{2,}/g,' ').replace(/\n\s*\n/g,'\n'),exactExcerpt=exactPhraseHit(subject,text,c.d.title),hit=exactExcerpt?Array.from(text).slice(0,exactExcerpt.start).join('').length:Math.max(0,...gs.map(g=>text.indexOf(g.word)).filter(n=>n>=0)),start=Math.max(0,hit-160);
    if(c.missing&&!exact_match)continue;
    const topic_matches=topicBusinessMatches(raw,a.topic_intent);
    if(!sourcePageAllowed(c.d,raw,a))continue;
@@ -173,6 +173,7 @@ async function topicLexicalSearch(env,a){
 }
 async function uncachedSearch(env,input){
  let a=args(input),q=(a.query||'').trim();if(q.length<2)fail('검색어를 두 글자 이상 입력하세요.');
+ const posting=postingQueryScope(q,a.policy?.source_preference);
  if(a.mode==='lexical'){const r=await topicLexicalSearch(env,a);r.results=(a.topic_intent?topicEditionOrder(r.results,h=>DOCS.get(h.document_id),a.limit):r.results).slice(0,a.limit);return {...r,retrieval:{mode:'lexical',reranked:false}};}
  if(a.mode&&!['hybrid','vector'].includes(a.mode))fail('mode는 hybrid, vector, lexical 중 하나입니다.');
  const started=Date.now(),allowed=new Set(SEMANTIC.doc_ids.map((id,i)=>match(DOCS.get(id),a)?i:-1).filter(i=>i>=0));
@@ -188,11 +189,12 @@ async function uncachedSearch(env,input){
  for(const {sh,items} of grouped.values()){
   const [idx,texts]=await Promise.all([asset(env,'pages-'+sh.id),asset(env,'text-'+sh.id)]);
   for(let c of items){const pi=c.gid-sh.offset,p=idx.pages[pi],text=texts[pi],d=DOCS.get(p[0]);if(!match(d,a)||!sourcePageAllowed(d,text,a))continue;
+   if(posting.query&&posting.metadata.some(word=>!(d.title+' '+d.account).replace(/\s/g,'').toLowerCase().includes(word)))continue;
    if(a.policy.source_preference==='revenue'&&a.departments?.length?
      sourceFamily(d,text)!=='revenue'||!revenueDepartmentMatches(text,a.departments,revenueScopeWords(q,a.departments)):
      !departmentMatches(text,a.departments))continue;
    c.topic_matches=topicBusinessMatches(text,a.topic_intent);if(a.topic_intent&&!c.topic_matches.length)continue;
-   const chars=Array.from(text),exact=a.mode==='vector'?null:exactPhraseHit(q,text,d.title);c.exact_match=exact;c.business_match=a.mode==='vector'?null:businessTermsHit(q,text,d.title);c.source_priority=sourcePriority(d,a);
+   const subject=posting.query||q,chars=Array.from(text),exact=a.mode==='vector'?null:exactPhraseHit(subject,text,d.title);c.exact_match=exact;c.business_match=a.mode==='vector'?null:businessTermsHit(subject,text,d.title);c.source_priority=sourcePriority(d,a);
    const verified=c.topic_matches[0]||exact||c.business_match;
    if(verified){c.start=Math.max(0,verified.start-120);c.end=Math.min(chars.length,Math.max(c.start+800,verified.end));}
    if(c.start===undefined){let words=groups(q).map(g=>g.word),found=words.map(w=>text.indexOf(w)).filter(n=>n>=0),hit=found.length?Math.min(...found):0;c.start=Math.max(0,Array.from(text.slice(0,hit)).length-120);c.end=Math.min(chars.length,c.start+800);}
@@ -244,8 +246,8 @@ async function historicalCandidates(env,a){
  if(departmentOnly(a))for(const [,doc] of a.department_rows){const d=CATALOG.documents[doc];if(match(d,unscoped))possible.add(d.year);}
  if(isMunicipalTotal(a.query))return years.map(year=>({year,possible:true}));
  const queries=a.topic_intent?a.topic_intent.aliases.map(alias=>query.replace(/(?<![a-z])AI(?![a-z])/gi,alias)):[query];
- const candidate=similarBusinessCandidate(query);
- if(candidate&&!a.departments?.length&&a.policy.source_preference==='expenditure'){
+ const candidate=similarBusinessCandidate(query,(a.departments||[]).map(department=>department.name));
+ if(candidate&&a.policy.source_preference==='expenditure'){
   queries.push(query.replace(new RegExp(Array.from(candidate.requested).join('\\s*')),candidate.similar));
  }
  for(const q of queries){
@@ -506,20 +508,22 @@ async function research(env,input){
  return lookupBudgetYears(env,a,scope=>researchYear(env,input,{...scope,policy:{...scope.policy,notices:[...scope.policy.notices]}},started));
 }
 async function similarBusinessEvidence(env,a,found){
- if(a.policy.source_preference!=='expenditure'||a.topic_intent||a.departments?.length||a.document_id)return [];
- const name=similarBusinessCandidate(a.query);
+ if(a.policy.source_preference!=='expenditure'||a.topic_intent)return [];
+ const name=similarBusinessCandidate(a.query,(a.departments||[]).map(department=>department.name));
  if(!name||found.some(hit=>hasBusinessRow(hit.text,name.requested)))return [];
- const sourcePattern=Array.from(name.requested).join('\\s*');
- const query=a.query.replace(new RegExp(sourcePattern),name.similar);
- const policy={...a.policy,institution_scope:{...a.policy.institution_scope,city_retrieval_query:query}};
- const hits=await searchYear(env,{...a,query,policy,limit:Math.max(a.limit,8)});
- const rows=await evidenceFor(env,hits.results,false,query);
  const metadata=postingQueryScope(a.query,'expenditure').metadata;
- return rows.flatMap(row=>{
+ const extract=rows=>rows.flatMap(row=>{
   if(row.source_family!=='expenditure'||metadata.some(word=>!(row.title+' '+row.account).replace(/\s/g,'').toLowerCase().includes(word)))return [];
   const candidates=similarBusinessRows(row.text,name.requested,name.similar);
   return candidates.length?[{...row,match_kind:'similar',similar_business:{requested_name:name.requested,original_name:candidates[0].name,row_kind:candidates[0].kind,source_excerpt:candidates[0].source_excerpt}}]:[];
  });
+ const existing=extract(found);
+ if(existing.length)return existing;
+ const sourcePattern=Array.from(name.requested).join('\\s*');
+ const query=a.query.replace(new RegExp(sourcePattern),name.similar);
+ const policy={...a.policy,institution_scope:{...a.policy.institution_scope,city_retrieval_query:query}};
+ const hits=await searchYear(env,{...a,query,policy,limit:Math.max(a.limit,8)});
+ return extract(await evidenceFor(env,hits.results,false,query));
 }
 async function researchYear(env,input,a,started){
  const diag=createDiagnostics();

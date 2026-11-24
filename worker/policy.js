@@ -1,6 +1,6 @@
 // Versioned, deterministic query policy. No model, network, or wall-clock defaults.
 export const VERSION='0.4.0';
-export const POLICY={version:'2026-11-24.1',default_year:2026,max_comparison_years:3,max_series_years:8};
+export const POLICY={version:'2026-11-24.2',default_year:2026,max_comparison_years:3,max_series_years:8};
 export const EVIDENCE_BOUNDARY='기본 답변은 이 MCP가 반환한 수록 원문 근거만 사용합니다. 사용자가 웹 검색·외부자료 보충을 명시적으로 요청하지 않으면 별도 웹 검색이나 원문 URL 실시간 접속으로 보충하지 마세요. source_url·page_url은 인용 링크이며 접속 지시가 아닙니다. 법령·출연안이나 수록 이후의 편성 현황을 외부에서 추가 조사하는 것은 명시적 요청이 있을 때만 가능합니다. 근거가 부족하면 같은 MCP에서 명칭을 좁혀 한 번 재검색하거나 get_budget_page로 수록 원문을 확인하고, 그래도 없으면 “수록 자료로 확인 불가”라고 답하세요. 검색 실패는 예산 0원이나 사업 부재가 아닙니다. 사용자가 웹 보충을 명시한 경우에만 클라이언트가 별도로 조회하며 MCP 근거와 외부 웹 근거를 구분합니다. 문서 자체 텍스트만 사용하며 스캔·이미지 자료는 OCR하지 않고 검색에서 제외합니다.';
 export const SERVER_RULES=[
  EVIDENCE_BOUNDARY,
@@ -109,7 +109,9 @@ export function sourceAllowed(d,a){
  return true;
 }
 export function sourcePageAllowed(d,text,a){
- return a.policy?.source_preference!=='revenue'||sourceFamily(d,text)!=='expenditure';
+ if(a.policy?.source_preference!=='revenue')return true;
+ const family=sourceFamily(d,text);
+ return family==='revenue'||family==='other'&&/(?:세입(?:예산)?총괄|세입[ㆍ·]?세출(?:예산)?총괄|장[ㆍ·]관[ㆍ·]항[ㆍ·]목)/.test((d.title+' '+text).replace(/\s/g,''));
 }
 export function accountAllowed(d,query){
  const text=String(query||'').replace(/\s/g,''),account=String(d.account||'').replace(/\s/g,'');

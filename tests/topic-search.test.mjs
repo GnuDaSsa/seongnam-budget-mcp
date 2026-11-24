@@ -17,6 +17,13 @@ function newProjects(r){
  assert(training.topic_matches.some(m=>/AI 인재양성지원사업\s+600,000/.test(m.source_excerpt)));assert(manufacturing.topic_matches.some(m=>/제조AI.*700,000/.test(m.source_excerpt)));
  assert(!manufacturing.classification.matched_paths.some(p=>/팹리스/.test(p.detailed_business||'')));
 }
+test('다섯 근거에서도 서로 다른 본예산 AI 사업과 추경 근거를 확보한다',async()=>{
+ const r=await research('2026년 성남시 인공지능 관련 예산 알려줘',{limit:5});
+ assert.equal(r.evidence.length,5);
+ const body=r.evidence.map(e=>e.text.replace(/\s/g,'')).join('\n');
+ for(const name of ['AI·IoT기반어르신건강관리사업','생성형AI확산','제조AI솔루션개발지원센터구축사업'])assert(body.includes(name),name);
+ assert(r.evidence.some(e=>e.budget_type==='추경'));
+});
 test('joined AI topic query searches municipal business contents and preserves both new supplement projects',async()=>{
  const r=await research('2025년도 Ai사업관련예산 찾아봐줘');verifiedTopic(r);newProjects(r);assert.deepEqual(r.query_interpretation.department_scope.names,[]);
  assert(r.evidence.length>4);assert(r.evidence.some(e=>e.budget_type==='본예산'));assert(r.evidence.every(e=>['본예산','추경'].includes(e.budget_type)));
