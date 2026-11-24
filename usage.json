@@ -1,0 +1,20 @@
+{
+  "timezone": "Asia/Seoul",
+  "first_day": "2026-11-24",
+  "last_day": "2026-11-24",
+  "total_calls": 5,
+  "benchmark_calls": 3,
+  "unclassified_calls": 2,
+  "success_calls": 5,
+  "error_calls": 0,
+  "daily": [
+    {
+      "day": "2026-11-24",
+      "total_calls": 5,
+      "benchmark_calls": 3,
+      "unclassified_calls": 2,
+      "success_calls": 5,
+      "error_calls": 0
+    }
+  ]
+}
