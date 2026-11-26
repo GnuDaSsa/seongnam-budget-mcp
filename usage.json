@@ -1,12 +1,12 @@
 {
   "timezone": "Asia/Seoul",
   "first_day": "2026-11-24",
-  "last_day": "2026-11-25",
-  "total_calls": 17490,
+  "last_day": "2026-11-27",
+  "total_calls": 17514,
   "benchmark_calls": 17379,
-  "unclassified_calls": 111,
-  "success_calls": 17475,
-  "error_calls": 15,
+  "unclassified_calls": 135,
+  "success_calls": 17497,
+  "error_calls": 17,
   "daily": [
     {
       "day": "2026-11-24",
@@ -23,6 +23,22 @@
       "unclassified_calls": 105,
       "success_calls": 16308,
       "error_calls": 15
+    },
+    {
+      "day": "2026-11-26",
+      "total_calls": 12,
+      "benchmark_calls": 0,
+      "unclassified_calls": 12,
+      "success_calls": 11,
+      "error_calls": 1
+    },
+    {
+      "day": "2026-11-27",
+      "total_calls": 12,
+      "benchmark_calls": 0,
+      "unclassified_calls": 12,
+      "success_calls": 11,
+      "error_calls": 1
     }
   ]
 }
